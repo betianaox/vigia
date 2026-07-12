@@ -37,7 +37,8 @@ export const DEFAULT_PREFS: Prefs = {
   gameFormat: 'ventajas',
   length: 'tres_sets',
   thirdSet: 'set_normal',
-  changeEnds: 'games_impares',
+  /** Como se juega de verdad en un club: se cambia de lado al terminar el set, no cada game impar. */
+  changeEnds: 'fin_de_set',
 };
 
 /**

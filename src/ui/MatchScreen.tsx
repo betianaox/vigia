@@ -2,7 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useMemo, useState } from 'react';
-import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { reduce, undo } from '../engine';
@@ -53,12 +53,22 @@ const initials = (name: string): string => {
 const tick = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 const thud = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
+/**
+ * La cancha ya NO es dueña del log de eventos: lo recibe y avisa cuando cambia.
+ *
+ * El dueño es App, que lo persiste en cada evento. Asi el partido no depende de que esta
+ * pantalla siga viva: si Android mata la app en el entretiempo, el log ya esta en disco.
+ */
 export function MatchScreen({
   config,
+  events,
+  onEvents,
   onHome,
 }: {
   config: MatchConfig;
-  /** Todavia no existe la pantalla de inicio: sin esto, el boton de la casita va apagado. */
+  events: MatchEvent[];
+  onEvents: (next: MatchEvent[]) => void;
+  /** Salir. Siempre queda guardado y se puede retomar desde el inicio. */
   onHome?: () => void;
 }) {
   useKeepAwake();
@@ -66,14 +76,19 @@ export function MatchScreen({
   const m = useMetrics();
   const s = useMemo(() => makeStyles(m), [m]);
 
-  const [events, setEvents] = useState<MatchEvent[]>([]);
   const [shotFor, setShotFor] = useState<number | null>(null);
   const [rotated, setRotated] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [abandoned, setAbandoned] = useState(false);
 
   const state = useMemo(() => reduce(config, events), [config, events]);
-  const push = (e: MatchEvent) => setEvents((prev) => [...prev, e]);
+
+  /**
+   * La hora la pone la UI, NUNCA el motor: `reduce` tiene que seguir siendo una funcion pura
+   * del log. De este campo salen la fecha del partido, su duracion, la de cada set, la de
+   * cada game y el ritmo de juego. Cero taps de mas.
+   */
+  const push = (e: MatchEvent) => onEvents([...events, { ...e, t: Date.now() }]);
 
   if (showStats) {
     return (
@@ -101,16 +116,14 @@ export function MatchScreen({
    */
   const registerPointWithShot = (type: RallyAction, player: PlayerId) => {
     thud();
-    setEvents((prev) => {
-      setShotFor(prev.length);
-      return [...prev, { type, player }];
-    });
+    setShotFor(events.length);
+    push({ type, player });
   };
 
   const setShot = (shot: Shot) => {
     if (shotFor === null) return;
     tick();
-    setEvents((prev) => prev.map((e, i) => (i === shotFor && 'player' in e ? { ...e, shot } : e)));
+    onEvents(events.map((e, i) => (i === shotFor && 'player' in e ? { ...e, shot } : e)));
     setShotFor(null);
   };
 
@@ -159,23 +172,16 @@ export function MatchScreen({
   };
 
   /**
-   * Volver al inicio TIRA EL PARTIDO. Todavia no hay guardado: lo que se cargo se pierde
-   * entero. Se confirma siempre — y cuando exista el historial, este cartel cambia de "se va
-   * a perder" a "se guarda y volves", que es lo que uno espera.
+   * Salir NO PREGUNTA NADA. El partido se guarda en cada evento, asi que dejarlo a medias y
+   * volver despues es un caso normal — no hay ninguna decision que tomar, y un dialogo que
+   * pregunta sobre algo que ya esta resuelto solo miente sobre que hay algo en juego.
+   *
+   * Terminar un partido se hace en UN solo lugar: la tarjeta del inicio. Dos caminos para lo
+   * mismo es como no tener ninguno.
    */
-  const confirmHome = () => {
-    if (!onHome) return;
+  const goHome = () => {
     tick();
-    Alert.alert(
-      '¿Volver al inicio?',
-      state.finished
-        ? 'El partido ya terminó. Todavía no se guarda en ningún lado, así que no vas a poder volver a verlo.'
-        : 'El partido en curso se va a perder: los puntos, los golpes, todo. Todavía no hay guardado.',
-      [
-        { text: 'Seguir acá', style: 'cancel' },
-        { text: 'Volver al inicio', style: 'destructive', onPress: onHome },
-      ],
-    );
+    onHome?.();
   };
 
   /** El reglamento permite las dos cosas al empezar un set. El motor decide cuando es legal. */
@@ -310,7 +316,7 @@ export function MatchScreen({
                   p && s.pressed,
                 ]}
                 android_ripple={ripple}
-                onPress={confirmHome}
+                onPress={goHome}
                 disabled={!onHome}
               >
                 <MaterialIcons name="home" size={m.card.avatarMax * 0.55} color={colors.text} />
@@ -350,7 +356,7 @@ export function MatchScreen({
           android_ripple={ripple}
           onPress={() => {
             tick();
-            setEvents(undo);
+            onEvents(undo(events));
           }}
           disabled={events.length === 0}
         >
@@ -391,7 +397,7 @@ export function MatchScreen({
             p && s.pressed,
           ]}
           android_ripple={ripple}
-          onPress={confirmHome}
+          onPress={goHome}
           disabled={!onHome}
         >
           <MaterialIcons name="home" size={m.bottom.icon} color={colors.text} />
@@ -409,6 +415,7 @@ export function MatchScreen({
           onSkip={() => setShotFor(null)}
         />
       )}
+
     </SafeAreaView>
   );
 }

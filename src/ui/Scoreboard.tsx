@@ -32,7 +32,12 @@ import { alpha, colors, radius, teamColor } from './theme';
  * por su cuenta quedarian todos distintos, que es peor que que sean chicos— y si ni al
  * minimo entra, ahi si se corta con puntos suspensivos.
  */
-const nameFontSize = (m: Metrics, config: MatchConfig, state: MatchState): number => {
+const nameFontSize = (
+  m: Metrics,
+  config: MatchConfig,
+  state: MatchState,
+  boxW: number,
+): number => {
   const b = m.board;
   const pointsW = b.cellW + Math.round(b.cellW * 0.5);
 
@@ -43,7 +48,7 @@ const nameFontSize = (m: Metrics, config: MatchConfig, state: MatchState): numbe
     (col.games ? b.cellW : 0) +
     (col.points ? pointsW : 0);
 
-  const nameW = m.availW - b.padH * 2 - b.ballSlot - colsW - b.gap * (cols + 1);
+  const nameW = boxW - b.padH * 2 - b.ballSlot - colsW - b.gap * (cols + 1);
   const longest = Math.max(
     ...Object.values(config.players).map((p) => p.name.length),
     1,
@@ -65,10 +70,27 @@ const columns = (state: MatchState) => ({
   points: !state.finished,
 });
 
-export function Scoreboard({ config, state }: { config: MatchConfig; state: MatchState }) {
+export function Scoreboard({
+  config,
+  state,
+  width,
+}: {
+  config: MatchConfig;
+  state: MatchState;
+  /**
+   * Contra que ancho se miden los nombres. Por defecto, la pantalla — que es lo que ocupa en
+   * la cancha. Metido adentro de una tarjeta tiene bastante menos, y si no se entera, calcula
+   * un tamano de fuente que no entra y los corta.
+   */
+  width?: number;
+}) {
   const m = useMetrics();
   const s = useMemo(() => makeStyles(m), [m]);
-  const nameSize = useMemo(() => nameFontSize(m, config, state), [m, config, state]);
+  const boxW = width ?? m.availW;
+  const nameSize = useMemo(
+    () => nameFontSize(m, config, state, boxW),
+    [m, config, state, boxW],
+  );
   const label = state.isSuperTiebreak ? 'SÚPER TIEBREAK' : state.inTiebreak ? 'TIEBREAK' : null;
   const col = columns(state);
 

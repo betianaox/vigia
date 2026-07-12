@@ -1,10 +1,23 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  Animated,
+  Easing,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { reduce } from '../engine';
 import type { Formation, MatchConfig, Player, TeamId } from '../engine';
+import { type SavedMatch } from '../store/matches';
+import { Scoreboard } from './Scoreboard';
 import {
   addPlayer,
   DEFAULT_PREFS,
@@ -67,7 +80,22 @@ const FORMATIONS = [
   { value: 'cambio', label: 'Cambiando de lado' },
 ] as const;
 
-export function SetupScreen({ onStart }: { onStart: (config: MatchConfig) => void }) {
+export function SetupScreen({
+  onStart,
+  onHistory,
+  resumable,
+  onResume,
+  onClosePending,
+}: {
+  onStart: (config: MatchConfig) => void;
+  onHistory: () => void;
+  /** El partido que quedo a medias, si hay uno. */
+  resumable: SavedMatch | null;
+  onResume: (m: SavedMatch) => void;
+  /** Cerrarlo: deja de ofrecerse, pero queda en el historial como sin terminar. */
+  onClosePending: () => void;
+}) {
+  const { width } = useWindowDimensions();
   const [roster, setRoster] = useState<Player[]>([]);
   const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS);
   /** Lo escrito en cada lugar. El jugador se resuelve al empezar, no antes. */
@@ -82,6 +110,75 @@ export function SetupScreen({ onStart }: { onStart: (config: MatchConfig) => voi
   const [advanced, setAdvanced] = useState(false);
   const [drawing, setDrawing] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /** Hay un partido en curso: no se puede empezar otro sin decidir que paso con este. */
+  const busy = resumable !== null;
+
+  /**
+   * El partido a medias, reconstruido del log.
+   *
+   * No se resume a un string: se le da el estado entero al MISMO tanteador de la cancha. Un
+   * texto tipo "6-4 · 40-30" siempre tiene un partido que lo corta —un tercer set, un
+   * tiebreak— y no hay ancho que lo salve. Con columnas no existe el caso largo, y de paso
+   * quien vuelve a la app ve exactamente lo que dejo, dibujado igual que como lo dejo.
+   */
+  const pending = useMemo(() => {
+    if (!resumable) return null;
+    return {
+      config: resumable.config,
+      state: reduce(resumable.config, resumable.events),
+      match: resumable,
+    };
+  }, [resumable]);
+
+  /** Lo que le queda al tanteador adentro de la tarjeta: la pantalla, menos los dos padding. */
+  const boardW = width - space.lg * 2 - space.md * 2;
+
+  /**
+   * El relevo entre la tarjeta del partido en curso y el formulario.
+   *
+   * `shown` va UN PASO ATRAS de `busy`: al terminar el partido, `resumable` se vuelve null en
+   * el acto, pero la tarjeta tiene que quedarse en pantalla el tiempo que dura su salida. Sin
+   * esto no hay fade — hay un parpadeo. Por eso tambien se retiene una copia del partido
+   * (`held`): lo que se dibuja mientras se va ya no existe en el estado.
+   */
+  const [shown, setShown] = useState<'busy' | 'form'>(busy ? 'busy' : 'form');
+  const held = useRef(pending);
+  if (pending) held.current = pending;
+
+  const fade = useRef(new Animated.Value(1)).current;
+  const rise = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const next = busy ? 'busy' : 'form';
+    if (next === shown) return;
+
+    // Se va lo viejo, entra lo nuevo. Nunca los dos juntos: se pisarian.
+    Animated.timing(fade, {
+      toValue: 0,
+      duration: 140,
+      easing: Easing.in(Easing.quad),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (!finished) return;
+      setShown(next);
+      rise.setValue(12); // entra desde abajo: el movimiento es lo que lo hace sentir vivo
+      Animated.parallel([
+        Animated.timing(fade, {
+          toValue: 1,
+          duration: 260,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(rise, {
+          toValue: 0,
+          duration: 300,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    });
+  }, [busy, shown, fade, rise]);
 
   // Si la pantalla se va a la mitad del sorteo, no queda un timer suelto tocando estado muerto.
   useEffect(() => () => {
@@ -182,13 +279,83 @@ export function SetupScreen({ onStart }: { onStart: (config: MatchConfig) => voi
     });
   };
 
+  /** Lo que se esta dibujando AHORA, que durante el relevo no es lo mismo que `busy`. */
+  const onCourt = shown === 'busy';
+  const card = held.current;
+
   return (
     <SafeAreaView style={s.root}>
       <ScrollView contentContainerStyle={s.page}>
         <View style={s.head}>
-          <Brand subtitle="Partido nuevo" />
+          <Brand subtitle={onCourt ? 'Partido en curso' : 'Partido nuevo'} tint={colors.ball} />
         </View>
 
+        <Animated.View
+          style={[
+            s.body,
+            /* Sin formulario, la tarjeta sola arriba dejaba media pantalla muerta. Centrada, el
+               vacio deja de leerse como "falta algo" y pasa a leerse como "esto es todo". */
+            onCourt && s.bodyCentered,
+            { opacity: fade, transform: [{ translateY: rise }] },
+          ]}
+        >
+        {/* El partido que quedo a medias. Si alguien vuelve a abrir la app despues de que
+            Android la mato en el entretiempo, esto es lo unico que quiere ver. Nada se perdio
+            — el log estaba en disco.
+
+            Y mientras haya uno en curso, NO SE PUEDE EMPEZAR OTRO: hay que decidir que paso
+            con este. Si no, se acumulan partidos huerfanos en silencio y nadie los termina
+            nunca. Terminar un partido se hace aca, en un solo lugar. */}
+        {onCourt && card ? (
+          <View style={s.resume}>
+            {/* Arriba de todo, chico y apagado: dice QUE es esta tarjeta, y despues se calla.
+                No compite con lo unico que importa mirar, que es el tanteo. */}
+            <Text style={s.resumeEyebrow}>PARTIDO SIN TERMINAR</Text>
+
+            {/* El MISMO tanteador de la cancha, con el estado tal cual quedo: los nombres
+                enteros, la pelotita en quien tenia el saque, el punto en vivo. Quien vuelve
+                a la app no lee un resumen del partido — ve el partido. */}
+            <View style={s.resumeBoard}>
+              <Scoreboard config={card.config} state={card.state} width={boardW} />
+            </View>
+
+            <View style={s.resumeActions}>
+              <Pressable
+                style={({ pressed: pr }) => [s.resumeBtn, s.resumeGo, pr && pressed]}
+                android_ripple={ripple}
+                onPress={() => {
+                  tick();
+                  onResume(card.match);
+                }}
+              >
+                <MaterialIcons name="play-arrow" size={22} color={colors.text} />
+                <Text style={s.resumeBtnText}>Seguir</Text>
+              </Pressable>
+
+              {/* SIN CONFIRMACION. Esta tarjeta YA ES la pregunta: dice que hay un partido a
+                  medias y ofrece las dos respuestas, una al lado de la otra. Un dialogo encima
+                  seria preguntar dos veces lo mismo — y a la segunda nadie lee, se toca el
+                  boton de la derecha y listo. Una confirmacion que no se lee no protege nada:
+                  solo agrega un toque.
+
+                  Terminarlo tampoco borra nada: el partido queda en el historial como "sin
+                  terminar", con las estadisticas de lo que se jugo. Lo unico que se pierde es
+                  poder seguir anotandolo. */}
+              <Pressable
+                style={({ pressed: pr }) => [s.resumeBtn, s.resumeEnd, pr && pressed]}
+                android_ripple={ripple}
+                onPress={() => {
+                  tick();
+                  onClosePending();
+                }}
+              >
+                <MaterialIcons name="flag" size={20} color={colors.textDim} />
+                <Text style={s.resumeBtnTextDim}>Terminar</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : (
+          <>
         {(['A', 'B'] as TeamId[]).map((team) => (
           <View key={team} style={s.block}>
             <Text style={[s.blockTitle, { color: teamColor(team) }]}>
@@ -250,6 +417,10 @@ export function SetupScreen({ onStart }: { onStart: (config: MatchConfig) => voi
           value={firstServingTeam}
           onChange={(v) => setFirstServingTeam(v as TeamId)}
           disabled={drawing}
+          /* Cada equipo con SU color: es el mismo violeta y naranja de la cancha y del
+             tanteador. Sin esto, "Equipo 1" y "Equipo 2" son dos palabras iguales y hay que
+             leerlas; con el color, se reconocen sin leer. */
+          colorOf={(v) => teamColor(v as TeamId)}
           right={
             <Pressable
               style={({ pressed: pr }) => [s.draw, drawing && s.drawOn, pr && pressed]}
@@ -332,26 +503,41 @@ export function SetupScreen({ onStart }: { onStart: (config: MatchConfig) => voi
             <Text style={s.hint}>La app recuerda esto para el próximo partido.</Text>
           </>
         )}
+          </>
+        )}
 
-        <Pressable
-          style={({ pressed: pr }) => [s.start, !ready && s.startOff, pr && pressed]}
-          android_ripple={ripple}
-          onPress={start}
-          disabled={!ready}
-        >
-          <MaterialIcons
-            name="play-arrow"
-            size={26}
-            color={ready ? colors.text : colors.textFaint}
-          />
-          <Text style={[s.startText, !ready && s.startTextOff]}>Empezar</Text>
-        </Pressable>
+        {/* Los dos juntos, en la misma fila: apilados, el Historial se iba abajo del pliegue y
+            era como si no existiera. Empezar se lleva el ancho porque es lo que se toca. */}
+        <View style={s.actions}>
+          {!onCourt && (
+            <Pressable
+              style={({ pressed: pr }) => [s.start, !ready && s.startOff, pr && pressed]}
+              android_ripple={ripple}
+              onPress={start}
+              disabled={!ready}
+            >
+              <MaterialIcons
+                name="play-arrow"
+                size={26}
+                color={ready ? colors.text : colors.textFaint}
+              />
+              <Text style={[s.startText, !ready && s.startTextOff]}>Empezar</Text>
+            </Pressable>
+          )}
 
-        {/* Todavia no hay guardado de partidos: el historial no tiene nada que mostrar. */}
-        <Pressable style={[s.history, s.off]} disabled>
-          <MaterialIcons name="history" size={20} color={colors.textDim} />
-          <Text style={s.historyText}>Historial</Text>
-        </Pressable>
+          <Pressable
+            style={({ pressed: pr }) => [s.history, onCourt && s.historyWide, pr && pressed]}
+            android_ripple={ripple}
+            onPress={() => {
+              tick();
+              onHistory();
+            }}
+          >
+            <MaterialIcons name="history" size={22} color={colors.textDim} />
+            <Text style={s.historyText}>Historial</Text>
+          </Pressable>
+        </View>
+        </Animated.View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -366,6 +552,8 @@ function Segmented(props: {
   /** Una accion al lado del titulo (el sorteo del saque). */
   right?: ReactNode;
   disabled?: boolean;
+  /** Un color propio por opcion (los equipos). Sin esto, el segmento va en gris neutro. */
+  colorOf?: (value: string) => string;
 }) {
   return (
     <View style={s.segBlock}>
@@ -376,10 +564,20 @@ function Segmented(props: {
       <View style={s.segRow}>
         {props.options.map((o) => {
           const on = o.value === props.value;
+          const c = props.colorOf?.(o.value);
           return (
             <Pressable
               key={o.value}
-              style={({ pressed: pr }) => [s.seg, on && s.segOn, pr && pressed]}
+              style={({ pressed: pr }) => [
+                s.seg,
+                on && s.segOn,
+                /* Con color propio, los DOS van del color de su equipo — nunca en gris. Lo que
+                   distingue al elegido es el BORDE BLANCO, que es el mismo vocabulario de la
+                   cancha: alla, el borde blanco marca al que saca. Nada nuevo que aprender. */
+                c && { backgroundColor: alpha(c, on ? 0.24 : 0.1), borderColor: alpha(c, 0.45) },
+                c && on && { borderColor: colors.serve },
+                pr && pressed,
+              ]}
               android_ripple={ripple}
               onPress={() => {
                 tick();
@@ -387,7 +585,10 @@ function Segmented(props: {
               }}
               disabled={props.disabled}
             >
-              <Text style={[s.segText, on && s.segTextOn]} numberOfLines={1}>
+              <Text
+                style={[s.segText, on && s.segTextOn, c && { color: c }]}
+                numberOfLines={1}
+              >
                 {o.label}
               </Text>
             </Pressable>
@@ -404,9 +605,56 @@ function Segmented(props: {
  */
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  page: { padding: space.lg, gap: space.lg, paddingBottom: space.xl },
+  /** `flexGrow` para que el contenido pueda OCUPAR la pantalla aunque no la llene: sin esto,
+      centrar no significa nada — el contenedor mide lo mismo que su contenido. */
+  page: { flexGrow: 1, padding: space.lg, gap: space.lg, paddingBottom: space.xl },
 
   head: { marginBottom: space.md },
+
+  body: { gap: space.lg },
+  /** La tarjeta y el historial en el centro optico —un poco arriba del geometrico, que es donde
+      el ojo espera encontrarlos— y no colgando del titulo con medio telefono vacio abajo. */
+  bodyCentered: { flex: 1, justifyContent: 'center', paddingBottom: '18%' },
+
+  /**
+   * El partido a medias. Ya no comparte la pantalla con el formulario, asi que dejo de estar
+   * apretada: es lo unico que hay, y puede ocupar lo que necesite para no esconder nada.
+   */
+  resume: {
+    gap: space.md,
+    padding: space.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: alpha(colors.cta, 0.6),
+    backgroundColor: alpha(colors.cta, 0.14),
+  },
+  resumeEyebrow: {
+    color: colors.textDim,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+  /** El tanteador trae su propio fondo: `overflow` lo recorta al radio en vez de dejar esquinas. */
+  resumeBoard: { borderRadius: radius.sm, overflow: 'hidden' },
+
+  /**
+   * La separacion es la unica proteccion que tiene Terminar, porque ya no hay confirmacion:
+   * los dos botones no pueden tocarse. Y Seguir se lleva mas ancho — es lo que se va a tocar
+   * casi siempre, y de paso Terminar deja de ser un blanco del mismo tamano justo al lado.
+   */
+  resumeActions: { flexDirection: 'row', gap: space.lg },
+  resumeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space.sm,
+    height: 52,
+    borderRadius: radius.sm,
+  },
+  resumeGo: { flex: 3, backgroundColor: colors.cta },
+  resumeEnd: { flex: 2, borderWidth: 1, borderColor: alpha(colors.text, 0.2) },
+  resumeBtnText: { color: colors.text, fontSize: 14, fontWeight: '900' },
+  resumeBtnTextDim: { color: colors.textDim, fontSize: 14, fontWeight: '800' },
 
   block: { gap: space.sm },
   blockTitle: { fontSize: 11, fontWeight: '900', letterSpacing: 1.5, marginBottom: 2 },
@@ -489,7 +737,10 @@ const s = StyleSheet.create({
   },
   advancedText: { flex: 1, color: colors.textDim, fontSize: 13, fontWeight: '700' },
 
+  actions: { flexDirection: 'row', gap: space.sm, marginTop: space.md },
+  /** Empezar se lleva algo mas de ancho, pero no aplasta al Historial: los dos son destinos. */
   start: {
+    flex: 3,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -497,9 +748,8 @@ const s = StyleSheet.create({
     height: 56,
     borderRadius: radius.md,
     backgroundColor: colors.cta,
-    marginTop: space.md,
   },
-  startText: { color: colors.text, fontSize: 17, fontWeight: '900' },
+  startText: { color: colors.text, fontSize: 16, fontWeight: '900' },
   /**
    * Deshabilitado NO es "el mismo boton mas transparente": el lima al 35% sobre fondo oscuro
    * da un verde oliva sucio que no se lee como apagado, se lee como roto. Se apaga cambiando
@@ -509,14 +759,20 @@ const s = StyleSheet.create({
   startTextOff: { color: colors.textFaint },
   off: { opacity: 0.45 },
 
+  /** El icono y el texto EN LINEA, como Empezar. Mas angosto, porque se toca menos. */
   history: {
+    flex: 2,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: space.sm,
-    height: 48,
+    height: 56,
     borderRadius: radius.md,
-    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: alpha(colors.text, 0.2),
+    backgroundColor: colors.surfaceAlt,
   },
-  historyText: { color: colors.textDim, fontSize: 14, fontWeight: '700' },
+  /** Sin el formulario, el Historial es lo unico que queda: se lleva todo el ancho. */
+  historyWide: { flex: 1 },
+  historyText: { color: colors.textDim, fontSize: 14, fontWeight: '800' },
 });

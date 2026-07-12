@@ -150,7 +150,7 @@ export interface MatchConfig {
  * Ni LET, ni FALTA, ni ACE llevan jugador: el sacador se deriva. Un evento menos que
  * puede quedar mal cargado.
  */
-export type MatchEvent =
+export type MatchEvent = (
   /** Saque a la red. Se repite; no avanza el contador de saques. */
   | { type: 'LET' }
   /** Falta de saque. Primer saque -> segundo. Segundo saque -> doble falta. */
@@ -169,7 +169,20 @@ export type MatchEvent =
    */
   | { type: 'CAMBIO_POSICION'; team: TeamId }
   /** Escape hatch. Deja el partido marcado: las estadisticas ya no reconcilian. */
-  | { type: 'CORRECCION_MANUAL'; sets: Array<Record<TeamId, number>>; games: Record<TeamId, number> };
+  | { type: 'CORRECCION_MANUAL'; sets: Array<Record<TeamId, number>>; games: Record<TeamId, number> }
+) & {
+  /**
+   * Cuando paso, en milisegundos desde epoch. Lo pone la UI al crear el evento, NUNCA el
+   * motor: `reduce` tiene que seguir siendo una funcion pura del log, y una llamada a
+   * Date.now() adentro la volveria impredecible y no testeable.
+   *
+   * Es opcional porque el tiempo es ORTOGONAL al tanteo: derivar el marcador, el sacador y el
+   * restador no necesita saber la hora, y los tests del motor no tienen por que inventarla.
+   * Pero todo evento que sale de la app la lleva, y de ahi salen la fecha del partido, su
+   * duracion, la de cada set, la de cada game y el ritmo de juego.
+   */
+  t?: number;
+};
 
 /** Con que saque se jugo el punto. Necesario para las estadisticas de saque. */
 export type ServeState = 'PRIMERO' | 'SEGUNDO';
