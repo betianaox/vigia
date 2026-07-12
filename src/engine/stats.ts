@@ -50,7 +50,52 @@ export interface TeamStats {
   breakPointsSaved: number;
 
   goldenPointsWon: number;
+
+  // Agregados de los dos jugadores. Los calcula el motor para que la pantalla no sume.
+  winners: number;
+  forcedErrors: number;
+  unforcedErrors: number;
+  aces: number;
+  doubleFaults: number;
+  servePointsPlayed: number;
+  firstServesIn: number;
+  firstServePointsPlayed: number;
+  firstServePointsWon: number;
+  secondServePointsPlayed: number;
+  secondServePointsWon: number;
 }
+
+/** Como le rindio un golpe: cuantos winners dio y cuantos errores costo. */
+export interface ShotLine {
+  shot: Shot;
+  winners: number;
+  forced: number;
+  unforced: number;
+  total: number;
+}
+
+/**
+ * El rendimiento de cada golpe, ordenado por uso. Es el desglose que ningun reloj
+ * puede dar: para saber que la bandeja generó 4 errores no forzados hace falta que
+ * alguien, desde afuera, haya juzgado cada punto.
+ */
+export const shotLines = (
+  p: Pick<PlayerStats, 'winnersByShot' | 'forcedByShot' | 'unforcedByShot'>,
+): ShotLine[] => {
+  const shots = new Set<Shot>([
+    ...(Object.keys(p.winnersByShot) as Shot[]),
+    ...(Object.keys(p.forcedByShot) as Shot[]),
+    ...(Object.keys(p.unforcedByShot) as Shot[]),
+  ]);
+  return [...shots]
+    .map((shot) => {
+      const winners = p.winnersByShot[shot] ?? 0;
+      const forced = p.forcedByShot[shot] ?? 0;
+      const unforced = p.unforcedByShot[shot] ?? 0;
+      return { shot, winners, forced, unforced, total: winners + forced + unforced };
+    })
+    .sort((a, b) => b.total - a.total);
+};
 
 export interface MatchStats {
   players: Record<PlayerId, PlayerStats>;
@@ -106,7 +151,33 @@ const emptyTeam = (team: TeamId): TeamStats => ({
   breakPointsFaced: 0,
   breakPointsSaved: 0,
   goldenPointsWon: 0,
+  winners: 0,
+  forcedErrors: 0,
+  unforcedErrors: 0,
+  aces: 0,
+  doubleFaults: 0,
+  servePointsPlayed: 0,
+  firstServesIn: 0,
+  firstServePointsPlayed: 0,
+  firstServePointsWon: 0,
+  secondServePointsPlayed: 0,
+  secondServePointsWon: 0,
 });
+
+/** Los agregados del equipo son la suma de sus dos jugadores. */
+const AGGREGATED = [
+  'winners',
+  'forcedErrors',
+  'unforcedErrors',
+  'aces',
+  'doubleFaults',
+  'servePointsPlayed',
+  'firstServesIn',
+  'firstServePointsPlayed',
+  'firstServePointsWon',
+  'secondServePointsPlayed',
+  'secondServePointsWon',
+] as const;
 
 /**
  * Funcion pura sobre el mismo log de eventos que alimenta al motor. Por eso deshacer
@@ -216,7 +287,33 @@ export const computeStats = (config: MatchConfig, events: MatchEvent[]): MatchSt
   for (const t of ['A', 'B'] as TeamId[]) {
     teams[t].gamesWon =
       final.completedSets.reduce((n, s) => n + s.games[t], 0) + final.games[t];
+
+    for (const id of [config.teams[t].drive, config.teams[t].reves]) {
+      for (const k of AGGREGATED) teams[t][k] += players[id]![k];
+    }
   }
 
   return { players, teams, totalPoints, goldenPointsPlayed };
+};
+
+/** Suma los golpes de los dos jugadores de un equipo. */
+export const teamShotLines = (
+  stats: MatchStats,
+  config: MatchConfig,
+  team: TeamId,
+): ShotLine[] => {
+  const merge = (key: 'winnersByShot' | 'forcedByShot' | 'unforcedByShot'): ShotTally => {
+    const out: ShotTally = {};
+    for (const id of [config.teams[team].drive, config.teams[team].reves]) {
+      for (const [shot, n] of Object.entries(stats.players[id]![key]) as Array<[Shot, number]>) {
+        out[shot] = (out[shot] ?? 0) + n;
+      }
+    }
+    return out;
+  };
+  return shotLines({
+    winnersByShot: merge('winnersByShot'),
+    forcedByShot: merge('forcedByShot'),
+    unforcedByShot: merge('unforcedByShot'),
+  });
 };

@@ -1,12 +1,13 @@
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { computeStats, pct, winnerErrorRatio } from '../engine/stats';
-import type { PlayerStats, ShotTally } from '../engine/stats';
-import type { MatchConfig, MatchEvent, MatchState, Shot, TeamId } from '../engine';
+import { computeStats, pct, teamShotLines, winnerErrorRatio, shotLines } from '../engine/stats';
+import type { MatchStats, PlayerStats } from '../engine/stats';
+import type { MatchConfig, MatchEvent, MatchState, TeamId } from '../engine';
+import { HeadToHead, type Cell, type Row } from './charts/HeadToHead';
+import { ShotBars } from './charts/ShotBars';
 import { Scoreboard } from './Scoreboard';
-import { SHOT_LABELS } from './shots';
-import { alpha, colors, radius, space, teamColor } from './theme';
+import { colors, radius, space, teamColor } from './theme';
 
 const num = (n: number | null, suffix = ''): string =>
   n === null ? '—' : `${Math.round(n)}${suffix}`;
@@ -18,8 +19,74 @@ const ratio = (p: PlayerStats): string => {
   return r.toFixed(1);
 };
 
-const topShots = (t: ShotTally, n = 3): Array<[Shot, number]> =>
-  (Object.entries(t) as Array<[Shot, number]>).sort((a, b) => b[1] - a[1]).slice(0, n);
+const teamNames = (config: MatchConfig, t: TeamId): string =>
+  [config.teams[t].drive, config.teams[t].reves]
+    .map((p) => config.players[p]!.name.split(' ')[0])
+    .join(' / ');
+
+const initials = (name: string): string => {
+  const w = name.trim().split(/\s+/);
+  return (w.length > 1 ? w.map((x) => x[0]).join('') : w[0]!.slice(0, 2)).slice(0, 2).toUpperCase();
+};
+
+/**
+ * Las filas de la comparativa, POR JUGADOR. Un entrenador no corrige a un equipo:
+ * la suma por equipo esconde cual de los dos esta tirando los errores.
+ * Cada fila se escala sola: no se comparan entre si.
+ */
+const buildRows = (stats: MatchStats, config: MatchConfig): Row[] => {
+  const four = (['A', 'B'] as TeamId[]).map((t) =>
+    [config.teams[t].drive, config.teams[t].reves].map((id) => stats.players[id]!),
+  ) as [PlayerStats[], PlayerStats[]];
+
+  const cells = (
+    pick: (p: PlayerStats) => number,
+    fmt: (p: PlayerStats) => string,
+  ): Pick<Row, 'a' | 'b'> => ({
+    a: four[0].map((p) => ({ who: initials(p.name), text: fmt(p), value: pick(p) })) as [Cell, Cell],
+    b: four[1].map((p) => ({ who: initials(p.name), text: fmt(p), value: pick(p) })) as [Cell, Cell],
+  });
+
+  const count = (label: string, pick: (p: PlayerStats) => number): Row => ({
+    label,
+    ...cells(pick, (p) => `${pick(p)}`),
+  });
+
+  const percent = (
+    label: string,
+    won: (p: PlayerStats) => number,
+    played: (p: PlayerStats) => number,
+  ): Row => ({
+    label,
+    ...cells(
+      (p) => pct(won(p), played(p)) ?? 0,
+      (p) => num(pct(won(p), played(p)), '%'),
+    ),
+  });
+
+  return [
+    count('Winners', (p) => p.winners),
+    count('Errores no forzados', (p) => p.unforcedErrors),
+    count('Errores forzados', (p) => p.forcedErrors),
+    count('Aces', (p) => p.aces),
+    count('Dobles faltas', (p) => p.doubleFaults),
+    percent(
+      '1er saque adentro',
+      (p) => p.firstServesIn,
+      (p) => p.servePointsPlayed,
+    ),
+    percent(
+      'Gana con 1er saque',
+      (p) => p.firstServePointsWon,
+      (p) => p.firstServePointsPlayed,
+    ),
+    percent(
+      'Gana con 2do saque',
+      (p) => p.secondServePointsWon,
+      (p) => p.secondServePointsPlayed,
+    ),
+  ];
+};
 
 export function StatsScreen({
   config,
@@ -42,8 +109,7 @@ export function StatsScreen({
   const over = state.finished || finishedEarly;
 
   // En amateur las canchas se alquilan por tiempo: terminar antes NO es un caso de
-  // borde, es como termina la mayoria de los partidos. Pero es destructivo, asi que
-  // se confirma.
+  // borde, es como termina la mayoria de los partidos. Pero es destructivo: se confirma.
   const confirmFinish = () =>
     Alert.alert(
       '¿Terminar el partido?',
@@ -63,14 +129,57 @@ export function StatsScreen({
           <Text style={s.empty}>Todavía no se jugó ningún punto.</Text>
         ) : (
           <>
-            {(['A', 'B'] as TeamId[]).map((t) => (
-              <View key={t} style={s.block}>
-                <TeamBar config={config} team={t} stats={stats} />
-                {[config.teams[t].drive, config.teams[t].reves].map((id) => (
-                  <PlayerCard key={id} p={stats.players[id]!} />
-                ))}
+            {/* Lo primero que ves: quien va ganando cada cosa, sin leer un numero. */}
+            <Section title="Cara a cara">
+              {/* Puntos y breaks son del EQUIPO por naturaleza: van aparte, no en el
+                  grafico por jugador. */}
+              <View style={s.teamStrip}>
+                <TeamKpi
+                  value={`${stats.teams.A.pointsWon}`}
+                  sub={num(pct(stats.teams.A.pointsWon, stats.totalPoints), '%')}
+                  color={colors.teamA}
+                  align="flex-start"
+                />
+                <View style={s.teamStripMid}>
+                  <Text style={s.teamStripLabel}>Puntos ganados</Text>
+                  <Text style={s.teamStripLabel}>
+                    Breaks {stats.teams.A.breakPointsConverted}/{stats.teams.A.breakPointsPlayed}
+                    {'  ·  '}
+                    {stats.teams.B.breakPointsConverted}/{stats.teams.B.breakPointsPlayed}
+                  </Text>
+                </View>
+                <TeamKpi
+                  value={`${stats.teams.B.pointsWon}`}
+                  sub={num(pct(stats.teams.B.pointsWon, stats.totalPoints), '%')}
+                  color={colors.teamB}
+                  align="flex-end"
+                />
               </View>
+
+              <View style={s.divider} />
+
+              <HeadToHead
+                rows={buildRows(stats, config)}
+                nameA={teamNames(config, 'A')}
+                nameB={teamNames(config, 'B')}
+                colorA={colors.teamAFill}
+                colorB={colors.teamBFill}
+              />
+            </Section>
+
+            {(['A', 'B'] as TeamId[]).map((t) => (
+              <Section key={t} title="Golpes" accent={teamColor(t)} subtitle={teamNames(config, t)}>
+                <ShotBars lines={teamShotLines(stats, config, t)} />
+              </Section>
             ))}
+
+            <Section title="Jugador por jugador">
+              {(['A', 'B'] as TeamId[]).flatMap((t) =>
+                [config.teams[t].drive, config.teams[t].reves].map((id) => (
+                  <PlayerCard key={id} p={stats.players[id]!} />
+                )),
+              )}
+            </Section>
           </>
         )}
       </ScrollView>
@@ -103,37 +212,25 @@ export function StatsScreen({
   );
 }
 
-function TeamBar({
-  config,
-  team,
-  stats,
+function Section({
+  title,
+  subtitle,
+  accent,
+  children,
 }: {
-  config: MatchConfig;
-  team: TeamId;
-  stats: ReturnType<typeof computeStats>;
+  title: string;
+  subtitle?: string;
+  accent?: string;
+  children: React.ReactNode;
 }) {
-  const t = stats.teams[team];
-  const names = [config.teams[team].drive, config.teams[team].reves]
-    .map((p) => config.players[p]!.name.split(' ')[0])
-    .join(' / ');
-  const share = pct(t.pointsWon, stats.totalPoints);
-
   return (
-    <View style={[s.teamBar, { borderColor: alpha(teamColor(team), 0.4) }]}>
-      <Text style={[s.teamName, { color: teamColor(team) }]} numberOfLines={1}>
-        {names}
-      </Text>
-      <Stat label="Puntos" value={`${t.pointsWon}`} sub={num(share, '%')} />
-      <Stat
-        label="Breaks"
-        value={`${t.breakPointsConverted}/${t.breakPointsPlayed}`}
-        sub="convertidos"
-      />
-      <Stat
-        label="Salvados"
-        value={`${t.breakPointsSaved}/${t.breakPointsFaced}`}
-        sub="break points"
-      />
+    <View style={s.section}>
+      <View style={s.sectionHead}>
+        {accent ? <View style={[s.sectionDot, { backgroundColor: accent }]} /> : null}
+        <Text style={s.sectionTitle}>{title}</Text>
+        {subtitle ? <Text style={s.sectionSub}>{subtitle}</Text> : null}
+      </View>
+      <View style={s.card}>{children}</View>
     </View>
   );
 }
@@ -145,20 +242,20 @@ function PlayerCard({ p }: { p: PlayerStats }) {
   const won2 = pct(p.secondServePointsWon, p.secondServePointsPlayed);
 
   return (
-    <View style={s.card}>
+    <View style={s.player}>
       <View style={s.cardHead}>
         <View style={[s.dot, { backgroundColor: c }]} />
         <Text style={s.cardName}>{p.name}</Text>
         <View style={s.ratioBox}>
-          <Text style={[s.ratioValue, { color: c }]}>{ratio(p)}</Text>
+          <Text style={s.ratioValue}>{ratio(p)}</Text>
           <Text style={s.ratioLabel}>W / ENF</Text>
         </View>
       </View>
 
       <View style={s.grid}>
-        <Stat label="Winners" value={`${p.winners}`} color={colors.winner} />
-        <Stat label="E. forzados" value={`${p.forcedErrors}`} color={colors.errorForced} />
-        <Stat label="E. no forz." value={`${p.unforcedErrors}`} color={colors.errorUnforced} />
+        <Stat label="Winners" value={`${p.winners}`} />
+        <Stat label="E. forzados" value={`${p.forcedErrors}`} />
+        <Stat label="E. no forz." value={`${p.unforcedErrors}`} />
       </View>
 
       <View style={s.divider} />
@@ -175,53 +272,44 @@ function PlayerCard({ p }: { p: PlayerStats }) {
         <View style={s.statCell} />
       </View>
 
-      <ShotBreakdown title="Winners con" tally={p.winnersByShot} color={colors.winner} />
-      <ShotBreakdown title="Errores no forzados con" tally={p.unforcedByShot} color={colors.errorUnforced} />
+      {shotLines(p).length > 0 && (
+        <>
+          <View style={s.divider} />
+          <ShotBars lines={shotLines(p)} />
+        </>
+      )}
     </View>
   );
 }
 
-/** El desglose por golpe es lo que ningun reloj puede darte. */
-function ShotBreakdown({
-  title,
-  tally,
-  color,
-}: {
-  title: string;
-  tally: ShotTally;
-  color: string;
-}) {
-  const top = topShots(tally);
-  if (top.length === 0) return null;
-  return (
-    <View style={s.shots}>
-      <Text style={s.shotsTitle}>{title}</Text>
-      <View style={s.shotsRow}>
-        {top.map(([shot, n]) => (
-          <View key={shot} style={[s.chip, { borderColor: alpha(color, 0.45), backgroundColor: alpha(color, 0.12) }]}>
-            <Text style={[s.chipN, { color }]}>{n}</Text>
-            <Text style={s.chipLabel}>{SHOT_LABELS[shot]}</Text>
-          </View>
-        ))}
-      </View>
-    </View>
-  );
-}
-
-function Stat({
-  label,
+function TeamKpi({
   value,
   sub,
   color,
+  align,
 }: {
-  label: string;
   value: string;
-  sub?: string;
-  color?: string;
+  sub: string;
+  color: string;
+  align: 'flex-start' | 'flex-end';
 }) {
   return (
+    <View style={{ alignItems: align, gap: 2 }}>
+      {/* La cifra grande va en tinta; el color de equipo lo carga la pastilla de al lado. */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        {align === 'flex-start' && <View style={[s.dot, { backgroundColor: color }]} />}
+        <Text style={s.kpi}>{value}</Text>
+        {align === 'flex-end' && <View style={[s.dot, { backgroundColor: color }]} />}
+      </View>
+      <Text style={s.kpiSub}>{sub}</Text>
+    </View>
+  );
+}
+
+function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
     <View style={s.statCell}>
-      <Text style={[s.statValue, color ? { color } : null]}>{value}</Text>
+      <Text style={s.statValue}>{value}</Text>
       <Text style={s.statLabel}>{label}</Text>
       {sub ? <Text style={s.statSub}>{sub}</Text> : null}
     </View>
@@ -231,59 +319,52 @@ function Stat({
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   row: { flexDirection: 'row', gap: space.sm },
-  list: { padding: space.md, gap: space.lg },
+  list: { padding: space.md, gap: space.lg, paddingBottom: space.xl },
   empty: { color: colors.textFaint, textAlign: 'center', marginTop: space.xl },
 
-  block: { gap: space.sm },
-
-  teamBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-    padding: space.sm,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    backgroundColor: colors.surface,
+  section: { gap: space.sm },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  sectionDot: { width: 8, height: 8, borderRadius: radius.pill },
+  sectionTitle: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
-  teamName: { flex: 1, fontSize: 14, fontWeight: '800' },
+  sectionSub: { color: colors.textFaint, fontSize: 12, fontWeight: '600' },
 
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     padding: space.md,
-    gap: space.sm,
+    gap: space.md,
     borderWidth: 1,
     borderColor: colors.border,
   },
+
+  player: { gap: space.sm, paddingBottom: space.sm },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   dot: { width: 10, height: 10, borderRadius: radius.pill },
-  cardName: { flex: 1, color: colors.text, fontSize: 16, fontWeight: '800' },
+  cardName: { flex: 1, color: colors.text, fontSize: 15, fontWeight: '800' },
   ratioBox: { alignItems: 'flex-end' },
-  ratioValue: { fontSize: 22, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  ratioValue: { color: colors.text, fontSize: 20, fontWeight: '900' },
   ratioLabel: { color: colors.textFaint, fontSize: 9, fontWeight: '800', letterSpacing: 0.6 },
 
   grid: { flexDirection: 'row' },
   statCell: { flex: 1, alignItems: 'center', gap: 1 },
-  statValue: { color: colors.text, fontSize: 17, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  statValue: { color: colors.text, fontSize: 16, fontWeight: '800' },
   statLabel: { color: colors.textDim, fontSize: 10, fontWeight: '600' },
   statSub: { color: colors.textFaint, fontSize: 9, fontVariant: ['tabular-nums'] },
 
   divider: { height: 1, backgroundColor: colors.border },
 
-  shots: { gap: space.xs },
-  shotsTitle: { color: colors.textFaint, fontSize: 10, fontWeight: '700' },
-  shotsRow: { flexDirection: 'row', gap: space.xs, flexWrap: 'wrap' },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: space.sm,
-    paddingVertical: 4,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-  },
-  chipN: { fontSize: 12, fontWeight: '900' },
-  chipLabel: { color: colors.textDim, fontSize: 10, fontWeight: '600' },
+  teamStrip: { flexDirection: 'row', alignItems: 'center' },
+  teamStripMid: { flex: 1, alignItems: 'center', gap: 2 },
+  teamStripLabel: { color: colors.textDim, fontSize: 10, fontWeight: '600' },
+  /** Cifra grande: figuras proporcionales, no tabulares. */
+  kpi: { color: colors.text, fontSize: 26, fontWeight: '900' },
+  kpiSub: { color: colors.textFaint, fontSize: 10, fontWeight: '700' },
 
   overNote: { color: colors.textFaint, fontSize: 11, textAlign: 'center' },
   actions: { padding: space.md, gap: space.sm, backgroundColor: colors.surface },

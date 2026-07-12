@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeStats, winnerErrorRatio, pct } from './stats';
+import { computeStats, shotLines, teamShotLines, winnerErrorRatio, pct } from './stats';
 import type { MatchConfig, MatchEvent, TeamId } from './types';
 
 const baseConfig = (over: Partial<MatchConfig> = {}): MatchConfig => ({
@@ -213,6 +213,67 @@ describe('ratio winners / errores no forzados', () => {
   it('sin errores no forzados no hay ratio que calcular', () => {
     const s = computeStats(c, []);
     expect(winnerErrorRatio(s.players.a1!)).toBeNull();
+  });
+});
+
+describe('agregados por equipo', () => {
+  const c = baseConfig();
+
+  it('el equipo es la suma de sus dos jugadores', () => {
+    const s = computeStats(c, [
+      { type: 'WINNER', player: 'a1' },
+      { type: 'WINNER', player: 'a2' },
+      { type: 'WINNER', player: 'a2' },
+      { type: 'ERROR_NO_FORZADO', player: 'a1' },
+      { type: 'ERROR_FORZADO', player: 'b2' },
+    ]);
+    expect(s.teams.A.winners).toBe(3);
+    expect(s.teams.A.unforcedErrors).toBe(1);
+    expect(s.teams.B.forcedErrors).toBe(1);
+    expect(s.teams.B.winners).toBe(0);
+  });
+
+  it('tambien suma el saque, aunque saque uno solo de los dos', () => {
+    // Los 4 puntos del primer game los saca a1.
+    const s = computeStats(c, [{ type: 'FALTA' }, ...points('A', 4)]);
+    expect(s.players.a1!.servePointsPlayed).toBe(4);
+    expect(s.players.a2!.servePointsPlayed).toBe(0);
+    expect(s.teams.A.servePointsPlayed).toBe(4);
+    expect(s.teams.A.firstServesIn).toBe(3); // el primero fue con falta
+  });
+});
+
+describe('desglose por golpe', () => {
+  const c = baseConfig();
+
+  it('cruza cada golpe con como termino el punto, ordenado por uso', () => {
+    const s = computeStats(c, [
+      { type: 'WINNER', player: 'a1', shot: 'bandeja' },
+      { type: 'ERROR_NO_FORZADO', player: 'a1', shot: 'bandeja' },
+      { type: 'ERROR_NO_FORZADO', player: 'a1', shot: 'bandeja' },
+      { type: 'ERROR_FORZADO', player: 'a1', shot: 'bandeja' },
+      { type: 'WINNER', player: 'a1', shot: 'vibora' },
+    ]);
+    const lines = shotLines(s.players.a1!);
+
+    // La bandeja se uso 4 veces, la vibora 1: va primero.
+    expect(lines[0]).toEqual({ shot: 'bandeja', winners: 1, forced: 1, unforced: 2, total: 4 });
+    expect(lines[1]).toEqual({ shot: 'vibora', winners: 1, forced: 0, unforced: 0, total: 1 });
+  });
+
+  it('los golpes sin tipo cargado no aparecen', () => {
+    const s = computeStats(c, [{ type: 'WINNER', player: 'a1' }]);
+    expect(shotLines(s.players.a1!)).toEqual([]);
+  });
+
+  it('el desglose del equipo suma los golpes de los dos jugadores', () => {
+    const s = computeStats(c, [
+      { type: 'WINNER', player: 'a1', shot: 'bandeja' },
+      { type: 'WINNER', player: 'a2', shot: 'bandeja' },
+      { type: 'ERROR_NO_FORZADO', player: 'a2', shot: 'bandeja' },
+    ]);
+    const lines = teamShotLines(s, c, 'A');
+    expect(lines).toEqual([{ shot: 'bandeja', winners: 2, forced: 0, unforced: 1, total: 3 }]);
   });
 });
 

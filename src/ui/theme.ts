@@ -13,6 +13,16 @@ export const colors = {
   teamA: '#A78BFA',
   teamB: '#FB923C',
 
+  /**
+   * Los mismos violeta y naranja, un paso mas oscuro, para RELLENOS de barra sobre
+   * fondo oscuro. Los de arriba sirven como texto/avatar pero quedan fuera de la banda
+   * de luminosidad para marcas de grafico. Estos pasan las cuatro validaciones
+   * (banda, croma, separacion CVD ΔE 118, contraste) contra la superficie #141B24.
+   * La identidad del equipo se mantiene: es el mismo tono, otro paso del ramp.
+   */
+  teamAFill: '#8250DF',
+  teamBFill: '#DB6D28',
+
   /** El sacador: blanco. No compite con ninguna accion. */
   serve: '#FFFFFF',
   golden: '#F59E0B',
