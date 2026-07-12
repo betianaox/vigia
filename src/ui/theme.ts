@@ -11,13 +11,21 @@ export const colors = {
   teamA: '#34D399',
   teamB: '#60A5FA',
 
-  /** El sacador. Ambar = "ojo aca", es lo que la app tiene que gritar siempre. */
-  serve: '#FBBF24',
+  /**
+   * El sacador se marca en BLANCO, no en ambar: el amarillo esta reservado para el
+   * semaforo de las acciones y no pueden competir.
+   */
+  serve: '#FFFFFF',
   golden: '#F59E0B',
 
-  winner: '#34D399',
-  errorForced: '#FB923C',
-  errorUnforced: '#F87171',
+  // Semaforo, desde la perspectiva del jugador de la tarjeta:
+  // verde = hizo un winner, amarillo = error forzado, rojo = error no forzado.
+  winner: '#22C55E',
+  errorForced: '#FACC15',
+  errorUnforced: '#EF4444',
+
+  /** Texto sobre los botones claros del semaforo. */
+  onLight: '#0B0F14',
 } as const;
 
 export const teamColor = (team: 'A' | 'B'): string =>
