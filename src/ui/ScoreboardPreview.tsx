@@ -9,10 +9,10 @@ import { colors, space } from './theme';
 // Todos los estados salen de correr el motor sobre eventos reales: nada esta maqueteado.
 const cfg = (over: Partial<MatchConfig> = {}): MatchConfig => ({
   players: {
-    a1: { id: 'a1', name: 'Ana Ruiz' },
-    a2: { id: 'a2', name: 'Aldo Vega' },
-    b1: { id: 'b1', name: 'Bea Sosa' },
-    b2: { id: 'b2', name: 'Beto Lino' },
+    a1: { id: 'a1', name: 'Sebastián Etcheverry' },
+    a2: { id: 'a2', name: 'Maria Fernanda' },
+    b1: { id: 'b1', name: 'Bea' },
+    b2: { id: 'b2', name: 'Juan Cruz Villagra' },
   },
   teams: { A: { id: 'A', drive: 'a1', reves: 'a2' }, B: { id: 'B', drive: 'b1', reves: 'b2' } },
   serveOrder: { A: ['a1', 'a2'], B: ['b1', 'b2'] },
@@ -33,8 +33,46 @@ const alt = (n: number) => Array.from({ length: n }, () => [...game('A'), ...gam
 const altPts = (n: number) => Array.from({ length: n }, (_, i) => pt(i % 2 === 0 ? 'A' : 'B'));
 
 const set = (t: TeamId) => games(t, 6);
+/** Un set 7-6 con tiebreak 7-5, que es el que deja superindice y ensancha el casillero. */
+const setEnTiebreak = (t: TeamId) => [...alt(6), ...altPts(10), ...pts(t, 2)];
 
 const VARIANTS: Array<{ title: string; note: string; config: MatchConfig; events: MatchEvent[] }> = [
+  {
+    /**
+     * EL PEOR CASO: la mayor cantidad de columnas que el tanteador puede llegar a tener.
+     * Dos sets terminados (los dos en tiebreak, o sea con superindice) mas el tercero en
+     * curso con games y puntos. De aca sale cuanto ancho le queda REALMENTE a los nombres.
+     */
+    title: '⚠️ El peor caso — nombres vs. tanteador lleno',
+    note: 'Dos sets en tiebreak (con superíndice) + súper tiebreak en curso. Es el máximo de columnas.',
+    config: cfg({ thirdSet: 'super_tiebreak' }),
+    events: [
+      ...setEnTiebreak('A'),
+      ...setEnTiebreak('B'),
+      ...pts('A', 8),
+      ...pts('B', 7),
+    ],
+  },
+  {
+    /**
+     * La red de seguridad. Estos nombres NO los va a permitir el setup ("Nombre" o "Nombre
+     * Apellido" y nada mas), pero si alguna vez se cuela uno, tiene que degradar bien:
+     * primero achicarse, y solo despues cortar con puntos. No romper el layout ni empujar
+     * los casilleros.
+     */
+    title: 'Red de seguridad — nombre imposible',
+    note: 'Nombres que el setup no va a permitir. Se achican primero; si ni así entran, se cortan.',
+    config: cfg({
+      thirdSet: 'super_tiebreak',
+      players: {
+        a1: { id: 'a1', name: 'Bartolomé Constantinopolous' },
+        a2: { id: 'a2', name: 'Wilhelmina Etchegaray' },
+        b1: { id: 'b1', name: 'Bea' },
+        b2: { id: 'b2', name: 'Juan Cruz Villagra' },
+      },
+    }),
+    events: [...setEnTiebreak('A'), ...setEnTiebreak('B'), ...pts('A', 8), ...pts('B', 7)],
+  },
   {
     title: 'Arranque',
     note: 'Todo en cero. La pelotita marca quién saca.',

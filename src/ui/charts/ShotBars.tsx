@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { ShotLine } from '../../engine/stats';
-import { SHOT_LABELS } from '../shots';
+import { STROKE_LABELS } from '../shots';
 import { colors, radius, space } from '../theme';
 
 const BAR = 12;
@@ -42,7 +42,7 @@ export function ShotBars({ lines }: { lines: ShotLine[] }) {
       {lines.map((l) => (
         <View key={l.shot} style={s.row}>
           <Text style={s.name} numberOfLines={1}>
-            {SHOT_LABELS[l.shot]}
+            {STROKE_LABELS[l.shot]}
           </Text>
 
           <View style={s.track}>

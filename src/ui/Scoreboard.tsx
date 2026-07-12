@@ -1,91 +1,154 @@
 import { MaterialIcons } from '@expo/vector-icons';
+import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { MatchConfig, MatchState, TeamId } from '../engine';
-import { alpha, colors, radius, space, teamColor } from './theme';
+import { CHAR, fitWidth } from './layout';
+import { useMetrics, type Metrics } from './metrics';
+import { alpha, colors, radius, teamColor } from './theme';
 
 /**
- * Tanteador estilo transmision: cada numero en su casillero, los sets terminados en
- * gris, los games en un casillero neutro y los puntos en vivo en el casillero encendido.
+ * Tanteador estilo transmision: cada numero en su casillero, los sets terminados en gris,
+ * los games en un casillero neutro y los puntos en vivo en el casillero encendido.
+ *
+ * Cada equipo ocupa DOS lineas, un jugador arriba del otro, el de drive primero — el mismo
+ * orden que las tarjetas de la cancha, para no tener que traducir nada mentalmente.
+ *
+ * Apilarlos no fue solo para que entren los nombres largos: al ocupar dos lineas, las celdas
+ * de GM y PTS abarcan el bloque entero, y con el doble de alto el numero puede ser mucho mas
+ * grande. El marcador se resalta como CONSECUENCIA de arreglar los nombres, no a costa de la
+ * cancha.
+ *
+ * Y sale otra cosa gratis: la pelotita ya no marca que EQUIPO saca, marca que JUGADOR saca.
  */
+/**
+ * Cuanto puede medir un nombre, sabiendo cuantas columnas hay en juego.
+ *
+ * El tanteador CRECE durante el partido: arranca con GM y PTS, y a cada set terminado le
+ * suma una columna. En el peor caso —dos sets terminados mas el tercero en curso— los
+ * nombres se quedan con bastante menos ancho del que tenian al empezar.
+ *
+ * Asi que la fuente sale de ahi: se toma el nombre mas largo de los cuatro y se busca el
+ * tamano mas grande con el que entra. Los cuatro comparten tamano —si cada uno se achicara
+ * por su cuenta quedarian todos distintos, que es peor que que sean chicos— y si ni al
+ * minimo entra, ahi si se corta con puntos suspensivos.
+ */
+const nameFontSize = (m: Metrics, config: MatchConfig, state: MatchState): number => {
+  const b = m.board;
+  const pointsW = b.cellW + Math.round(b.cellW * 0.5);
+
+  const liveCols = state.finished ? 0 : 2; // GM y PTS
+  const cols = state.completedSets.length + liveCols;
+  const colsW =
+    state.completedSets.length * b.cellW + (state.finished ? 0 : b.cellW + pointsW);
+
+  const nameW = m.availW - b.padH * 2 - b.ballSlot - colsW - b.gap * (cols + 1);
+  const longest = Math.max(
+    ...Object.values(config.players).map((p) => p.name.length),
+    1,
+  );
+
+  return Math.max(10, Math.min(b.names, fitWidth(longest, nameW, CHAR.semiLower)));
+};
+
 export function Scoreboard({ config, state }: { config: MatchConfig; state: MatchState }) {
+  const m = useMetrics();
+  const s = useMemo(() => makeStyles(m), [m]);
+  const nameSize = useMemo(() => nameFontSize(m, config, state), [m, config, state]);
   const label = state.isSuperTiebreak ? 'SÚPER TIEBREAK' : state.inTiebreak ? 'TIEBREAK' : null;
 
   return (
     <View style={s.root}>
-      {/* El header espeja exactamente la estructura de las filas para que las columnas alineen. */}
-      <View style={s.row}>
-        <View style={s.ballSpacer} />
+      {/* El header espeja la estructura de los bloques para que las columnas alineen. */}
+      <View style={s.headRow}>
         <Text style={s.label} numberOfLines={1}>
           {label ?? ''}
         </Text>
         {state.completedSets.map((_, i) => (
-          <Text key={i} style={[s.cell, s.headerText]}>
+          <Text key={i} style={[s.headCell, s.headText]}>
             S{i + 1}
           </Text>
         ))}
-        {!state.finished && <Text style={[s.cell, s.headerText]}>GM</Text>}
-        {!state.finished && <Text style={[s.cell, s.cellPointsWidth, s.headerText]}>PTS</Text>}
+        {!state.finished && <Text style={[s.headCell, s.headText]}>GM</Text>}
+        {!state.finished && <Text style={[s.headCell, s.headWide, s.headText]}>PTS</Text>}
       </View>
 
-      {(['A', 'B'] as TeamId[]).map((t) => (
-        <TeamRow key={t} team={t} config={config} state={state} />
-      ))}
+      <TeamBlock team="A" config={config} state={state} s={s} m={m} nameSize={nameSize} />
+      {/* Una linea fina entre las parejas: sin ella los cuatro nombres se leen como una sola
+          lista y hay que pensar un segundo para ver donde termina un equipo. Ese segundo es
+          justo el que no se tiene. */}
+      <View style={s.divider} />
+      <TeamBlock team="B" config={config} state={state} s={s} m={m} nameSize={nameSize} />
     </View>
   );
 }
 
-function TeamRow({
+function TeamBlock({
   team,
   config,
   state,
+  s,
+  m,
+  nameSize,
 }: {
   team: TeamId;
   config: MatchConfig;
   state: MatchState;
+  s: ReturnType<typeof makeStyles>;
+  m: Metrics;
+  /** Igual para los cuatro: se calcula contra el nombre mas largo. */
+  nameSize: number;
 }) {
-  const names = [config.teams[team].drive, config.teams[team].reves]
-    .map((p) => config.players[p]!.name)
-    .join(' / ');
-
-  const serving = !state.finished && state.servingTeam === team;
+  // El de drive arriba: el mismo orden que en la cancha.
+  const ids = [config.teams[team].drive, config.teams[team].reves];
   const won = state.finished && state.winner === team;
+  const lost = state.finished && !won;
 
   return (
-    <View style={s.row}>
-      {/* La pelotita: circulo dibujado, no emoji. El emoji de tenis en Android se
-          renderiza como raqueta con pelota, que es otra cosa. */}
-      <View style={s.ballSlot}>
-        {serving ? (
-          <View style={s.ball} />
-        ) : won ? (
-          <MaterialIcons name="emoji-events" size={15} color={colors.golden} />
-        ) : null}
+    <View style={s.teamRow}>
+      <View style={s.names}>
+        {ids.map((p, i) => {
+          const serving = !state.finished && state.server === p;
+          return (
+            <View key={p} style={s.nameRow}>
+              <View style={s.ballSlot}>
+                {/* La pelotita: circulo dibujado, no emoji. El emoji de tenis en Android se
+                    renderiza como raqueta con pelota, que es otra cosa. */}
+                {serving ? (
+                  <View style={s.ball} />
+                ) : won && i === 0 ? (
+                  <MaterialIcons name="emoji-events" size={m.board.names} color={colors.golden} />
+                ) : null}
+              </View>
+              {/* Si ni al tamano minimo entra, ahi si se corta con puntos suspensivos. */}
+              <Text
+                style={[s.name, { fontSize: nameSize, color: teamColor(team) }, lost && s.lost]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {config.players[p]!.name}
+              </Text>
+            </View>
+          );
+        })}
       </View>
 
-      <Text
-        style={[s.names, { color: teamColor(team) }, state.finished && !won && s.namesLost]}
-        numberOfLines={1}
-      >
-        {names}
-      </Text>
-
       {state.completedSets.map((set, i) => {
-        const lost = set.winner !== team;
+        const setLost = set.winner !== team;
         return (
           <View key={i} style={[s.cell, s.setCell]}>
-            <Text style={[s.cellText, s.setText, !lost && s.setWon]}>{set.games[team]}</Text>
-            {/* Convencion de transmision: el tanteo del tiebreak va como superindice, y
-                solo sobre el que PERDIO el set. Va como Text aparte y alineado arriba:
-                anidado dentro del otro Text, RN lo pega a la linea de base y queda abajo. */}
-            {set.tiebreak && lost && <Text style={s.sup}>{set.tiebreak[team]}</Text>}
+            <Text style={[s.num, s.setText, !setLost && s.setWon]}>{set.games[team]}</Text>
+            {/* Convencion de transmision: el tanteo del tiebreak va como superindice, y solo
+                sobre el que PERDIO el set. Va como Text hermano y levantado media altura:
+                anidado adentro del otro, RN lo pega a la linea de base y queda abajo. */}
+            {set.tiebreak && setLost && <Text style={s.sup}>{set.tiebreak[team]}</Text>}
           </View>
         );
       })}
 
       {!state.finished && (
         <View style={[s.cell, s.cellGames]}>
-          <Text style={[s.cellText, s.gamesText]}>{state.games[team]}</Text>
+          <Text style={[s.num, s.gamesText]}>{state.games[team]}</Text>
         </View>
       )}
 
@@ -98,7 +161,7 @@ function TeamRow({
           ]}
         >
           <Text
-            style={[s.cellText, s.pointsText, state.isGoldenPoint && { color: colors.onLight }]}
+            style={[s.num, s.pointsText, state.isGoldenPoint && { color: colors.onLight }]}
             numberOfLines={1}
             adjustsFontSizeToFit
           >
@@ -110,62 +173,102 @@ function TeamRow({
   );
 }
 
-const CELL = 34;
+const makeStyles = (m: Metrics) => {
+  const b = m.board;
+  /** El casillero en vivo es mas ancho: ahi entran "40", "AD" y los dos digitos del tiebreak. */
+  const pointsW = b.cellW + Math.round(b.cellW * 0.5);
 
-const s = StyleSheet.create({
-  root: { backgroundColor: colors.surface, paddingHorizontal: space.md, paddingVertical: space.sm },
+  return StyleSheet.create({
+    root: {
+      backgroundColor: colors.surface,
+      paddingHorizontal: b.padH,
+      paddingVertical: b.padV,
+      gap: b.rowGap,
+    },
 
-  row: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
-  ballSlot: { width: 20, alignItems: 'center', justifyContent: 'center' },
-  ball: {
-    width: 9,
-    height: 9,
-    borderRadius: radius.pill,
-    backgroundColor: colors.ball,
-    shadowColor: colors.ball,
-    shadowOpacity: 0.9,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  ballSpacer: { width: 20 },
-  names: { flex: 1, fontSize: 15, fontWeight: '700' },
-  /** Terminado el partido, el perdedor se apaga: el ganador se lee solo. */
-  namesLost: { opacity: 0.45 },
+    headRow: { flexDirection: 'row', alignItems: 'center', gap: b.gap, height: b.header },
+    label: { flex: 1, fontSize: b.small, fontWeight: '900', color: colors.golden, letterSpacing: 1.2 },
+    headCell: { width: b.cellW },
+    headWide: { width: pointsW },
+    headText: {
+      fontSize: b.small,
+      fontWeight: '800',
+      color: colors.textFaint,
+      letterSpacing: 1,
+      textAlign: 'center',
+    },
 
-  label: { flex: 1, fontSize: 9, fontWeight: '900', color: colors.golden, letterSpacing: 1.2 },
-  headerText: {
-    height: 14,
-    fontSize: 9,
-    fontWeight: '800',
-    color: colors.textFaint,
-    letterSpacing: 1,
-    textAlign: 'center',
-  },
+    teamRow: { flexDirection: 'row', alignItems: 'center', gap: b.gap },
+    /** Arranca donde arrancan los nombres, no en el borde: separa sin dibujar una caja. */
+    divider: {
+      height: StyleSheet.hairlineWidth,
+      marginLeft: b.ballSlot,
+      backgroundColor: colors.border,
+    },
 
-  cell: {
-    width: CELL,
-    height: 34,
-    borderRadius: radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cellPointsWidth: { width: CELL + 14 },
-  cellText: { fontVariant: ['tabular-nums'], textAlign: 'center' },
+    // ---- Los dos jugadores, uno arriba del otro ----
+    names: { flex: 1 },
+    nameRow: { flexDirection: 'row', alignItems: 'center', height: b.nameLine },
+    ballSlot: { width: b.ballSlot, alignItems: 'center', justifyContent: 'center' },
+    ball: {
+      width: b.ball,
+      height: b.ball,
+      borderRadius: radius.pill,
+      backgroundColor: colors.ball,
+      shadowColor: colors.ball,
+      shadowOpacity: 0.9,
+      shadowRadius: 4,
+      elevation: 4,
+    },
+    /**
+     * El tamano no vive aca: sale de `nameFontSize`, contra el ancho que dejan las columnas.
+     *
+     * `includeFontPadding: false` es lo que alinea la pelotita con el nombre. Android le suma
+     * al texto un padding invisible arriba y abajo (para acentos y descendentes) que forma
+     * parte de la caja; al centrar la caja en la fila, los glifos quedan corridos y la
+     * pelotita —que si esta centrada— parece alta. Apagandolo, la caja es el texto.
+     */
+    name: {
+      flex: 1,
+      fontWeight: '700',
+      lineHeight: b.nameLine,
+      includeFontPadding: false,
+      textAlignVertical: 'center',
+    },
+    /** Terminado el partido, el perdedor se apaga: el ganador se lee solo. */
+    lost: { opacity: 0.45 },
 
-  setCell: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center' },
-  setText: { fontSize: 18, fontWeight: '700', color: colors.textFaint, marginTop: 7 },
-  setWon: { color: colors.text },
-  sup: { fontSize: 10, fontWeight: '800', color: colors.textFaint, marginTop: 5, marginLeft: 1 },
+    // ---- Los casilleros: abarcan las dos lineas del equipo ----
+    cell: {
+      width: b.cellW,
+      height: b.cell,
+      borderRadius: radius.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    num: { fontVariant: ['tabular-nums'], textAlign: 'center' },
 
-  cellGames: { backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border },
-  gamesText: { fontSize: 19, fontWeight: '800', color: colors.text },
+    setCell: { flexDirection: 'row', justifyContent: 'center' },
+    setText: { fontSize: b.setNum, fontWeight: '700', color: colors.textFaint },
+    setWon: { color: colors.text },
+    sup: {
+      fontSize: b.sup,
+      fontWeight: '800',
+      color: colors.textFaint,
+      marginBottom: Math.round(b.setNum * 0.45),
+      marginLeft: 1,
+    },
 
-  // El casillero en vivo: el unico encendido de todo el tanteador.
-  cellPoints: {
-    width: CELL + 14,
-    backgroundColor: alpha('#FFFFFF', 0.14),
-    borderWidth: 1,
-    borderColor: alpha('#FFFFFF', 0.35),
-  },
-  pointsText: { fontSize: 20, fontWeight: '900', color: colors.text },
-});
+    cellGames: { backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border },
+    gamesText: { fontSize: b.setNum, fontWeight: '800', color: colors.text },
+
+    // El casillero en vivo: el unico encendido de todo el tanteador.
+    cellPoints: {
+      width: pointsW,
+      backgroundColor: alpha('#FFFFFF', 0.14),
+      borderWidth: 1,
+      borderColor: alpha('#FFFFFF', 0.35),
+    },
+    pointsText: { fontSize: b.liveNum, fontWeight: '900', color: colors.text },
+  });
+};

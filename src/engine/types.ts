@@ -23,20 +23,67 @@ export type MatchLength = 'un_game' | 'un_set' | 'tres_sets';
 export type ThirdSetFormat = 'set_normal' | 'super_tiebreak';
 export type ChangeEndsRule = 'games_impares' | 'fin_de_set' | 'nunca';
 
-export type Shot =
-  | 'remate'
-  | 'remate_por_3'
-  | 'remate_por_4'
-  | 'bandeja'
-  | 'vibora'
-  | 'volea_drive'
-  | 'volea_reves'
-  | 'bajada_de_pared'
+/**
+ * De que lado le pega. Solo lo llevan los golpes de abajo: no existe una bandeja de reves.
+ * Es el mismo eje que `Position`, pero son cosas distintas — la posicion es donde juega el
+ * jugador todo el set; el lado es con que mano-cara le pego a ESTA pelota.
+ */
+export type Side = 'drive' | 'reves';
+
+/**
+ * El golpe. Van ordenados de defensa a ataque, que es el orden en que se los busca.
+ *
+ * `bandeja` y `remate` son NOMBRES PARAGUAS, no dos golpes mas de la lista: la vibora y el
+ * gancho son bandejas (cambia como se pega), y el x3, el x4 y la traida son remates (cambia
+ * como termina la pelota). El detalle va en `Variant`, que es opcional.
+ *
+ * `recuperacion` agrupa igual: la dormilona, meterla por la puerta y todo lo demas son
+ * formas de recuperar. No se enumeran porque es infinito.
+ */
+export type Stroke =
+  // Con lado.
+  | 'recuperacion'
+  | 'fondo'
+  | 'salida_de_pared'
   | 'globo'
-  | 'derecha'
-  | 'reves'
   | 'chiquita'
-  | 'resto';
+  | 'dejada'
+  | 'volea'
+  // Por alto: sin lado.
+  | 'bandeja'
+  | 'remate';
+
+/**
+ * Refinamiento del golpe. Siempre esta disponible y nunca es obligatorio.
+ *
+ * Hubo un momento en que esto iba a estar detras de un "modo detallado" configurable, para
+ * no abrumar al que no sabe. Se descarto: el que no sabe ya esta protegido dos veces —el tap
+ * corto registra el punto SIN golpe, y en la hoja siempre puede tocar el boton base. Esconder
+ * cinco botones no justificaba arrastrar una opcion de configuracion para siempre, ni la
+ * pregunta de "¿este partido en que modo se cargo?" cada vez que se comparan estadisticas.
+ */
+export type Variant =
+  /** De la bandeja: como se pego. */
+  | 'vibora'
+  | 'gancho'
+  /** Del remate: como termino la pelota. */
+  | 'x3'
+  | 'x4'
+  | 'traerla';
+
+/**
+ * La variante REFINA el golpe, no lo reemplaza: un x3 sigue siendo un remate y suma como
+ * remate. Por eso el modo simple y el completo son comparables entre si — si el detalle
+ * fuera otra clave, el historial de un jugador quedaria escrito en dos idiomas y no se
+ * podria sumar entre partidos.
+ */
+export interface Shot {
+  stroke: Stroke;
+  /** Solo los golpes con lado. Los de arriba no lo llevan. */
+  side?: Side;
+  /** Opcional siempre. Si esta vacia, el golpe cuenta igual. */
+  variant?: Variant;
+}
 
 export interface Player {
   id: PlayerId;

@@ -9,12 +9,14 @@ import { ScoreboardPreview } from './src/ui/ScoreboardPreview';
 const PREVIEW = false;
 
 // Partido de prueba, hasta que exista la pantalla de setup.
+// Los nombres son largos A PROPOSITO: el setup va a permitir "Nombre" o "Nombre Apellido" y
+// nada mas, asi que estos son el peor caso real. Si el tanteador aguanta esto, aguanta todo.
 const demo: MatchConfig = {
   players: {
-    a1: { id: 'a1', name: 'Ana Ruiz' },
-    a2: { id: 'a2', name: 'Aldo Vega' },
-    b1: { id: 'b1', name: 'Bea Sosa' },
-    b2: { id: 'b2', name: 'Beto Lino' },
+    a1: { id: 'a1', name: 'Sebastián Etcheverry' },
+    a2: { id: 'a2', name: 'Maria Fernanda' },
+    b1: { id: 'b1', name: 'Bea' },
+    b2: { id: 'b2', name: 'Juan Cruz Villagra' },
   },
   teams: {
     A: { id: 'A', drive: 'a1', reves: 'a2' },

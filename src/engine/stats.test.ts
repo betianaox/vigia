@@ -46,13 +46,37 @@ describe('atribucion de acciones', () => {
 
   it('desglosa por tipo de golpe', () => {
     const s = computeStats(c, [
-      { type: 'WINNER', player: 'a1', shot: 'bandeja' },
-      { type: 'WINNER', player: 'a1', shot: 'bandeja' },
-      { type: 'WINNER', player: 'a1', shot: 'vibora' },
-      { type: 'ERROR_NO_FORZADO', player: 'a1', shot: 'bandeja' },
+      { type: 'WINNER', player: 'a1', shot: { stroke: 'bandeja' } },
+      { type: 'WINNER', player: 'a1', shot: { stroke: 'volea', side: 'drive' } },
+      { type: 'ERROR_NO_FORZADO', player: 'a1', shot: { stroke: 'bandeja' } },
     ]);
-    expect(s.players.a1!.winnersByShot).toEqual({ bandeja: 2, vibora: 1 });
+    expect(s.players.a1!.winnersByShot).toEqual({ bandeja: 1, volea: 1 });
     expect(s.players.a1!.unforcedByShot).toEqual({ bandeja: 1 });
+  });
+
+  /**
+   * La razon de ser del modelo: la variante REFINA el golpe, no lo parte en otra clave. Si
+   * la vibora se contara aparte, "cuantas bandejas pego" no se podria contestar sin sumar
+   * casilleros a mano — y el modo simple y el completo dejarian de ser comparables.
+   */
+  it('la variante suma en el golpe que la agrupa: la vibora es una bandeja, el x3 un remate', () => {
+    const s = computeStats(c, [
+      { type: 'WINNER', player: 'a1', shot: { stroke: 'bandeja' } },
+      { type: 'WINNER', player: 'a1', shot: { stroke: 'bandeja', variant: 'vibora' } },
+      { type: 'WINNER', player: 'a1', shot: { stroke: 'bandeja', variant: 'gancho' } },
+      { type: 'WINNER', player: 'a1', shot: { stroke: 'remate', variant: 'x3' } },
+      { type: 'WINNER', player: 'a1', shot: { stroke: 'remate', variant: 'traerla' } },
+    ]);
+    expect(s.players.a1!.winnersByShot).toEqual({ bandeja: 3, remate: 2 });
+  });
+
+  /** El mismo golpe de los dos lados sigue siendo el mismo golpe. */
+  it('el lado no parte el golpe: una volea de drive y una de reves son dos voleas', () => {
+    const s = computeStats(c, [
+      { type: 'WINNER', player: 'a1', shot: { stroke: 'volea', side: 'drive' } },
+      { type: 'WINNER', player: 'a1', shot: { stroke: 'volea', side: 'reves' } },
+    ]);
+    expect(s.players.a1!.winnersByShot).toEqual({ volea: 2 });
   });
 
   it('un punto sin tipo de golpe cuenta igual, solo que sin desglose', () => {
@@ -248,17 +272,17 @@ describe('desglose por golpe', () => {
 
   it('cruza cada golpe con como termino el punto, ordenado por uso', () => {
     const s = computeStats(c, [
-      { type: 'WINNER', player: 'a1', shot: 'bandeja' },
-      { type: 'ERROR_NO_FORZADO', player: 'a1', shot: 'bandeja' },
-      { type: 'ERROR_NO_FORZADO', player: 'a1', shot: 'bandeja' },
-      { type: 'ERROR_FORZADO', player: 'a1', shot: 'bandeja' },
-      { type: 'WINNER', player: 'a1', shot: 'vibora' },
+      { type: 'WINNER', player: 'a1', shot: { stroke: 'bandeja' } },
+      { type: 'ERROR_NO_FORZADO', player: 'a1', shot: { stroke: 'bandeja' } },
+      { type: 'ERROR_NO_FORZADO', player: 'a1', shot: { stroke: 'bandeja' } },
+      { type: 'ERROR_FORZADO', player: 'a1', shot: { stroke: 'bandeja' } },
+      { type: 'WINNER', player: 'a1', shot: { stroke: 'remate' } },
     ]);
     const lines = shotLines(s.players.a1!);
 
-    // La bandeja se uso 4 veces, la vibora 1: va primero.
+    // La bandeja se uso 4 veces, el remate 1: va primero.
     expect(lines[0]).toEqual({ shot: 'bandeja', winners: 1, forced: 1, unforced: 2, total: 4 });
-    expect(lines[1]).toEqual({ shot: 'vibora', winners: 1, forced: 0, unforced: 0, total: 1 });
+    expect(lines[1]).toEqual({ shot: 'remate', winners: 1, forced: 0, unforced: 0, total: 1 });
   });
 
   it('los golpes sin tipo cargado no aparecen', () => {
@@ -268,9 +292,9 @@ describe('desglose por golpe', () => {
 
   it('el desglose del equipo suma los golpes de los dos jugadores', () => {
     const s = computeStats(c, [
-      { type: 'WINNER', player: 'a1', shot: 'bandeja' },
-      { type: 'WINNER', player: 'a2', shot: 'bandeja' },
-      { type: 'ERROR_NO_FORZADO', player: 'a2', shot: 'bandeja' },
+      { type: 'WINNER', player: 'a1', shot: { stroke: 'bandeja' } },
+      { type: 'WINNER', player: 'a2', shot: { stroke: 'bandeja', variant: 'vibora' } },
+      { type: 'ERROR_NO_FORZADO', player: 'a2', shot: { stroke: 'bandeja' } },
     ]);
     const lines = teamShotLines(s, c, 'A');
     expect(lines).toEqual([{ shot: 'bandeja', winners: 2, forced: 0, unforced: 1, total: 3 }]);
@@ -282,7 +306,7 @@ describe('las estadisticas son una funcion pura del log', () => {
 
   it('deshacer un punto deshace su efecto en las estadisticas', () => {
     const evs: MatchEvent[] = [
-      { type: 'WINNER', player: 'a1', shot: 'bandeja' },
+      { type: 'WINNER', player: 'a1', shot: { stroke: 'bandeja' } },
       { type: 'ERROR_NO_FORZADO', player: 'b1' },
     ];
     expect(computeStats(c, evs).players.b1!.unforcedErrors).toBe(1);

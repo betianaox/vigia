@@ -7,10 +7,18 @@ import type {
   MatchState,
   PlayerId,
   Shot,
+  Stroke,
   TeamId,
 } from './types';
 
-export type ShotTally = Partial<Record<Shot, number>>;
+/**
+ * Se cuenta por GOLPE, no por variante: un x3 suma como remate.
+ *
+ * Es lo que hace que el modo simple y el completo sean comparables — si el x3 fuera su
+ * propia clave, "cuantos remates pego" no se podria contestar sin sumar casilleros a mano,
+ * y ninguna pantalla lo haria. La variante refina el dato, no lo parte.
+ */
+export type ShotTally = Partial<Record<Stroke, number>>;
 
 export interface PlayerStats {
   id: PlayerId;
@@ -67,7 +75,7 @@ export interface TeamStats {
 
 /** Como le rindio un golpe: cuantos winners dio y cuantos errores costo. */
 export interface ShotLine {
-  shot: Shot;
+  shot: Stroke;
   winners: number;
   forced: number;
   unforced: number;
@@ -82,10 +90,10 @@ export interface ShotLine {
 export const shotLines = (
   p: Pick<PlayerStats, 'winnersByShot' | 'forcedByShot' | 'unforcedByShot'>,
 ): ShotLine[] => {
-  const shots = new Set<Shot>([
-    ...(Object.keys(p.winnersByShot) as Shot[]),
-    ...(Object.keys(p.forcedByShot) as Shot[]),
-    ...(Object.keys(p.unforcedByShot) as Shot[]),
+  const shots = new Set<Stroke>([
+    ...(Object.keys(p.winnersByShot) as Stroke[]),
+    ...(Object.keys(p.forcedByShot) as Stroke[]),
+    ...(Object.keys(p.unforcedByShot) as Stroke[]),
   ]);
   return [...shots]
     .map((shot) => {
@@ -111,9 +119,10 @@ export const winnerErrorRatio = (p: PlayerStats): number | null =>
 export const pct = (won: number, played: number): number | null =>
   played === 0 ? null : (won / played) * 100;
 
+/** El golpe suma por su nombre paraguas: la vibora suma como bandeja, el x3 como remate. */
 const bump = (t: ShotTally, shot: Shot | undefined): void => {
   if (!shot) return;
-  t[shot] = (t[shot] ?? 0) + 1;
+  t[shot.stroke] = (t[shot.stroke] ?? 0) + 1;
 };
 
 /** Si el equipo gana ESTE punto, ¿se lleva el game? Sirve para detectar break points. */
@@ -305,7 +314,7 @@ export const teamShotLines = (
   const merge = (key: 'winnersByShot' | 'forcedByShot' | 'unforcedByShot'): ShotTally => {
     const out: ShotTally = {};
     for (const id of [config.teams[team].drive, config.teams[team].reves]) {
-      for (const [shot, n] of Object.entries(stats.players[id]![key]) as Array<[Shot, number]>) {
+      for (const [shot, n] of Object.entries(stats.players[id]![key]) as Array<[Stroke, number]>) {
         out[shot] = (out[shot] ?? 0) + n;
       }
     }
