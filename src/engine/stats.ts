@@ -36,13 +36,38 @@ export interface PlayerStats {
   aces: number;
   doubleFaults: number;
 
+  /**
+   * Los duelos del saque: contra QUIEN paso cada cosa.
+   *
+   * El ace es algo que le hacés a alguien — dice que el que restaba no llego. Y la doble
+   * falta tambien tiene al restador adentro: uno arriesga mas de lo que puede sostener
+   * justamente por miedo al resto del que tiene enfrente, y ahi nace la mayoria de las
+   * dobles. Que el sacador falle no quiere decir que el otro no tenga nada que ver.
+   *
+   * Sin esto, "5 dobles faltas" es un numero muerto. Con esto, es "4 de las 5 sacandole a
+   * Beto", que ya es una instruccion.
+   */
+  acesAgainst: Partial<Record<PlayerId, number>>;
+  doubleFaultsAgainst: Partial<Record<PlayerId, number>>;
+
+  /** Restando: los aces que le hicieron, y las dobles faltas que provoco. */
+  acesConceded: number;
+  doubleFaultsForced: number;
+
   /** Puntos que saco (los let no cuentan: se repite el saque). */
   servePointsPlayed: number;
+  /**
+   * Primeros saques que entraron. Es tambien el denominador de "gana con 1er saque": no son
+   * dos numeros, es uno — de los puntos en que el primero entro, cuantos gano.
+   */
   firstServesIn: number;
-  firstServePointsPlayed: number;
   firstServePointsWon: number;
   secondServePointsPlayed: number;
   secondServePointsWon: number;
+
+  /** Restando: cuantos puntos jugo de resto y cuantos gano. */
+  returnPointsPlayed: number;
+  returnPointsWon: number;
 }
 
 export interface TeamStats {
@@ -65,12 +90,15 @@ export interface TeamStats {
   unforcedErrors: number;
   aces: number;
   doubleFaults: number;
+  acesConceded: number;
+  doubleFaultsForced: number;
   servePointsPlayed: number;
   firstServesIn: number;
-  firstServePointsPlayed: number;
   firstServePointsWon: number;
   secondServePointsPlayed: number;
   secondServePointsWon: number;
+  returnPointsPlayed: number;
+  returnPointsWon: number;
 }
 
 /** Como le rindio un golpe: cuantos winners dio y cuantos errores costo. */
@@ -110,6 +138,15 @@ export interface MatchStats {
   teams: Record<TeamId, TeamStats>;
   totalPoints: number;
   goldenPointsPlayed: number;
+  /**
+   * Si alguien cargo el golpe de al menos un punto.
+   *
+   * El golpe es OPCIONAL: se anota con el toque largo, y en la mitad de los partidos nadie va
+   * a tener tiempo. Sin esto, la pantalla dibujaria una seccion de golpes llena de ceros —y
+   * una tabla de ceros no dice "no lo anotaste", dice "no pegaste ninguno". Si no hay datos,
+   * la seccion no existe.
+   */
+  hasShotData: boolean;
 }
 
 /** Ratio winners / errores no forzados: la metrica estrella en padel. */
@@ -143,12 +180,17 @@ const emptyPlayer = (id: PlayerId, name: string, team: TeamId): PlayerStats => (
   unforcedByShot: {},
   aces: 0,
   doubleFaults: 0,
+  acesAgainst: {},
+  doubleFaultsAgainst: {},
+  acesConceded: 0,
+  doubleFaultsForced: 0,
   servePointsPlayed: 0,
   firstServesIn: 0,
-  firstServePointsPlayed: 0,
   firstServePointsWon: 0,
   secondServePointsPlayed: 0,
   secondServePointsWon: 0,
+  returnPointsPlayed: 0,
+  returnPointsWon: 0,
 });
 
 const emptyTeam = (team: TeamId): TeamStats => ({
@@ -165,12 +207,15 @@ const emptyTeam = (team: TeamId): TeamStats => ({
   unforcedErrors: 0,
   aces: 0,
   doubleFaults: 0,
+  acesConceded: 0,
+  doubleFaultsForced: 0,
   servePointsPlayed: 0,
   firstServesIn: 0,
-  firstServePointsPlayed: 0,
   firstServePointsWon: 0,
   secondServePointsPlayed: 0,
   secondServePointsWon: 0,
+  returnPointsPlayed: 0,
+  returnPointsWon: 0,
 });
 
 /** Los agregados del equipo son la suma de sus dos jugadores. */
@@ -180,12 +225,15 @@ const AGGREGATED = [
   'unforcedErrors',
   'aces',
   'doubleFaults',
+  'acesConceded',
+  'doubleFaultsForced',
   'servePointsPlayed',
   'firstServesIn',
-  'firstServePointsPlayed',
   'firstServePointsWon',
   'secondServePointsPlayed',
   'secondServePointsWon',
+  'returnPointsPlayed',
+  'returnPointsWon',
 ] as const;
 
 /**
@@ -215,6 +263,8 @@ export const computeStats = (config: MatchConfig, events: MatchEvent[]): MatchSt
     const server = st.server;
     const servingTeam = st.servingTeam;
     const receivingTeam = otherTeam(servingTeam);
+    /** Quien esperaba el saque. Sale del cuadro y de como esta parada la pareja que resta. */
+    const receiver = st.receiver;
 
     // El let repite el saque: no avanza nada, ni siquiera el contador de saques.
     if (e.type === 'LET') return;
@@ -227,14 +277,24 @@ export const computeStats = (config: MatchConfig, events: MatchEvent[]): MatchSt
     let pointTo: TeamId;
 
     switch (e.type) {
-      case 'FALTA': // en segundo saque: doble falta
-        players[server]!.doubleFaults += 1;
+      case 'FALTA': {
+        // En segundo saque: doble falta. El restador no la pego, pero estaba adentro — se
+        // arriesga de mas por miedo al resto del que esta enfrente. Se anota de los dos lados.
+        const sv = players[server]!;
+        sv.doubleFaults += 1;
+        sv.doubleFaultsAgainst[receiver] = (sv.doubleFaultsAgainst[receiver] ?? 0) + 1;
+        players[receiver]!.doubleFaultsForced += 1;
         pointTo = receivingTeam;
         break;
-      case 'ACE':
-        players[server]!.aces += 1;
+      }
+      case 'ACE': {
+        const sv = players[server]!;
+        sv.aces += 1;
+        sv.acesAgainst[receiver] = (sv.acesAgainst[receiver] ?? 0) + 1;
+        players[receiver]!.acesConceded += 1;
         pointTo = servingTeam;
         break;
+      }
       case 'WINNER': {
         const p = players[e.player]!;
         p.winners += 1;
@@ -270,10 +330,15 @@ export const computeStats = (config: MatchConfig, events: MatchEvent[]): MatchSt
       sp.secondServePointsPlayed += 1;
       if (pointTo === servingTeam) sp.secondServePointsWon += 1;
     } else {
+      // `firstServesIn` es tambien el denominador de "gana con 1er saque": de los puntos en
+      // que el primero entro, cuantos gano. Un solo numero, no dos.
       sp.firstServesIn += 1;
-      sp.firstServePointsPlayed += 1;
       if (pointTo === servingTeam) sp.firstServePointsWon += 1;
     }
+
+    const rp = players[receiver]!;
+    rp.returnPointsPlayed += 1;
+    if (pointTo === receivingTeam) rp.returnPointsWon += 1;
 
     // Break point: el que resta esta a un punto de llevarse el game.
     // En el tiebreak no hay breaks (a lo sumo mini-breaks, que no contamos).
@@ -302,7 +367,10 @@ export const computeStats = (config: MatchConfig, events: MatchEvent[]): MatchSt
     }
   }
 
-  return { players, teams, totalPoints, goldenPointsPlayed };
+  // Alcanza con UN golpe cargado en todo el partido para que la seccion tenga algo que decir.
+  const hasShotData = events.some((e) => 'shot' in e && e.shot !== undefined);
+
+  return { players, teams, totalPoints, goldenPointsPlayed, hasShotData };
 };
 
 /** Suma los golpes de los dos jugadores de un equipo. */

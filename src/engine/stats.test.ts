@@ -86,6 +86,23 @@ describe('atribucion de acciones', () => {
   });
 });
 
+describe('si hay golpes cargados', () => {
+  const c = baseConfig();
+
+  it('sin ningun golpe anotado, no hay datos de golpes', () => {
+    const s = computeStats(c, [point('A'), point('B'), { type: 'ACE' }]);
+    expect(s.hasShotData).toBe(false);
+  });
+
+  it('alcanza con uno solo en todo el partido', () => {
+    const s = computeStats(c, [
+      point('A'),
+      { type: 'WINNER', player: 'a2', shot: { stroke: 'volea', side: 'drive' } },
+    ]);
+    expect(s.hasShotData).toBe(true);
+  });
+});
+
 describe('estadisticas de saque', () => {
   const c = baseConfig();
 
@@ -94,7 +111,6 @@ describe('estadisticas de saque', () => {
     const a1 = s.players.a1!; // saca a1
     expect(a1.servePointsPlayed).toBe(1);
     expect(a1.firstServesIn).toBe(1);
-    expect(a1.firstServePointsPlayed).toBe(1);
     expect(a1.firstServePointsWon).toBe(1);
     expect(a1.secondServePointsPlayed).toBe(0);
   });
@@ -103,7 +119,6 @@ describe('estadisticas de saque', () => {
     const s = computeStats(c, [{ type: 'FALTA' }, point('A')]);
     const a1 = s.players.a1!;
     expect(a1.firstServesIn).toBe(0);
-    expect(a1.firstServePointsPlayed).toBe(0);
     expect(a1.secondServePointsPlayed).toBe(1);
     expect(a1.secondServePointsWon).toBe(1);
   });
@@ -132,6 +147,48 @@ describe('estadisticas de saque', () => {
     expect(segundo.players.a1!.aces).toBe(1);
     expect(segundo.players.a1!.secondServePointsWon).toBe(1);
     expect(segundo.players.a1!.firstServePointsWon).toBe(0);
+  });
+
+  it('el ace se registra CONTRA quien restaba, de los dos lados', () => {
+    // Saca a1. El cuadro alterna: el primer punto se saca al de la derecha, el segundo al
+    // de la izquierda. Asi que los dos aces no le caen a la misma persona.
+    const s = computeStats(c, [{ type: 'ACE' }, { type: 'ACE' }]);
+    const a1 = s.players.a1!;
+
+    expect(a1.aces).toBe(2);
+    // La suma de los duelos tiene que dar el total: si no, alguien se pierde por el camino.
+    const total = Object.values(a1.acesAgainst).reduce<number>((n, x) => n + (x ?? 0), 0);
+    expect(total).toBe(2);
+
+    // Uno a cada restador, y cada uno se lo anota como recibido.
+    expect(a1.acesAgainst.b1).toBe(1);
+    expect(a1.acesAgainst.b2).toBe(1);
+    expect(s.players.b1!.acesConceded).toBe(1);
+    expect(s.players.b2!.acesConceded).toBe(1);
+  });
+
+  /**
+   * La doble falta la comete el que saca, pero el que resta esta adentro: se arriesga de mas
+   * por miedo al resto del que tiene enfrente. Por eso se guarda contra quien fue.
+   */
+  it('la doble falta se registra contra quien esperaba el saque', () => {
+    const s = computeStats(c, [{ type: 'FALTA' }, { type: 'FALTA' }]);
+    const a1 = s.players.a1!;
+
+    expect(a1.doubleFaults).toBe(1);
+    expect(a1.doubleFaultsAgainst.b1).toBe(1);
+    expect(s.players.b1!.doubleFaultsForced).toBe(1);
+    // El companero del que restaba no tiene nada que ver con esta.
+    expect(s.players.b2!.doubleFaultsForced).toBe(0);
+  });
+
+  it('los puntos de resto se le cuentan al que restaba', () => {
+    // a1 saca a b1 y pierde el punto; despues saca a b2 y lo gana.
+    const s = computeStats(c, [point('B'), point('A')]);
+    expect(s.players.b1!.returnPointsPlayed).toBe(1);
+    expect(s.players.b1!.returnPointsWon).toBe(1);
+    expect(s.players.b2!.returnPointsPlayed).toBe(1);
+    expect(s.players.b2!.returnPointsWon).toBe(0);
   });
 
   it('el let no ensucia nada: no avanza el saque ni cuenta como punto', () => {

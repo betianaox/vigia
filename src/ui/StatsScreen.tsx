@@ -1,9 +1,11 @@
+import { MaterialIcons } from '@expo/vector-icons';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { computeStats, pct, teamShotLines, winnerErrorRatio, shotLines } from '../engine/stats';
 import type { MatchStats, PlayerStats } from '../engine/stats';
 import type { MatchConfig, MatchEvent, MatchState, TeamId } from '../engine';
+import { Brand } from './Brand';
 import { HeadToHead, type Cell, type Row } from './charts/HeadToHead';
 import { ShotBars } from './charts/ShotBars';
 import { Scoreboard } from './Scoreboard';
@@ -82,7 +84,7 @@ const buildRows = (stats: MatchStats, config: MatchConfig): Row[] => {
     percent(
       'Gana con\n1er saque',
       (p) => p.firstServePointsWon,
-      (p) => p.firstServePointsPlayed,
+      (p) => p.firstServesIn,
     ),
     percent(
       'Gana con\n2do saque',
@@ -97,7 +99,7 @@ export function StatsScreen({
   events,
   state,
   finishedEarly,
-  onBack,
+  onClose,
   onShare,
 }: {
   config: MatchConfig;
@@ -105,7 +107,8 @@ export function StatsScreen({
   state: MatchState;
   /** El partido quedo a medias: se muestran las estadisticas de lo que se jugo. */
   finishedEarly: boolean;
-  onBack: () => void;
+  /** Cerrar y volver a lo que estabas: la cancha, o el historial. */
+  onClose: () => void;
   onShare: () => void;
 }) {
   const stats = computeStats(config, events);
@@ -113,6 +116,21 @@ export function StatsScreen({
 
   return (
     <SafeAreaView style={s.root}>
+      {/* La ✕ cierra, y es la MISMA ✕ de la hoja de golpes: un solo simbolo, un solo
+          significado —cerra esto y volve a lo que estabas—. Va a la derecha, que es donde
+          vive el cerrar, y de paso el logo respira a la izquierda. */}
+      <View style={s.head}>
+        <Brand size={26} subtitle="Estadísticas" tint={colors.ball} />
+        <Pressable
+          style={({ pressed: p }) => [s.close, p && pressed]}
+          android_ripple={{ ...ripple, borderless: true }}
+          onPress={onClose}
+          hitSlop={10}
+        >
+          <MaterialIcons name="close" size={24} color={colors.text} />
+        </Pressable>
+      </View>
+
       <Scoreboard config={config} state={state} />
 
       <ScrollView contentContainerStyle={s.list}>
@@ -184,17 +202,11 @@ export function StatsScreen({
           </Text>
         ) : null}
 
-        <Pressable
-          style={({ pressed: p }) => [s.btn, s.btnPrimary, p && pressed]}
-          android_ripple={ripple}
-          onPress={onBack}
-        >
-          <Text style={s.btnPrimaryText}>{over ? 'Volver' : 'Volver al partido'}</Text>
-        </Pressable>
+        {/* Se fue el boton blanco "Volver": salir es la ✕ de arriba, y el back de Android.
+            Y NO hay "Terminar partido": terminar se hace en UN solo lugar, la tarjeta del
+            inicio. Tener el mismo camino en tres pantallas es como no tenerlo en ninguna.
 
-        {/* NO hay "Terminar partido" aca. Terminar se hace en UN solo lugar: la tarjeta del
-            inicio. Tener el mismo camino en tres pantallas es como no tenerlo en ninguna —
-            nadie sabe cual es el bueno, y el partido queda a medias en el medio. */}
+            Queda una sola cosa abajo, que es la que importa. */}
         <Pressable
           style={({ pressed: p }) => [s.btn, s.btnGhost, p && pressed]}
           android_ripple={ripple}
@@ -233,7 +245,7 @@ function Section({
 function PlayerCard({ p }: { p: PlayerStats }) {
   const c = teamColor(p.team);
   const first = pct(p.firstServesIn, p.servePointsPlayed);
-  const won1 = pct(p.firstServePointsWon, p.firstServePointsPlayed);
+  const won1 = pct(p.firstServePointsWon, p.firstServesIn);
   const won2 = pct(p.secondServePointsWon, p.secondServePointsPlayed);
 
   return (
@@ -257,7 +269,7 @@ function PlayerCard({ p }: { p: PlayerStats }) {
 
       <View style={s.grid}>
         <Stat label="1er saque" value={num(first, '%')} sub={`${p.firstServesIn}/${p.servePointsPlayed}`} />
-        <Stat label="Gana c/ 1ro" value={num(won1, '%')} sub={`${p.firstServePointsWon}/${p.firstServePointsPlayed}`} />
+        <Stat label="Gana c/ 1ro" value={num(won1, '%')} sub={`${p.firstServePointsWon}/${p.firstServesIn}`} />
         <Stat label="Gana c/ 2do" value={num(won2, '%')} sub={`${p.secondServePointsWon}/${p.secondServePointsPlayed}`} />
       </View>
 
@@ -360,6 +372,16 @@ const s = StyleSheet.create({
   /** Cifra grande: figuras proporcionales, no tabulares. */
   kpi: { color: colors.text, fontSize: 26, fontWeight: '900' },
   kpiSub: { color: colors.textFaint, fontSize: 10, fontWeight: '700' },
+
+  head: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: space.lg,
+    paddingTop: space.md,
+    paddingBottom: space.md,
+  },
+  close: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginRight: -8 },
 
   overNote: { color: colors.textFaint, fontSize: 11, textAlign: 'center' },
   actions: { padding: space.md, gap: space.sm, backgroundColor: colors.surface },

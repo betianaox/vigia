@@ -29,6 +29,7 @@ import {
 } from '../store/store';
 import type { Prefs } from '../store/store';
 import { Brand } from './Brand';
+import { PlayerField } from './PlayerField';
 import { alpha, colors, pressed, radius, ripple, space, teamColor } from './theme';
 
 const tick = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -368,46 +369,34 @@ export function SetupScreen({
             {/* El campo se resuelve solo: escribis y abajo aparecen los jugadores guardados que
                 coinciden. Abrir un modal a pantalla completa para llenar UN campo de texto es
                 un peso injustificado — el campo tiene que poder solo. */}
-            {SLOTS.filter((x) => x.team === team).map(({ slot, label }) => {
-              const hits = focused === slot ? suggest(slot) : [];
-              return (
-                <View key={slot} style={s.slotBlock}>
-                  <View style={s.slotRow}>
-                    <Text style={s.slotLabel}>{label}</Text>
-                    <TextInput
-                      style={[s.slot, !names[slot] && s.slotVacant]}
-                      value={names[slot]}
-                      onChangeText={(v) => setNames((n) => ({ ...n, [slot]: v }))}
-                      onFocus={() => setFocused(slot)}
-                      onBlur={() => setFocused((f) => (f === slot ? null : f))}
-                      placeholder="Nombre"
-                      placeholderTextColor={colors.textFaint}
-                      autoCapitalize="words"
-                      autoCorrect={false}
-                      returnKeyType="done"
-                    />
-                  </View>
+            {/* El MISMO campo que el filtro del historial. La accion es la misma —nombrar a una
+                persona— y hasta hoy se veia distinta en cada pantalla, que es lo que hace que
+                una app se sienta hecha de retazos.
 
-                  {hits.map((p) => (
-                    <Pressable
-                      key={p.id}
-                      style={({ pressed: pr }) => [s.hit, pr && pressed]}
-                      android_ripple={ripple}
-                      onPress={() => {
-                        tick();
-                        setNames((n) => ({ ...n, [slot]: p.name }));
-                        setFocused(null);
-                      }}
-                    >
-                      <MaterialIcons name="person" size={18} color={colors.textDim} />
-                      <Text style={s.hitText} numberOfLines={1}>
-                        {p.name}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              );
-            })}
+                Aca, a diferencia del historial, el texto libre VALE: es donde nacen los
+                jugadores nuevos. El desplegable ayuda, no obliga. */}
+            {SLOTS.filter((x) => x.team === team).map(({ slot, label }) => (
+              <View key={slot} style={s.slotRow}>
+                <Text style={s.slotLabel}>{label}</Text>
+                <PlayerField
+                  value={names[slot]}
+                  onChangeText={(v) => setNames((n) => ({ ...n, [slot]: v }))}
+                  placeholder="Nombre"
+                  suggestions={focused === slot ? suggest(slot) : []}
+                  onPick={(p) => {
+                    tick();
+                    setNames((n) => ({ ...n, [slot]: p.name }));
+                    setFocused(null);
+                  }}
+                  onClear={() => {
+                    tick();
+                    setNames((n) => ({ ...n, [slot]: '' }));
+                  }}
+                  onFocus={() => setFocused(slot)}
+                  onBlur={() => setFocused((f) => (f === slot ? null : f))}
+                />
+              </View>
+            ))}
           </View>
         ))}
 
@@ -662,37 +651,16 @@ const s = StyleSheet.create({
   block: { gap: space.sm },
   blockTitle: { fontSize: 11, fontWeight: '900', letterSpacing: 1.5, marginBottom: 2 },
 
-  /** El campo y, debajo, las sugerencias del plantel mientras esta enfocado. */
-  slotBlock: { gap: space.xs },
-  slotRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  slotLabel: { width: 48, color: colors.textFaint, fontSize: 12, fontWeight: '700' },
-  slot: {
-    flex: 1,
+  /** La etiqueta del lugar, y al lado el campo (que se dibuja solo, en PlayerField). */
+  slotRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },
+  slotLabel: {
+    width: 48,
     height: 48,
-    paddingHorizontal: space.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: alpha(colors.text, 0.2),
-    backgroundColor: colors.surfaceAlt,
-    color: colors.text,
-    fontSize: 15,
+    color: colors.textFaint,
+    fontSize: 12,
     fontWeight: '700',
+    lineHeight: 48,
   },
-  /** Vacio: mas apagado y con el borde apenas insinuado. Se ve que falta llenarlo. */
-  slotVacant: { backgroundColor: 'transparent', borderColor: alpha(colors.text, 0.12) },
-
-  /** Una sugerencia del plantel. Va indentada bajo el campo, no encima: no tapa nada. */
-  hit: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-    marginLeft: 48 + space.sm,
-    height: 42,
-    paddingHorizontal: space.md,
-    borderRadius: radius.sm,
-    backgroundColor: colors.surface,
-  },
-  hitText: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '600' },
 
   hint: { color: colors.textFaint, fontSize: 11, lineHeight: 15 },
 

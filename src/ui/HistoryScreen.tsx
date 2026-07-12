@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { Player, PlayerId, TeamId } from '../engine';
@@ -15,6 +15,7 @@ import {
 import { loadPlayers, normalize } from '../store/store';
 import { Brand } from './Brand';
 import { Confirm } from './Confirm';
+import { PlayerField } from './PlayerField';
 import { alpha, colors, pressed, radius, ripple, space, teamColor } from './theme';
 
 const tick = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -130,75 +131,37 @@ export function HistoryScreen({
 
   return (
     <SafeAreaView style={s.root}>
+      {/* La ✕ cierra, y es la misma de la hoja de golpes y de las estadisticas. A la derecha:
+          ahi vive el cerrar, y el logo deja de estar aplastado contra una flecha. */}
       <View style={s.head}>
+        <Brand size={26} subtitle="Historial" tint={colors.ball} />
         <Pressable
-          style={({ pressed: pr }) => [s.back, pr && pressed]}
+          style={({ pressed: pr }) => [s.close, pr && pressed]}
           android_ripple={{ ...ripple, borderless: true }}
           onPress={onBack}
           hitSlop={10}
         >
-          <MaterialIcons name="arrow-back" size={24} color={colors.text} />
+          <MaterialIcons name="close" size={24} color={colors.text} />
         </Pressable>
-        <Brand size={26} subtitle="Historial" tint={colors.ball} />
       </View>
 
       {/* Los filtros. Sin ellos, un historial deja de servir apenas tenes treinta partidos. */}
       <View style={s.filters}>
-        <View style={[s.search, chosen && s.searchOn]}>
-          <MaterialIcons
-            name={chosen ? 'person' : 'search'}
-            size={20}
-            color={chosen ? colors.text : colors.textFaint}
-          />
-
-          {/* Elegido, el campo deja de ser un campo: es el nombre de la persona. No hay nada
-              mas que escribir — para cambiarlo, se saca con la X. */}
-          {chosen ? (
-            <Text style={s.searchChosen} numberOfLines={1}>
-              {chosen.name}
-            </Text>
-          ) : (
-            <TextInput
-              style={s.searchInput}
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Buscar jugador"
-              placeholderTextColor={colors.textFaint}
-              autoCapitalize="words"
-              autoCorrect={false}
-              returnKeyType="search"
-            />
-          )}
-
-          {(chosen || query.length > 0) && (
-            <Pressable onPress={clearPlayer} hitSlop={10}>
-              <MaterialIcons name="close" size={18} color={colors.textDim} />
-            </Pressable>
-          )}
-        </View>
-
-        {/* El desplegable. Sin esto, escribir es adivinar: no sabes que nombres hay ni podes
-            fijar ninguno. Va DEBAJO del campo, no encima: no tapa lo que estas mirando. */}
-        {suggestions.length > 0 && (
-          <View style={s.hits}>
-            {suggestions.map((p) => (
-              <Pressable
-                key={p.id}
-                style={({ pressed: pr }) => [s.hit, pr && pressed]}
-                android_ripple={ripple}
-                onPress={() => {
-                  tick();
-                  setPlayer(p.id);
-                }}
-              >
-                <MaterialIcons name="person" size={18} color={colors.textDim} />
-                <Text style={s.hitText} numberOfLines={1}>
-                  {p.name}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        )}
+        {/* El mismo campo que en el formulario de partido nuevo. Aca, ademas, se FIJA: al
+            elegir del desplegable el filtro deja de ser texto y pasa a ser el id de esa
+            persona, que es lo unico que distingue a dos que se llaman igual. */}
+        <PlayerField
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Buscar jugador"
+          suggestions={suggestions}
+          chosen={chosen ?? null}
+          onPick={(p) => {
+            tick();
+            setPlayer(p.id);
+          }}
+          onClear={clearPlayer}
+        />
 
         <View style={s.periods}>
           {PERIODS.map((p) => (
@@ -357,50 +320,14 @@ const s = StyleSheet.create({
   head: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.lg,
+    justifyContent: 'space-between',
     paddingHorizontal: space.lg,
     paddingTop: space.md,
     paddingBottom: space.lg,
   },
-  /** El logo no puede rozar la flecha: es la unica pantalla donde convive con un boton al lado. */
-  back: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginLeft: -8 },
+  close: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginRight: -8 },
 
   filters: { paddingHorizontal: space.lg, gap: space.md, paddingBottom: space.md },
-
-  /** Escribir un pedazo del nombre y listo. Un desplegable seria buscar una lista en otra lista. */
-  search: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-    height: 48,
-    paddingHorizontal: space.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: alpha(colors.text, 0.2),
-    backgroundColor: colors.surfaceAlt,
-  },
-  /** Con alguien elegido, el campo se enciende: se ve de un vistazo que el historial esta filtrado. */
-  searchOn: { borderColor: alpha(colors.text, 0.5), backgroundColor: alpha(colors.text, 0.1) },
-  searchInput: {
-    flex: 1,
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '700',
-    padding: 0,
-    includeFontPadding: false,
-  },
-  searchChosen: { flex: 1, color: colors.text, fontSize: 15, fontWeight: '900' },
-
-  /** Los jugadores que coinciden con lo escrito. */
-  hits: { borderRadius: radius.md, backgroundColor: colors.surface, overflow: 'hidden' },
-  hit: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-    height: 48,
-    paddingHorizontal: space.md,
-  },
-  hitText: { flex: 1, color: colors.text, fontSize: 15, fontWeight: '600' },
 
   periods: { flexDirection: 'row', gap: space.sm },
   chip: {

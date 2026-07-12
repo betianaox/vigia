@@ -20,7 +20,6 @@ import { CHAR, fitWidth } from './layout';
 import { useMetrics, type Metrics } from './metrics';
 import { Scoreboard } from './Scoreboard';
 import { STROKE_LABELS, STROKES_CON_LADO, STROKES_POR_ALTO, VARIANT_LABELS } from './shots';
-import { StatsScreen } from './StatsScreen';
 import { alpha, colors, pressed, radius, ripple, space, teamColor } from './theme';
 
 type RallyAction = 'WINNER' | 'ERROR_FORZADO' | 'ERROR_NO_FORZADO';
@@ -64,12 +63,19 @@ export function MatchScreen({
   events,
   onEvents,
   onHome,
+  onStats,
 }: {
   config: MatchConfig;
   events: MatchEvent[];
   onEvents: (next: MatchEvent[]) => void;
   /** Salir. Siempre queda guardado y se puede retomar desde el inicio. */
   onHome?: () => void;
+  /**
+   * Ver las estadisticas. La cancha NO las abre: avisa que las quieren ver, y App decide.
+   * Cuando una pantalla se dibuja a si misma adentro de otra, nadie sabe donde esta parado —
+   * ni siquiera el boton "atras" de Android.
+   */
+  onStats?: () => void;
 }) {
   useKeepAwake();
 
@@ -78,7 +84,6 @@ export function MatchScreen({
 
   const [shotFor, setShotFor] = useState<number | null>(null);
   const [rotated, setRotated] = useState(false);
-  const [showStats, setShowStats] = useState(false);
 
   const state = useMemo(() => reduce(config, events), [config, events]);
 
@@ -88,21 +93,6 @@ export function MatchScreen({
    * cada game y el ritmo de juego. Cero taps de mas.
    */
   const push = (e: MatchEvent) => onEvents([...events, { ...e, t: Date.now() }]);
-
-  // Desde la cancha, el partido nunca esta "terminado antes de tiempo": o sigue, o el motor lo
-  // dio por terminado. Terminarlo a mano se hace en el inicio, no aca.
-  if (showStats) {
-    return (
-      <StatsScreen
-        config={config}
-        events={events}
-        state={state}
-        finishedEarly={false}
-        onBack={() => setShowStats(false)}
-        onShare={() => {}}
-      />
-    );
-  }
 
   /** Tap corto: registra el punto y listo. Un solo tap, sin seleccionar nada antes. */
   const registerPoint = (type: RallyAction, player: PlayerId) => {
@@ -328,7 +318,7 @@ export function MatchScreen({
                 android_ripple={ripple}
                 onPress={() => {
                   tick();
-                  setShowStats(true);
+                  onStats?.();
                 }}
               >
                 <MaterialIcons
@@ -380,7 +370,7 @@ export function MatchScreen({
           android_ripple={ripple}
           onPress={() => {
             tick();
-            setShowStats(true);
+            onStats?.();
           }}
         >
           <MaterialIcons name="bar-chart" size={m.bottom.icon} color={colors.text} />

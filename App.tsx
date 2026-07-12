@@ -17,6 +17,7 @@ import { MatchScreen } from './src/ui/MatchScreen';
 import { ScoreboardPreview } from './src/ui/ScoreboardPreview';
 import { SetupScreen } from './src/ui/SetupScreen';
 import { StatsScreen } from './src/ui/StatsScreen';
+import { useBackHandler } from './src/ui/useBackHandler';
 
 // Herramienta de desarrollo: pone en pantalla todas las variantes del tanteador juntas.
 const PREVIEW = false;
@@ -24,6 +25,8 @@ const PREVIEW = false;
 type Screen =
   | { name: 'setup' }
   | { name: 'match' }
+  /** Las estadisticas del partido que se esta jugando. */
+  | { name: 'stats' }
   | { name: 'history' }
   /** Un partido del historial, de solo lectura. */
   | { name: 'archive'; match: SavedMatch };
@@ -108,6 +111,22 @@ export default function App() {
     setScreen({ name: 'setup' });
   };
 
+  /**
+   * El back de Android, en UN solo lugar. Cada pantalla vuelve a la que la abrio; el inicio
+   * es la raiz y ahi si sale de la app, que es lo que el usuario espera.
+   */
+  useBackHandler(
+    screen.name === 'setup'
+      ? null
+      : screen.name === 'match'
+        ? home
+        : screen.name === 'stats'
+          ? () => setScreen({ name: 'match' })
+          : screen.name === 'archive'
+            ? () => setScreen({ name: 'history' })
+            : () => setScreen({ name: 'setup' }),
+  );
+
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
@@ -120,6 +139,16 @@ export default function App() {
           events={match.events}
           onEvents={onEvents}
           onHome={home}
+          onStats={() => setScreen({ name: 'stats' })}
+        />
+      ) : screen.name === 'stats' && match ? (
+        <StatsScreen
+          config={match.config}
+          events={match.events}
+          state={reduce(match.config, match.events)}
+          finishedEarly={false}
+          onClose={() => setScreen({ name: 'match' })}
+          onShare={() => {}}
         />
       ) : screen.name === 'history' ? (
         <HistoryScreen
@@ -132,7 +161,7 @@ export default function App() {
           events={screen.match.events}
           state={reduce(screen.match.config, screen.match.events)}
           finishedEarly
-          onBack={() => setScreen({ name: 'history' })}
+          onClose={() => setScreen({ name: 'history' })}
           onShare={() => {}}
         />
       ) : (
