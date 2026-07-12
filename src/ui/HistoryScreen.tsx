@@ -1,13 +1,20 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { Player, PlayerId, TeamId } from '../engine';
-import { loadIndex, loadMatch, type MatchSummary, type SavedMatch } from '../store/matches';
-import { loadPlayers } from '../store/store';
+import {
+  deleteMatch,
+  loadIndex,
+  loadMatch,
+  type MatchSummary,
+  type SavedMatch,
+} from '../store/matches';
+import { loadPlayers, normalize } from '../store/store';
 import { Brand } from './Brand';
+import { Confirm } from './Confirm';
 import { alpha, colors, pressed, radius, ripple, space, teamColor } from './theme';
 
 const tick = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -36,6 +43,10 @@ const formatDate = (t: number): string => {
   return d.toLocaleDateString('es', opts);
 };
 
+/** "20:30". La hora a la que se empezo, que es como la gente se acuerda de un partido. */
+const formatTime = (t: number): string =>
+  new Date(t).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', hour12: false });
+
 const formatDuration = (ms: number): string => {
   const min = Math.round(ms / 60000);
   if (min < 1) return '—';
@@ -52,9 +63,12 @@ export function HistoryScreen({
 }) {
   const [all, setAll] = useState<MatchSummary[]>([]);
   const [roster, setRoster] = useState<Player[]>([]);
+  const [query, setQuery] = useState('');
+  /** El jugador ELEGIDO del desplegable. Es lo que fija el filtro de verdad. */
   const [player, setPlayer] = useState<PlayerId | null>(null);
   const [period, setPeriod] = useState<Period>('all');
-  const [pickingPlayer, setPickingPlayer] = useState(false);
+  /** El partido que se esta por borrar. Borrar SI se pregunta: el archivo se va y no vuelve. */
+  const [deleting, setDeleting] = useState<MatchSummary | null>(null);
 
   useEffect(() => {
     void loadIndex().then(setAll);
@@ -62,22 +76,46 @@ export function HistoryScreen({
   }, []);
 
   /**
-   * El filtro por jugador va por ID, no por nombre: dos personas se pueden llamar igual, y
-   * alguien se puede renombrar. El id es la identidad estable que se construyo para esto.
+   * Escribir BUSCA; elegir FIJA.
+   *
+   * Escribiendo "bea" se van achicando los partidos, pero eso solo no alcanza: no sabes que
+   * nombres existen ni podes fijar uno. Por eso, mientras escribis, abajo aparecen los
+   * jugadores que coinciden — y al tocar uno, el filtro deja de ser texto y pasa a ser SU ID.
+   *
+   * Y esa es la diferencia que importa: dos personas se pueden llamar igual, y alguien se
+   * puede renombrar. Buscando por texto, las dos "Ana" caen en la misma bolsa. Eligiendo del
+   * desplegable, el historial es exactamente el de esa persona.
    */
+  const suggestions = useMemo(() => {
+    const q = normalize(query);
+    if (player || q.length === 0) return [];
+    // Solo los que efectivamente jugaron: ofrecer a alguien sin un solo partido es ofrecer nada.
+    const played = new Set(all.flatMap((m) => m.playerIds));
+    return roster
+      .filter((p) => played.has(p.id) && normalize(p.name).includes(q))
+      .sort((a, b) => a.name.localeCompare(b.name, 'es'))
+      .slice(0, 6);
+  }, [all, roster, query, player]);
+
   const matches = useMemo(() => {
     const days = PERIODS.find((p) => p.value === period)!.days;
     const since = days === 0 ? 0 : Date.now() - days * DAY;
+    const q = normalize(query);
     return all
       .filter((m) => m.startedAt >= since)
-      .filter((m) => !player || m.playerIds.includes(player));
-  }, [all, period, player]);
+      .filter((m) => {
+        if (player) return m.playerIds.includes(player);
+        return !q || normalize(`${m.teams.A} ${m.teams.B}`).includes(q);
+      });
+  }, [all, period, query, player]);
 
-  /** Solo los que efectivamente jugaron algun partido: el plantel entero seria ruido. */
-  const played = useMemo(() => {
-    const ids = new Set(all.flatMap((m) => m.playerIds));
-    return roster.filter((p) => ids.has(p.id)).sort((a, b) => a.name.localeCompare(b.name, 'es'));
-  }, [all, roster]);
+  const chosen = roster.find((p) => p.id === player);
+
+  const clearPlayer = () => {
+    tick();
+    setPlayer(null);
+    setQuery('');
+  };
 
   const open = async (m: MatchSummary) => {
     tick();
@@ -85,7 +123,10 @@ export function HistoryScreen({
     if (saved) onOpen(saved);
   };
 
-  const chosen = played.find((p) => p.id === player);
+  const remove = async (m: MatchSummary) => {
+    await deleteMatch(m.id);
+    setAll(await loadIndex());
+  };
 
   return (
     <SafeAreaView style={s.root}>
@@ -103,37 +144,61 @@ export function HistoryScreen({
 
       {/* Los filtros. Sin ellos, un historial deja de servir apenas tenes treinta partidos. */}
       <View style={s.filters}>
-        <Pressable
-          style={({ pressed: pr }) => [s.chip, chosen && s.chipOn, pr && pressed]}
-          android_ripple={ripple}
-          onPress={() => {
-            tick();
-            setPickingPlayer((v) => !v);
-          }}
-        >
+        <View style={[s.search, chosen && s.searchOn]}>
           <MaterialIcons
-            name="person"
-            size={16}
+            name={chosen ? 'person' : 'search'}
+            size={20}
             color={chosen ? colors.text : colors.textFaint}
           />
-          <Text style={[s.chipText, chosen && s.chipTextOn]} numberOfLines={1}>
-            {chosen?.name ?? 'Jugador'}
-          </Text>
+
+          {/* Elegido, el campo deja de ser un campo: es el nombre de la persona. No hay nada
+              mas que escribir — para cambiarlo, se saca con la X. */}
           {chosen ? (
-            <Pressable
-              onPress={() => {
-                tick();
-                setPlayer(null);
-                setPickingPlayer(false);
-              }}
-              hitSlop={8}
-            >
-              <MaterialIcons name="close" size={16} color={colors.text} />
-            </Pressable>
+            <Text style={s.searchChosen} numberOfLines={1}>
+              {chosen.name}
+            </Text>
           ) : (
-            <MaterialIcons name="expand-more" size={16} color={colors.textFaint} />
+            <TextInput
+              style={s.searchInput}
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Buscar jugador"
+              placeholderTextColor={colors.textFaint}
+              autoCapitalize="words"
+              autoCorrect={false}
+              returnKeyType="search"
+            />
           )}
-        </Pressable>
+
+          {(chosen || query.length > 0) && (
+            <Pressable onPress={clearPlayer} hitSlop={10}>
+              <MaterialIcons name="close" size={18} color={colors.textDim} />
+            </Pressable>
+          )}
+        </View>
+
+        {/* El desplegable. Sin esto, escribir es adivinar: no sabes que nombres hay ni podes
+            fijar ninguno. Va DEBAJO del campo, no encima: no tapa lo que estas mirando. */}
+        {suggestions.length > 0 && (
+          <View style={s.hits}>
+            {suggestions.map((p) => (
+              <Pressable
+                key={p.id}
+                style={({ pressed: pr }) => [s.hit, pr && pressed]}
+                android_ripple={ripple}
+                onPress={() => {
+                  tick();
+                  setPlayer(p.id);
+                }}
+              >
+                <MaterialIcons name="person" size={18} color={colors.textDim} />
+                <Text style={s.hitText} numberOfLines={1}>
+                  {p.name}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
 
         <View style={s.periods}>
           {PERIODS.map((p) => (
@@ -161,30 +226,6 @@ export function HistoryScreen({
         </View>
       </View>
 
-      {pickingPlayer && (
-        <View style={s.playerList}>
-          {played.length === 0 ? (
-            <Text style={s.empty}>Todavía no hay partidos jugados.</Text>
-          ) : (
-            played.map((p) => (
-              <Pressable
-                key={p.id}
-                style={({ pressed: pr }) => [s.playerRow, pr && pressed]}
-                android_ripple={ripple}
-                onPress={() => {
-                  tick();
-                  setPlayer(p.id);
-                  setPickingPlayer(false);
-                }}
-              >
-                <MaterialIcons name="person" size={18} color={colors.textDim} />
-                <Text style={s.playerName}>{p.name}</Text>
-              </Pressable>
-            ))
-          )}
-        </View>
-      )}
-
       {/* FlatList dibuja solo las filas que estan en pantalla: con 500 partidos guardados,
           renderiza ocho. Es la paginacion de verdad —no cargar todo— sin ningun boton de
           pagina, que es un patron de web que en un telefono nadie busca. */}
@@ -199,14 +240,61 @@ export function HistoryScreen({
               : 'Ningún partido con esos filtros.'}
           </Text>
         }
-        renderItem={({ item }) => <Row m={item} onPress={() => void open(item)} />}
+        renderItem={({ item }) => (
+          <Row
+            m={item}
+            onPress={() => void open(item)}
+            onDelete={() => {
+              tick();
+              setDeleting(item);
+            }}
+          />
+        )}
+      />
+
+      {/* Borrar SI se pregunta. Terminar un partido no destruia nada —quedaba en el historial—
+          pero esto se lleva el archivo, y con el los puntos, los golpes y las estadisticas de
+          ese dia. No hay deshacer del otro lado.
+
+          Y el cartel dice CUAL. Con los nombres solos no alcanza: la misma gente juega todas
+          las semanas, y dos filas seguidas pueden decir exactamente lo mismo. Un cartel que no
+          distingue el partido que se va a borrar no es una confirmacion — es un tramite, y el
+          error que tenia que evitar lo comete igual. La hora y el resultado son lo que lo
+          vuelve UNO. */}
+      <Confirm
+        visible={deleting !== null}
+        title="Borrar el partido"
+        message={
+          deleting
+            ? `${deleting.teams.A} vs ${deleting.teams.B}\n` +
+              `${formatDate(deleting.startedAt)} · ${formatTime(deleting.startedAt)}` +
+              `${deleting.score ? ` · ${deleting.score}` : ''}\n\n` +
+              'Se borra para siempre, con todas sus estadísticas.'
+            : undefined
+        }
+        confirmLabel="Borrar"
+        destructive
+        onCancel={() => setDeleting(null)}
+        onConfirm={() => {
+          const m = deleting;
+          setDeleting(null);
+          if (m) void remove(m);
+        }}
       />
     </SafeAreaView>
   );
 }
 
 /** El ganador en el color de su equipo, el perdedor atenuado: el mismo vocabulario del tanteador. */
-function Row({ m, onPress }: { m: MatchSummary; onPress: () => void }) {
+function Row({
+  m,
+  onPress,
+  onDelete,
+}: {
+  m: MatchSummary;
+  onPress: () => void;
+  onDelete: () => void;
+}) {
   const line = (t: TeamId) => {
     const lost = m.finished && m.winner !== t;
     return (
@@ -228,18 +316,36 @@ function Row({ m, onPress }: { m: MatchSummary; onPress: () => void }) {
       <View style={s.rowMain}>
         {line('A')}
         {line('B')}
+
+        {/* El resultado en un renglon propio, a lo ancho. Metido en la columna de los iconos
+            entraba "1-0" y nada mas: un partido de tres sets con tiebreaks es tres veces mas
+            largo que eso, y se cortaba justo el dia que mas ganas hay de mirarlo. */}
+        <Text style={s.score} numberOfLines={1}>
+          {m.score || '—'}
+        </Text>
+
+        {/* La hora, no solo el dia: en un club se juegan varios partidos la misma tarde, y
+            "el de las 8" es como los distingue la gente que estuvo ahi. */}
         <Text style={s.meta} numberOfLines={1}>
-          {formatDate(m.startedAt)} · {formatDuration(m.updatedAt - m.startedAt)} ·{' '}
-          {m.points} puntos
+          {formatDate(m.startedAt)} · {formatTime(m.startedAt)} ·{' '}
+          {formatDuration(m.updatedAt - m.startedAt)} · {m.points} puntos
           {m.finished ? '' : ' · sin terminar'}
         </Text>
       </View>
 
-      <View style={s.rowRight}>
-        <Text style={s.score} numberOfLines={1}>
-          {m.score || '—'}
-        </Text>
+      <View style={s.actions}>
         <MaterialIcons name="bar-chart" size={22} color={colors.textDim} />
+
+        {/* Su propio Pressable adentro de la fila: el toque no llega al de abajo. Va apagado —
+            no compite con abrir el partido, que es lo que se hace el 99% de las veces. */}
+        <Pressable
+          style={({ pressed: pr }) => [s.trash, pr && s.trashOn]}
+          android_ripple={{ ...ripple, borderless: true }}
+          onPress={onDelete}
+          hitSlop={8}
+        >
+          <MaterialIcons name="delete-outline" size={22} color={colors.textFaint} />
+        </Pressable>
       </View>
     </Pressable>
   );
@@ -251,14 +357,51 @@ const s = StyleSheet.create({
   head: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.md,
+    gap: space.lg,
     paddingHorizontal: space.lg,
-    paddingTop: space.sm,
-    paddingBottom: space.md,
+    paddingTop: space.md,
+    paddingBottom: space.lg,
   },
+  /** El logo no puede rozar la flecha: es la unica pantalla donde convive con un boton al lado. */
   back: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginLeft: -8 },
 
-  filters: { paddingHorizontal: space.lg, gap: space.sm, paddingBottom: space.sm },
+  filters: { paddingHorizontal: space.lg, gap: space.md, paddingBottom: space.md },
+
+  /** Escribir un pedazo del nombre y listo. Un desplegable seria buscar una lista en otra lista. */
+  search: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    height: 48,
+    paddingHorizontal: space.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: alpha(colors.text, 0.2),
+    backgroundColor: colors.surfaceAlt,
+  },
+  /** Con alguien elegido, el campo se enciende: se ve de un vistazo que el historial esta filtrado. */
+  searchOn: { borderColor: alpha(colors.text, 0.5), backgroundColor: alpha(colors.text, 0.1) },
+  searchInput: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '700',
+    padding: 0,
+    includeFontPadding: false,
+  },
+  searchChosen: { flex: 1, color: colors.text, fontSize: 15, fontWeight: '900' },
+
+  /** Los jugadores que coinciden con lo escrito. */
+  hits: { borderRadius: radius.md, backgroundColor: colors.surface, overflow: 'hidden' },
+  hit: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    height: 48,
+    paddingHorizontal: space.md,
+  },
+  hitText: { flex: 1, color: colors.text, fontSize: 15, fontWeight: '600' },
+
   periods: { flexDirection: 'row', gap: space.sm },
   chip: {
     flexDirection: 'row',
@@ -275,22 +418,6 @@ const s = StyleSheet.create({
   chipText: { color: colors.textFaint, fontSize: 12, fontWeight: '700' },
   chipTextOn: { color: colors.text, fontWeight: '900' },
 
-  playerList: {
-    marginHorizontal: space.lg,
-    marginBottom: space.sm,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    overflow: 'hidden',
-  },
-  playerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-    height: 48,
-    paddingHorizontal: space.md,
-  },
-  playerName: { color: colors.text, fontSize: 15, fontWeight: '600' },
-
   list: { padding: space.lg, paddingTop: 0, gap: space.sm },
   row: {
     flexDirection: 'row',
@@ -305,15 +432,20 @@ const s = StyleSheet.create({
   rowMain: { flex: 1, gap: 2 },
   team: { fontSize: 14, fontWeight: '800' },
   lost: { opacity: 0.45 },
-  meta: { color: colors.textFaint, fontSize: 11, fontWeight: '600', marginTop: 2 },
-
-  rowRight: { alignItems: 'flex-end', gap: 4 },
   score: {
     color: colors.text,
     fontSize: 15,
     fontWeight: '900',
     fontVariant: ['tabular-nums'],
+    marginTop: 4,
   },
+  meta: { color: colors.textFaint, fontSize: 11, fontWeight: '600', marginTop: 2 },
+
+  /** Los dos iconos juntos, en fila. */
+  actions: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  /** Apagado: abrir el partido es lo que se hace siempre, borrarlo casi nunca. */
+  trash: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginRight: -6 },
+  trashOn: { opacity: 0.6 },
 
   empty: { color: colors.textFaint, fontSize: 13, lineHeight: 19, padding: space.md },
 });

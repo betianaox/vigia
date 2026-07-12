@@ -134,7 +134,6 @@ export default function App() {
           finishedEarly
           onBack={() => setScreen({ name: 'history' })}
           onShare={() => {}}
-          onFinish={() => {}}
         />
       ) : (
         <SetupScreen

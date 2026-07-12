@@ -79,7 +79,6 @@ export function MatchScreen({
   const [shotFor, setShotFor] = useState<number | null>(null);
   const [rotated, setRotated] = useState(false);
   const [showStats, setShowStats] = useState(false);
-  const [abandoned, setAbandoned] = useState(false);
 
   const state = useMemo(() => reduce(config, events), [config, events]);
 
@@ -90,16 +89,17 @@ export function MatchScreen({
    */
   const push = (e: MatchEvent) => onEvents([...events, { ...e, t: Date.now() }]);
 
+  // Desde la cancha, el partido nunca esta "terminado antes de tiempo": o sigue, o el motor lo
+  // dio por terminado. Terminarlo a mano se hace en el inicio, no aca.
   if (showStats) {
     return (
       <StatsScreen
         config={config}
         events={events}
         state={state}
-        finishedEarly={abandoned}
+        finishedEarly={false}
         onBack={() => setShowStats(false)}
         onShare={() => {}}
-        onFinish={() => setAbandoned(true)}
       />
     );
   }

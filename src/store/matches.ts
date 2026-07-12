@@ -20,10 +20,14 @@ import type { MatchConfig, MatchEvent, PlayerId, TeamId } from '../engine';
  * 2. Si un archivo se corrompe, se pierde UN partido, no todos. (De Betiana, y es el
  *    argumento mas fuerte de los dos.)
  *
- * NADA SE BORRA NUNCA. Lo que hace volver a alguien es verse a si mismo a lo largo del
+ * LA APP NO BORRA NADA NUNCA. Lo que hace volver a alguien es verse a si mismo a lo largo del
  * tiempo: como evoluciono su primer saque, su ratio en los ultimos diez partidos, su
- * historial contra ese rival. La antiguedad ES el valor. Borrar lo viejo seria tirar
- * justamente la parte que crece.
+ * historial contra ese rival. La antiguedad ES el valor. Que la app tire lo viejo sola —para
+ * ahorrar espacio, para "limpiar"— seria tirar justamente la parte que crece.
+ *
+ * El usuario SI puede borrar un partido, desde el historial (`deleteMatch`). Es distinto:
+ * un partido que se empezo por error y quedo ahi ensucia las estadisticas para siempre, y
+ * nadie mas que el dueño de los datos puede saber cual es cual.
  *
  * AsyncStorage queda solo para lo chico: el indice, el plantel, las preferencias.
  */

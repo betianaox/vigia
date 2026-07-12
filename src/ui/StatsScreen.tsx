@@ -1,4 +1,4 @@
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { computeStats, pct, teamShotLines, winnerErrorRatio, shotLines } from '../engine/stats';
@@ -99,30 +99,17 @@ export function StatsScreen({
   finishedEarly,
   onBack,
   onShare,
-  onFinish,
 }: {
   config: MatchConfig;
   events: MatchEvent[];
   state: MatchState;
+  /** El partido quedo a medias: se muestran las estadisticas de lo que se jugo. */
   finishedEarly: boolean;
   onBack: () => void;
   onShare: () => void;
-  onFinish: () => void;
 }) {
   const stats = computeStats(config, events);
   const over = state.finished || finishedEarly;
-
-  // En amateur las canchas se alquilan por tiempo: terminar antes NO es un caso de
-  // borde, es como termina la mayoria de los partidos. Pero es destructivo: se confirma.
-  const confirmFinish = () =>
-    Alert.alert(
-      '¿Terminar el partido?',
-      'Se cierra acá y quedan las estadísticas de lo jugado hasta ahora.',
-      [
-        { text: 'Seguir jugando', style: 'cancel' },
-        { text: 'Terminar', style: 'destructive', onPress: onFinish },
-      ],
-    );
 
   return (
     <SafeAreaView style={s.root}>
@@ -205,24 +192,16 @@ export function StatsScreen({
           <Text style={s.btnPrimaryText}>{over ? 'Volver' : 'Volver al partido'}</Text>
         </Pressable>
 
-        <View style={s.row}>
-          <Pressable
-            style={({ pressed: p }) => [s.btn, s.btnRow, s.btnGhost, p && pressed]}
-            android_ripple={ripple}
-            onPress={onShare}
-          >
-            <Text style={s.btnGhostText}>Compartir</Text>
-          </Pressable>
-          {!over && (
-            <Pressable
-              style={({ pressed: p }) => [s.btn, s.btnRow, s.btnGhost, p && pressed]}
-              android_ripple={ripple}
-              onPress={confirmFinish}
-            >
-              <Text style={s.btnDanger}>Terminar partido</Text>
-            </Pressable>
-          )}
-        </View>
+        {/* NO hay "Terminar partido" aca. Terminar se hace en UN solo lugar: la tarjeta del
+            inicio. Tener el mismo camino en tres pantallas es como no tenerlo en ninguna —
+            nadie sabe cual es el bueno, y el partido queda a medias en el medio. */}
+        <Pressable
+          style={({ pressed: p }) => [s.btn, s.btnGhost, p && pressed]}
+          android_ripple={ripple}
+          onPress={onShare}
+        >
+          <Text style={s.btnGhostText}>Compartir</Text>
+        </Pressable>
       </View>
     </SafeAreaView>
   );
@@ -386,10 +365,8 @@ const s = StyleSheet.create({
   actions: { padding: space.md, gap: space.sm, backgroundColor: colors.surface },
   // Sin flex: dentro de un contenedor en columna, flex:1 colapsa el boton y le come el texto.
   btn: { paddingVertical: space.md, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
-  btnRow: { flex: 1 },
   btnPrimary: { backgroundColor: colors.text },
   btnPrimaryText: { color: colors.onLight, fontWeight: '800', fontSize: 15 },
   btnGhost: { backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border },
   btnGhostText: { color: colors.text, fontWeight: '700' },
-  btnDanger: { color: colors.errorUnforced, fontWeight: '700' },
 });
