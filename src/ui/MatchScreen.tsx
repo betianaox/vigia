@@ -7,15 +7,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { reduce, undo } from '../engine';
 import type { Box, MatchConfig, MatchEvent, MatchState, PlayerId, Shot, TeamId } from '../engine';
 import { SHOT_LABELS, SHOTS } from './shots';
-import { colors, radius, space, teamColor } from './theme';
+import { alpha, colors, radius, space, teamColor } from './theme';
 
 type RallyAction = 'WINNER' | 'ERROR_FORZADO' | 'ERROR_NO_FORZADO';
 
 /** Semaforo, desde la perspectiva del jugador de la tarjeta. */
-const RALLY: Array<{ type: RallyAction; label: string; bg: string; fg: string }> = [
-  { type: 'WINNER', label: 'Winner', bg: colors.winner, fg: colors.onLight },
-  { type: 'ERROR_FORZADO', label: 'Error\nforzado', bg: colors.errorForced, fg: colors.onLight },
-  { type: 'ERROR_NO_FORZADO', label: 'Error no\nforzado', bg: colors.errorUnforced, fg: '#FFF' },
+const RALLY: Array<{ type: RallyAction; label: string; color: string }> = [
+  { type: 'WINNER', label: 'Winner', color: colors.winner },
+  { type: 'ERROR_FORZADO', label: 'Error\nforzado', color: colors.errorForced },
+  { type: 'ERROR_NO_FORZADO', label: 'Error no\nforzado', color: colors.errorUnforced },
 ];
 
 /** Nombre y apellido -> "AR". Un solo nombre -> las dos primeras letras, para no colisionar. */
@@ -196,21 +196,32 @@ function PlayerCard(props: {
   const c = teamColor(props.team);
   const second = props.serveState === 'SEGUNDO';
 
+  // Mismo tamano los tres, los distingue el color. Pero la falta va SOLIDA: es la mas
+  // frecuente y la que menos tiempo tiene (cae entre los dos saques). El ace, en cambio,
+  // en padel es raro: no merece resaltar.
+  const serveBtn = (label: string, color: string, onPress: () => void, solid = false) => (
+    <Pressable
+      style={[
+        s.serveBtn,
+        solid
+          ? { backgroundColor: color, borderColor: color }
+          : { backgroundColor: alpha(color, 0.16), borderColor: alpha(color, 0.55) },
+      ]}
+      onPress={onPress}
+    >
+      <Text style={[s.serveText, { color: solid ? colors.onLight : color }]}>{label}</Text>
+    </Pressable>
+  );
+
   return (
     <View style={[s.card, props.serving && s.cardServing]}>
       {/* Las acciones de saque solo existen para el que saca. Que la tarjeta sea
           distinta hace imposible no ver quien esta sacando. */}
       {props.serving ? (
-        <View style={s.serveRow}>
-          <Pressable style={[s.serveBtn, s.faltaBtn]} onPress={props.onFalta}>
-            <Text style={s.faltaText}>{second ? 'DOBLE FALTA' : 'FALTA'}</Text>
-          </Pressable>
-          <Pressable style={s.serveBtn} onPress={props.onAce}>
-            <Text style={s.serveText}>Ace</Text>
-          </Pressable>
-          <Pressable style={[s.serveBtn, s.letBtn]} onPress={props.onLet}>
-            <Text style={s.serveText}>Let</Text>
-          </Pressable>
+        <View style={s.row}>
+          {serveBtn(second ? 'Doble falta' : 'Falta', colors.falta, props.onFalta, true)}
+          {serveBtn('Ace', colors.ace, props.onAce)}
+          {serveBtn('Let', colors.let, props.onLet)}
         </View>
       ) : (
         <View style={s.serveRowEmpty} />
@@ -223,20 +234,35 @@ function PlayerCard(props: {
         <Text style={s.cardName} numberOfLines={1}>
           {props.name}
         </Text>
-        <Text style={[s.cardTag, props.serving && { color: colors.serve }]}>
-          {props.serving ? (second ? '2DO SAQUE' : 'SACA') : props.receiving ? 'RESTA' : ' '}
-        </Text>
+
+        {props.serving ? (
+          // El segundo saque se muestra invertido: es el estado peligroso, tiene que saltar.
+          <View style={[s.pill, second ? s.pillHot : s.pillCool]}>
+            <Text style={[s.pillText, second && { color: colors.onLight }]}>
+              {second ? '2DO SAQUE' : '1ER SAQUE'}
+            </Text>
+          </View>
+        ) : props.receiving ? (
+          <View style={[s.pill, s.pillGhost]}>
+            <Text style={[s.pillText, { color: colors.textFaint }]}>RESTA</Text>
+          </View>
+        ) : (
+          <View style={s.pillEmpty} />
+        )}
       </View>
 
       <View style={s.row}>
         {RALLY.map((a) => (
           <Pressable
             key={a.type}
-            style={[s.rallyBtn, { backgroundColor: a.bg }]}
+            style={[
+              s.rallyBtn,
+              { backgroundColor: alpha(a.color, 0.15), borderColor: alpha(a.color, 0.5) },
+            ]}
             onPress={() => props.onRally(a.type)}
             onLongPress={() => props.onRallyLong(a.type)}
           >
-            <Text style={[s.rallyText, { color: a.fg }]}>{a.label}</Text>
+            <Text style={[s.rallyText, { color: a.color }]}>{a.label}</Text>
           </Pressable>
         ))}
       </View>
@@ -306,8 +332,8 @@ const s = StyleSheet.create({
   goldenBtn: { backgroundColor: '#3B2708', paddingVertical: space.sm, paddingHorizontal: space.xl, borderRadius: radius.sm },
   goldenBtnText: { color: colors.golden, fontWeight: '800' },
 
-  court: { flex: 1, gap: space.sm, padding: space.sm },
-  teamRow: { flex: 1, flexDirection: 'row', gap: space.sm },
+  court: { flex: 1, gap: space.md, padding: space.md },
+  teamRow: { flex: 1, flexDirection: 'row', gap: space.md },
 
   card: {
     flex: 1,
@@ -320,40 +346,41 @@ const s = StyleSheet.create({
   },
   cardServing: { borderColor: colors.serve, borderWidth: 2, backgroundColor: colors.surfaceAlt },
 
-  serveRow: { flexDirection: 'row', gap: space.xs },
-  serveRowEmpty: { height: 44 },
+  // Los tres del saque son del mismo tamano; los distingue el color, no la jerarquia.
+  serveRowEmpty: { height: 46 },
   serveBtn: {
-    paddingVertical: space.sm,
-    paddingHorizontal: space.sm,
-    borderRadius: radius.sm,
-    backgroundColor: colors.bg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 44,
-  },
-  // La falta es el boton mas frecuente y el que menos tiempo tiene: se lleva el espacio.
-  faltaBtn: { flex: 1, backgroundColor: colors.serve, borderColor: colors.serve },
-  faltaText: { color: colors.onLight, fontWeight: '900', fontSize: 12 },
-  letBtn: { opacity: 0.7 },
-  serveText: { color: colors.textDim, fontWeight: '700', fontSize: 12 },
-
-  identity: { alignItems: 'center', gap: space.xs, paddingVertical: space.sm },
-  avatar: { width: 56, height: 56, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: colors.bg, fontWeight: '900', fontSize: 20 },
-  cardName: { color: colors.text, fontWeight: '700', fontSize: 15 },
-  cardTag: { color: colors.textFaint, fontSize: 10, fontWeight: '800', letterSpacing: 1, height: 13 },
-
-  rallyBtn: {
     flex: 1,
-    minHeight: 58,
-    borderRadius: radius.md,
+    minHeight: 46,
+    borderRadius: radius.sm,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 2,
   },
-  rallyText: { fontWeight: '900', fontSize: 11, textAlign: 'center', lineHeight: 13 },
+  serveText: { fontWeight: '800', fontSize: 12 },
+
+  identity: { alignItems: 'center', gap: space.sm, paddingVertical: space.sm },
+  avatar: { width: 76, height: 76, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: colors.bg, fontWeight: '900', fontSize: 27 },
+  cardName: { color: colors.text, fontWeight: '700', fontSize: 15 },
+
+  pill: { paddingHorizontal: space.sm, paddingVertical: 3, borderRadius: radius.pill, borderWidth: 1 },
+  pillEmpty: { height: 22 },
+  pillCool: { borderColor: alpha(colors.serve, 0.5), backgroundColor: alpha(colors.serve, 0.1) },
+  pillHot: { borderColor: colors.serve, backgroundColor: colors.serve },
+  pillGhost: { borderColor: colors.border },
+  pillText: { color: colors.serve, fontSize: 10, fontWeight: '900', letterSpacing: 1 },
+
+  rallyBtn: {
+    flex: 1,
+    minHeight: 62,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  rallyText: { fontWeight: '800', fontSize: 11.5, textAlign: 'center', lineHeight: 14 },
 
   bottom: { flexDirection: 'row', gap: space.sm, padding: space.sm, backgroundColor: colors.surface },
   utilBtn: { flex: 1, paddingVertical: space.lg, borderRadius: radius.md, backgroundColor: colors.surfaceAlt, alignItems: 'center' },
