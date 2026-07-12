@@ -24,15 +24,19 @@ const teamNames = (config: MatchConfig, t: TeamId): string =>
     .map((p) => config.players[p]!.name.split(' ')[0])
     .join(' / ');
 
-const initials = (name: string): string => {
-  const w = name.trim().split(/\s+/);
-  return (w.length > 1 ? w.map((x) => x[0]).join('') : w[0]!.slice(0, 2)).slice(0, 2).toUpperCase();
-};
+/** En el mismo orden en que se dibujan las barras: primero drive, despues reves. */
+const playerNames = (config: MatchConfig, t: TeamId): [string, string] =>
+  [config.teams[t].drive, config.teams[t].reves].map((p) => config.players[p]!.name) as [
+    string,
+    string,
+  ];
 
 /**
  * Las filas de la comparativa, POR JUGADOR. Un entrenador no corrige a un equipo:
  * la suma por equipo esconde cual de los dos esta tirando los errores.
- * Cada fila se escala sola: no se comparan entre si.
+ *
+ * Las etiquetas van partidas en dos renglones a proposito, para que todas las filas
+ * midan lo mismo y la grilla se lea pareja.
  */
 const buildRows = (stats: MatchStats, config: MatchConfig): Row[] => {
   const four = (['A', 'B'] as TeamId[]).map((t) =>
@@ -43,8 +47,8 @@ const buildRows = (stats: MatchStats, config: MatchConfig): Row[] => {
     pick: (p: PlayerStats) => number,
     fmt: (p: PlayerStats) => string,
   ): Pick<Row, 'a' | 'b'> => ({
-    a: four[0].map((p) => ({ who: initials(p.name), text: fmt(p), value: pick(p) })) as [Cell, Cell],
-    b: four[1].map((p) => ({ who: initials(p.name), text: fmt(p), value: pick(p) })) as [Cell, Cell],
+    a: four[0].map((p) => ({ text: fmt(p), value: pick(p) })) as [Cell, Cell],
+    b: four[1].map((p) => ({ text: fmt(p), value: pick(p) })) as [Cell, Cell],
   });
 
   const count = (label: string, pick: (p: PlayerStats) => number): Row => ({
@@ -66,22 +70,22 @@ const buildRows = (stats: MatchStats, config: MatchConfig): Row[] => {
 
   return [
     count('Winners', (p) => p.winners),
-    count('Errores no forzados', (p) => p.unforcedErrors),
-    count('Errores forzados', (p) => p.forcedErrors),
+    count('Errores\nno forzados', (p) => p.unforcedErrors),
+    count('Errores\nforzados', (p) => p.forcedErrors),
     count('Aces', (p) => p.aces),
-    count('Dobles faltas', (p) => p.doubleFaults),
+    count('Dobles\nfaltas', (p) => p.doubleFaults),
     percent(
-      '1er saque adentro',
+      '1er saque\nadentro',
       (p) => p.firstServesIn,
       (p) => p.servePointsPlayed,
     ),
     percent(
-      'Gana con 1er saque',
+      'Gana con\n1er saque',
       (p) => p.firstServePointsWon,
       (p) => p.firstServePointsPlayed,
     ),
     percent(
-      'Gana con 2do saque',
+      'Gana con\n2do saque',
       (p) => p.secondServePointsWon,
       (p) => p.secondServePointsPlayed,
     ),
@@ -160,8 +164,8 @@ export function StatsScreen({
 
               <HeadToHead
                 rows={buildRows(stats, config)}
-                nameA={teamNames(config, 'A')}
-                nameB={teamNames(config, 'B')}
+                playersA={playerNames(config, 'A')}
+                playersB={playerNames(config, 'B')}
                 colorA={colors.teamAFill}
                 colorB={colors.teamBFill}
               />
