@@ -17,6 +17,9 @@ export const colors = {
   serve: '#FFFFFF',
   golden: '#F59E0B',
 
+  /** La pelotita del tanteador: amarillo limon, como una pelota de padel. */
+  ball: '#D9F92F',
+
   // Semaforo, desde la perspectiva del jugador de la tarjeta.
   winner: '#22C55E',
   errorForced: '#FACC15',

@@ -5,7 +5,8 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { reduce, undo } from '../engine';
-import type { Box, MatchConfig, MatchEvent, MatchState, PlayerId, Shot, TeamId } from '../engine';
+import type { Box, MatchConfig, MatchEvent, PlayerId, Shot, TeamId } from '../engine';
+import { Scoreboard } from './Scoreboard';
 import { SHOT_LABELS, SHOTS } from './shots';
 import { alpha, colors, radius, space, teamColor } from './theme';
 
@@ -13,13 +14,13 @@ type RallyAction = 'WINNER' | 'ERROR_FORZADO' | 'ERROR_NO_FORZADO';
 
 /**
  * Semaforo, desde la perspectiva del jugador de la tarjeta.
- * Van las iniciales y no la palabra: el color ya carga el significado, y con texto
- * completo los tres botones quedaban de distinto alto y desparejos.
+ * La inicial manda (es lo que se busca de un vistazo) y la descripcion chica debajo
+ * hace que se entienda solo, sin tener que explicarle nada a nadie.
  */
-const RALLY: Array<{ type: RallyAction; label: string; color: string }> = [
-  { type: 'WINNER', label: 'W', color: colors.winner },
-  { type: 'ERROR_FORZADO', label: 'EF', color: colors.errorForced },
-  { type: 'ERROR_NO_FORZADO', label: 'ENF', color: colors.errorUnforced },
+const RALLY: Array<{ type: RallyAction; label: string; desc: string; color: string }> = [
+  { type: 'WINNER', label: 'W', desc: 'Winner', color: colors.winner },
+  { type: 'ERROR_FORZADO', label: 'EF', desc: 'Error forzado', color: colors.errorForced },
+  { type: 'ERROR_NO_FORZADO', label: 'ENF', desc: 'Error no forzado', color: colors.errorUnforced },
 ];
 
 /** Nombre y apellido -> "AR". Un solo nombre -> las dos primeras letras, para no colisionar. */
@@ -271,43 +272,18 @@ function PlayerCard(props: {
             <Text style={[s.rallyText, { color: a.color }]} numberOfLines={1} adjustsFontSizeToFit>
               {a.label}
             </Text>
+            {/* Tamano fijo, sin auto-shrink: si cada una se achica por su cuenta, las tres
+                terminan de distinto tamano, que es justo lo que queremos evitar. La caja
+                tiene alto fijo de dos lineas para que los tres botones queden parejos
+                aunque la descripcion ocupe una sola. */}
+            <View style={s.descBox}>
+              <Text style={[s.rallyDesc, { color: alpha(a.color, 0.8) }]} numberOfLines={2}>
+                {a.desc}
+              </Text>
+            </View>
           </Pressable>
         ))}
       </View>
-    </View>
-  );
-}
-
-function Scoreboard({ config, state }: { config: MatchConfig; state: MatchState }) {
-  const row = (t: TeamId) => {
-    const names = [config.teams[t].drive, config.teams[t].reves]
-      .map((p) => config.players[p]!.name)
-      .join(' / ');
-    return (
-      <View key={t} style={s.sbRow}>
-        <View
-          style={[s.sbDot, { backgroundColor: state.servingTeam === t ? colors.serve : 'transparent' }]}
-        />
-        <Text style={[s.sbNames, { color: teamColor(t) }]} numberOfLines={1}>
-          {names}
-        </Text>
-        {state.completedSets.map((cs, i) => (
-          <Text key={i} style={s.sbSet}>
-            {cs.games[t]}
-          </Text>
-        ))}
-        {!state.finished && <Text style={s.sbGames}>{state.games[t]}</Text>}
-        {!state.finished && <Text style={s.sbPoints}>{state.display[t]}</Text>}
-      </View>
-    );
-  };
-  return (
-    <View style={s.sb}>
-      {row('A')}
-      {row('B')}
-      {state.inTiebreak && !state.finished && (
-        <Text style={s.sbTag}>{state.isSuperTiebreak ? 'SÚPER TIEBREAK' : 'TIEBREAK'}</Text>
-      )}
     </View>
   );
 }
@@ -316,24 +292,6 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   row: { flexDirection: 'row', gap: space.xs },
 
-  sb: { backgroundColor: colors.surface, padding: space.md, gap: space.xs },
-  sbRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  sbDot: { width: 8, height: 8, borderRadius: radius.pill },
-  sbNames: { flex: 1, fontSize: 15, fontWeight: '600' },
-  sbSet: { width: 24, textAlign: 'center', fontSize: 17, color: colors.textFaint, fontVariant: ['tabular-nums'] },
-  sbGames: { width: 30, textAlign: 'center', fontSize: 20, fontWeight: '700', color: colors.text, fontVariant: ['tabular-nums'] },
-  sbPoints: {
-    width: 62,
-    marginLeft: space.sm,
-    textAlign: 'center',
-    fontSize: 28,
-    fontWeight: '800',
-    color: colors.text,
-    fontVariant: ['tabular-nums'],
-    borderLeftWidth: 1,
-    borderLeftColor: colors.border,
-  },
-  sbTag: { color: colors.golden, fontSize: 11, fontWeight: '800', letterSpacing: 1, textAlign: 'right' },
 
   goldenBar: { backgroundColor: colors.golden, padding: space.sm, gap: space.sm, alignItems: 'center' },
   goldenText: { color: '#3B2708', fontWeight: '900', letterSpacing: 1, fontSize: 12 },
@@ -386,9 +344,13 @@ const s = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 2,
+    paddingHorizontal: 3,
+    paddingVertical: space.xs,
+    gap: 1,
   },
-  rallyText: { fontWeight: '900', fontSize: 26, textAlign: 'center' },
+  rallyText: { fontWeight: '900', fontSize: 19, textAlign: 'center' },
+  descBox: { height: 19, justifyContent: 'center' },
+  rallyDesc: { fontWeight: '700', fontSize: 7.5, lineHeight: 9, textAlign: 'center' },
 
   bottom: { flexDirection: 'row', gap: space.sm, padding: space.sm, backgroundColor: colors.surface },
   utilBtn: { flex: 1, paddingVertical: space.lg, borderRadius: radius.md, backgroundColor: colors.surfaceAlt, alignItems: 'center' },

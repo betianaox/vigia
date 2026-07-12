@@ -3,6 +3,10 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import type { MatchConfig } from './src/engine';
 import { MatchScreen } from './src/ui/MatchScreen';
+import { ScoreboardPreview } from './src/ui/ScoreboardPreview';
+
+// Herramienta de desarrollo: pone en pantalla todas las variantes del tanteador juntas.
+const PREVIEW = false;
 
 // Partido de prueba, hasta que exista la pantalla de setup.
 const demo: MatchConfig = {
@@ -28,7 +32,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
-      <MatchScreen config={demo} />
+      {PREVIEW ? <ScoreboardPreview /> : <MatchScreen config={demo} />}
     </SafeAreaProvider>
   );
 }
