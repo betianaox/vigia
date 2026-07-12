@@ -277,4 +277,21 @@ export const reduce = (config: MatchConfig, events: MatchEvent[]): MatchState =>
   return present(s, config);
 };
 
+/**
+ * El estado JUSTO ANTES de cada evento (mismo largo que `events`).
+ *
+ * Es lo que necesitan las estadisticas: para saber si un punto se jugo con primer o
+ * segundo saque, quien sacaba, si era break point o punto de oro, hay que mirar como
+ * estaba el partido antes de que el evento ocurriera.
+ */
+export const scan = (config: MatchConfig, events: MatchEvent[]): MatchState[] => {
+  const s = init(config);
+  const out: MatchState[] = [];
+  for (const e of events) {
+    out.push(present(s, config));
+    apply(s, config, e);
+  }
+  return out;
+};
+
 export const undo = (events: MatchEvent[]): MatchEvent[] => events.slice(0, -1);

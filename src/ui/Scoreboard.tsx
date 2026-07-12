@@ -1,3 +1,4 @@
+import { MaterialIcons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { MatchConfig, MatchState, TeamId } from '../engine';
@@ -55,7 +56,11 @@ function TeamRow({
       {/* La pelotita: circulo dibujado, no emoji. El emoji de tenis en Android se
           renderiza como raqueta con pelota, que es otra cosa. */}
       <View style={s.ballSlot}>
-        {serving ? <View style={s.ball} /> : won ? <Text style={s.trophy}>🏆</Text> : null}
+        {serving ? (
+          <View style={s.ball} />
+        ) : won ? (
+          <MaterialIcons name="emoji-events" size={15} color={colors.golden} />
+        ) : null}
       </View>
 
       <Text
@@ -122,7 +127,6 @@ const s = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
   },
-  trophy: { fontSize: 13 },
   ballSpacer: { width: 20 },
   names: { flex: 1, fontSize: 15, fontWeight: '700' },
   /** Terminado el partido, el perdedor se apaga: el ganador se lee solo. */

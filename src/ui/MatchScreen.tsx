@@ -1,3 +1,4 @@
+import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useMemo, useState } from 'react';
@@ -8,6 +9,7 @@ import { reduce, undo } from '../engine';
 import type { Box, MatchConfig, MatchEvent, PlayerId, Shot, TeamId } from '../engine';
 import { Scoreboard } from './Scoreboard';
 import { SHOT_LABELS, SHOTS } from './shots';
+import { StatsScreen } from './StatsScreen';
 import { alpha, colors, radius, space, teamColor } from './theme';
 
 type RallyAction = 'WINNER' | 'ERROR_FORZADO' | 'ERROR_NO_FORZADO';
@@ -39,9 +41,25 @@ export function MatchScreen({ config }: { config: MatchConfig }) {
   const [events, setEvents] = useState<MatchEvent[]>([]);
   const [shotFor, setShotFor] = useState<number | null>(null);
   const [rotated, setRotated] = useState(false);
+  const [showStats, setShowStats] = useState(false);
+  const [abandoned, setAbandoned] = useState(false);
 
   const state = useMemo(() => reduce(config, events), [config, events]);
   const push = (e: MatchEvent) => setEvents((prev) => [...prev, e]);
+
+  if (showStats) {
+    return (
+      <StatsScreen
+        config={config}
+        events={events}
+        state={state}
+        finishedEarly={abandoned}
+        onBack={() => setShowStats(false)}
+        onShare={() => {}}
+        onFinish={() => setAbandoned(true)}
+      />
+    );
+  }
 
   /** Tap corto: registra el punto y listo. Un solo tap, sin seleccionar nada antes. */
   const registerPoint = (type: RallyAction, player: PlayerId) => {
@@ -135,16 +153,19 @@ export function MatchScreen({ config }: { config: MatchConfig }) {
         ))}
       </View>
 
+      {/* Deshacer se lleva el doble de espacio: se usa todo el tiempo y bajo presion.
+          Rotar y las estadisticas se tocan poco y con calma. */}
       <View style={s.bottom}>
         <Pressable
-          style={[s.utilBtn, events.length === 0 && s.utilBtnOff]}
+          style={[s.utilBtn, s.utilBtnWide, events.length === 0 && s.utilBtnOff]}
           onPress={() => {
             tick();
             setEvents(undo);
           }}
           disabled={events.length === 0}
         >
-          <Text style={s.utilText}>↺  Deshacer</Text>
+          <MaterialIcons name="undo" size={22} color={colors.text} />
+          <Text style={s.utilText}>Deshacer</Text>
         </Pressable>
         <Pressable
           style={s.utilBtn}
@@ -153,7 +174,20 @@ export function MatchScreen({ config }: { config: MatchConfig }) {
             setRotated((r) => !r);
           }}
         >
-          <Text style={s.utilText}>⟲  Rotar</Text>
+          {/* La vista se da vuelta 180 grados para coincidir con lo que ve el que mira.
+              Ojo: NO decirle "cambiar lado" — eso ya significa otra cosa en padel. */}
+          <MaterialIcons name="swap-vert" size={22} color={colors.text} />
+          <Text style={s.utilTextSmall}>Dar vuelta</Text>
+        </Pressable>
+        <Pressable
+          style={s.utilBtn}
+          onPress={() => {
+            tick();
+            setShowStats(true);
+          }}
+        >
+          <MaterialIcons name="bar-chart" size={22} color={colors.text} />
+          <Text style={s.utilTextSmall}>Stats</Text>
         </Pressable>
       </View>
 
@@ -353,9 +387,20 @@ const s = StyleSheet.create({
   rallyDesc: { fontWeight: '700', fontSize: 7.5, lineHeight: 9, textAlign: 'center' },
 
   bottom: { flexDirection: 'row', gap: space.sm, padding: space.sm, backgroundColor: colors.surface },
-  utilBtn: { flex: 1, paddingVertical: space.lg, borderRadius: radius.md, backgroundColor: colors.surfaceAlt, alignItems: 'center' },
+  utilBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: space.sm,
+    paddingVertical: space.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  utilBtnWide: { flex: 2.4 },
   utilBtnOff: { opacity: 0.35 },
   utilText: { color: colors.text, fontWeight: '800', fontSize: 15 },
+  utilTextSmall: { color: colors.text, fontWeight: '700', fontSize: 12 },
 
   modalBg: { flex: 1, backgroundColor: '#000A', justifyContent: 'flex-end' },
   modal: { backgroundColor: colors.surface, padding: space.lg, gap: space.md, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, maxHeight: '70%' },
