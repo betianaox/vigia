@@ -93,16 +93,19 @@ export default function App() {
     setResumable(null);
   };
 
+  /**
+   * Volver al inicio. Si el partido quedo a medias, sigue siendo el partido en curso.
+   *
+   * El partido YA ESTA EN MEMORIA: se lo pasa directo, sin volver a leerlo del disco. Leerlo
+   * es asincrono, y en ese hueco el inicio se dibujaba creyendo que no habia nada — mostraba
+   * el formulario y despues, cuando el disco contestaba, aparecia la tarjeta. Preguntarle al
+   * disco algo que uno ya sabe siempre se paga con un parpadeo.
+   */
   const home = () => {
+    const unfinished = match && !reduce(match.config, match.events).finished;
+    setResumable(unfinished ? match : null);
     setMatch(null);
     setScreen({ name: 'setup' });
-    // Si quedo a medias, sigue siendo el partido en curso y se puede retomar.
-    void (async () => {
-      const id = await getCurrentId();
-      if (!id) return;
-      const saved = await loadMatch(id);
-      if (saved) setResumable(saved);
-    })();
   };
 
   return (

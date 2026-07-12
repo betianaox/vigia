@@ -310,7 +310,7 @@ export function SetupScreen({
           <View style={s.resume}>
             {/* Arriba de todo, chico y apagado: dice QUE es esta tarjeta, y despues se calla.
                 No compite con lo unico que importa mirar, que es el tanteo. */}
-            <Text style={s.resumeEyebrow}>PARTIDO SIN TERMINAR</Text>
+            <Text style={s.resumeEyebrow}>PARTIDO EN CURSO</Text>
 
             {/* El MISMO tanteador de la cancha, con el estado tal cual quedo: los nombres
                 enteros, la pelotita en quien tenia el saque, el punto en vivo. Quien vuelve
@@ -349,7 +349,10 @@ export function SetupScreen({
                   onClosePending();
                 }}
               >
-                <MaterialIcons name="flag" size={20} color={colors.textDim} />
+                {/* Play y stop: el par que ya existe en el mundo. Al lado de un ▶ que dice
+                    "Seguir", un ■ no hay que explicarlo — y lo que se detiene es, literalmente,
+                    algo que esta EN CURSO. La banderita no significaba nada. */}
+                <MaterialIcons name="stop" size={22} color={colors.textDim} />
                 <Text style={s.resumeBtnTextDim}>Terminar</Text>
               </Pressable>
             </View>
