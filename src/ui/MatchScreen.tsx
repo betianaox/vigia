@@ -167,27 +167,25 @@ export function MatchScreen({ config }: { config: MatchConfig }) {
           <MaterialIcons name="undo" size={22} color={colors.text} />
           <Text style={s.utilText}>Deshacer</Text>
         </Pressable>
+        {/* Solo icono: la etiqueta no explicaba nada (¿"dar vuelta" que?) y ocupaba lugar.
+            Da vuelta la vista 180 grados para que coincida con lo que ve el que mira. */}
         <Pressable
-          style={s.utilBtn}
+          style={[s.utilBtn, s.utilBtnIcon]}
           onPress={() => {
             tick();
             setRotated((r) => !r);
           }}
         >
-          {/* La vista se da vuelta 180 grados para coincidir con lo que ve el que mira.
-              Ojo: NO decirle "cambiar lado" — eso ya significa otra cosa en padel. */}
-          <MaterialIcons name="swap-vert" size={22} color={colors.text} />
-          <Text style={s.utilTextSmall}>Dar vuelta</Text>
+          <MaterialIcons name="swap-vert" size={28} color={colors.text} />
         </Pressable>
         <Pressable
-          style={s.utilBtn}
+          style={[s.utilBtn, s.utilBtnIcon]}
           onPress={() => {
             tick();
             setShowStats(true);
           }}
         >
-          <MaterialIcons name="bar-chart" size={22} color={colors.text} />
-          <Text style={s.utilTextSmall}>Stats</Text>
+          <MaterialIcons name="bar-chart" size={28} color={colors.text} />
         </Pressable>
       </View>
 
@@ -397,10 +395,11 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  utilBtnWide: { flex: 2.4 },
+  utilBtnWide: { flex: 1 },
+  /** Solo icono: no necesita crecer, y el ancho que sobra se lo lleva Deshacer. */
+  utilBtnIcon: { flex: 0, width: 64 },
   utilBtnOff: { opacity: 0.35 },
   utilText: { color: colors.text, fontWeight: '800', fontSize: 15 },
-  utilTextSmall: { color: colors.text, fontWeight: '700', fontSize: 12 },
 
   modalBg: { flex: 1, backgroundColor: '#000A', justifyContent: 'flex-end' },
   modal: { backgroundColor: colors.surface, padding: space.lg, gap: space.md, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, maxHeight: '70%' },
