@@ -5,11 +5,34 @@ export type TeamId = 'A' | 'B';
 export type Box = 'derecha' | 'izquierda';
 
 /**
- * La posicion fija de cada jugador dentro de su equipo durante todo el set.
- * El de drive recibe siempre en el cuadro derecho; el de reves, en el izquierdo.
- * De aca se deriva quien resta en cada punto, sin preguntarle nada al usuario.
+ * La posicion de cada jugador dentro de su equipo. El de drive recibe siempre en el cuadro
+ * derecho; el de reves, en el izquierdo. De aca se deriva quien resta en cada punto, sin
+ * preguntarle nada al usuario.
+ *
+ * Se mantiene durante todo el set, pero la pareja PUEDE darse vuelta al empezar uno nuevo, y
+ * el reglamento lo permite. Por eso las posiciones no se leen de `MatchConfig`: se derivan
+ * del log, igual que todo lo demas (ver `CAMBIO_POSICION`).
  */
 export type Position = 'drive' | 'reves';
+
+/** Quien esta de drive y quien de reves en cada equipo, AHORA. Sale del log, no de la config. */
+export type Positions = Record<TeamId, Record<Position, PlayerId>>;
+
+/**
+ * Como se para la pareja CUANDO SACA. Es una eleccion por PAREJA, no por partido: cada equipo
+ * elige la suya.
+ *
+ * Recibiendo, las posiciones son fijas — el reglamento obliga a mantener el lugar que se
+ * eligio al empezar el set. Pero sacando hay dos convenciones:
+ *
+ * - `australiana` (el default): cada uno mantiene su lado siempre. La pareja no se mueve.
+ * - `cambio`: el sacador se queda del lado desde el que saco. Como el cuadro alterna en cada
+ *   punto, los dos jugadores INTERCAMBIAN LUGAR EN LA CANCHA punto a punto.
+ *
+ * No cambia el tanteo, ni quien saca, ni quien resta, ni el golpe. Cambia DONDE ESTAN PARADOS
+ * — y por eso cambia como se dibuja la cancha, que es lo que el observador esta mirando.
+ */
+export type Formation = 'australiana' | 'cambio';
 
 export type GameFormat =
   /** Clasico: hay que sacar 2 puntos de diferencia, sin limite. */
@@ -94,6 +117,8 @@ export interface Team {
   id: TeamId;
   drive: PlayerId;
   reves: PlayerId;
+  /** Como se para la pareja cuando saca. Si falta, es 'australiana'. */
+  formation?: Formation;
 }
 
 /** Para cuando el partido ya empezo y se empieza a cargar tarde. */
@@ -138,6 +163,11 @@ export type MatchEvent =
   | { type: 'ELECCION_CUADRO'; box: Box }
   /** Al empezar un set, cada equipo puede reordenar sus sacadores. */
   | { type: 'ORDEN_SAQUE'; team: TeamId; order: [PlayerId, PlayerId] }
+  /**
+   * La pareja se dio vuelta: el que estaba de drive pasa a reves y viceversa. El reglamento
+   * lo permite al empezar un set, y cambia quien resta en cada cuadro de ahi en adelante.
+   */
+  | { type: 'CAMBIO_POSICION'; team: TeamId }
   /** Escape hatch. Deja el partido marcado: las estadisticas ya no reconcilian. */
   | { type: 'CORRECCION_MANUAL'; sets: Array<Record<TeamId, number>>; games: Record<TeamId, number> };
 
@@ -171,6 +201,36 @@ export interface MatchState {
   server: PlayerId;
   receiver: PlayerId;
   box: Box;
+
+  /**
+   * El ROL de cada jugador: quien juega de drive y quien de reves. Es lo que define quien
+   * resta en cada cuadro, y no se mueve durante el set.
+   */
+  positions: Positions;
+
+  /**
+   * DONDE ESTA PARADO cada uno EN ESTE PUNTO. Es lo que la UI dibuja.
+   *
+   * Casi siempre coincide con `positions`. Se separa de ellas en un solo caso: el equipo que
+   * SACA con formacion `cambio` — el sacador se queda del lado desde el que saco, y como el
+   * cuadro alterna en cada punto, los dos INTERCAMBIAN LUGAR punto a punto. Eso es lo que
+   * pasa en la cancha, y la cancha de la app tiene que espejarlo.
+   */
+  layout: Positions;
+  /** El orden de saque vigente de cada equipo. La UI lo necesita para poder invertirlo. */
+  serveOrder: Record<TeamId, [PlayerId, PlayerId]>;
+
+  /**
+   * Se puede cambiar el orden de saque del equipo que saca.
+   *
+   * Solo en el primer game de saque de cada equipo en el set, y solo si ese game todavia no
+   * tiene ningun evento. Si ya hay una falta cargada, esa falta YA quedo atribuida a ese
+   * sacador: darlo vuelta despues no arregla nada, ensucia. Para eso esta el Deshacer.
+   */
+  canSwapServer: boolean;
+
+  /** Se pueden dar vuelta las posiciones: solo antes del primer punto del set. */
+  canSwapPositions: boolean;
 
   /** El punto en juego define el game de una sola vez. */
   isGoldenPoint: boolean;

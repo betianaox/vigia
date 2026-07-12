@@ -7,7 +7,7 @@ import type { MatchConfig, MatchEvent, MatchState, TeamId } from '../engine';
 import { HeadToHead, type Cell, type Row } from './charts/HeadToHead';
 import { ShotBars } from './charts/ShotBars';
 import { Scoreboard } from './Scoreboard';
-import { colors, radius, space, teamColor } from './theme';
+import { colors, pressed, radius, ripple, space, teamColor } from './theme';
 
 const num = (n: number | null, suffix = ''): string =>
   n === null ? '—' : `${Math.round(n)}${suffix}`;
@@ -197,16 +197,28 @@ export function StatsScreen({
           </Text>
         ) : null}
 
-        <Pressable style={[s.btn, s.btnPrimary]} onPress={onBack}>
+        <Pressable
+          style={({ pressed: p }) => [s.btn, s.btnPrimary, p && pressed]}
+          android_ripple={ripple}
+          onPress={onBack}
+        >
           <Text style={s.btnPrimaryText}>{over ? 'Volver' : 'Volver al partido'}</Text>
         </Pressable>
 
         <View style={s.row}>
-          <Pressable style={[s.btn, s.btnRow, s.btnGhost]} onPress={onShare}>
+          <Pressable
+            style={({ pressed: p }) => [s.btn, s.btnRow, s.btnGhost, p && pressed]}
+            android_ripple={ripple}
+            onPress={onShare}
+          >
             <Text style={s.btnGhostText}>Compartir</Text>
           </Pressable>
           {!over && (
-            <Pressable style={[s.btn, s.btnRow, s.btnGhost]} onPress={confirmFinish}>
+            <Pressable
+              style={({ pressed: p }) => [s.btn, s.btnRow, s.btnGhost, p && pressed]}
+              android_ripple={ripple}
+              onPress={confirmFinish}
+            >
               <Text style={s.btnDanger}>Terminar partido</Text>
             </Pressable>
           )}

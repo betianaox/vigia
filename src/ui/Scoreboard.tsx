@@ -1,4 +1,3 @@
-import { MaterialIcons } from '@expo/vector-icons';
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -37,10 +36,12 @@ const nameFontSize = (m: Metrics, config: MatchConfig, state: MatchState): numbe
   const b = m.board;
   const pointsW = b.cellW + Math.round(b.cellW * 0.5);
 
-  const liveCols = state.finished ? 0 : 2; // GM y PTS
-  const cols = state.completedSets.length + liveCols;
+  const col = columns(state);
+  const cols = state.completedSets.length + (col.games ? 1 : 0) + (col.points ? 1 : 0);
   const colsW =
-    state.completedSets.length * b.cellW + (state.finished ? 0 : b.cellW + pointsW);
+    state.completedSets.length * b.cellW +
+    (col.games ? b.cellW : 0) +
+    (col.points ? pointsW : 0);
 
   const nameW = m.availW - b.padH * 2 - b.ballSlot - colsW - b.gap * (cols + 1);
   const longest = Math.max(
@@ -51,11 +52,25 @@ const nameFontSize = (m: Metrics, config: MatchConfig, state: MatchState): numbe
   return Math.max(10, Math.min(b.names, fitWidth(longest, nameW, CHAR.semiLower)));
 };
 
+/**
+ * Que columnas se muestran.
+ *
+ * Terminado el partido desaparecen las columnas en vivo y queda el resultado en las de sets.
+ * Pero un partido a UN GAME termina sin cerrar ningun set (ver engine.ts), asi que se
+ * quedaba sin ninguna columna: el tanteador vacio, justo cuando mas se lo mira. En ese caso
+ * la columna de games se queda, porque ahi esta el resultado.
+ */
+const columns = (state: MatchState) => ({
+  games: !state.finished || state.completedSets.length === 0,
+  points: !state.finished,
+});
+
 export function Scoreboard({ config, state }: { config: MatchConfig; state: MatchState }) {
   const m = useMetrics();
   const s = useMemo(() => makeStyles(m), [m]);
   const nameSize = useMemo(() => nameFontSize(m, config, state), [m, config, state]);
   const label = state.isSuperTiebreak ? 'SÚPER TIEBREAK' : state.inTiebreak ? 'TIEBREAK' : null;
+  const col = columns(state);
 
   return (
     <View style={s.root}>
@@ -69,8 +84,8 @@ export function Scoreboard({ config, state }: { config: MatchConfig; state: Matc
             S{i + 1}
           </Text>
         ))}
-        {!state.finished && <Text style={[s.headCell, s.headText]}>GM</Text>}
-        {!state.finished && <Text style={[s.headCell, s.headWide, s.headText]}>PTS</Text>}
+        {col.games && <Text style={[s.headCell, s.headText]}>GM</Text>}
+        {col.points && <Text style={[s.headCell, s.headWide, s.headText]}>PTS</Text>}
       </View>
 
       <TeamBlock team="A" config={config} state={state} s={s} m={m} nameSize={nameSize} />
@@ -101,24 +116,28 @@ function TeamBlock({
 }) {
   // El de drive arriba: el mismo orden que en la cancha.
   const ids = [config.teams[team].drive, config.teams[team].reves];
-  const won = state.finished && state.winner === team;
-  const lost = state.finished && !won;
+  /** Terminado el partido, el perdedor se apaga: el ganador se lee solo, sin ningun icono. */
+  const lost = state.finished && state.winner !== team;
+  const col = columns(state);
 
   return (
     <View style={s.teamRow}>
       <View style={s.names}>
-        {ids.map((p, i) => {
+        {ids.map((p) => {
           const serving = !state.finished && state.server === p;
           return (
             <View key={p} style={s.nameRow}>
               <View style={s.ballSlot}>
                 {/* La pelotita: circulo dibujado, no emoji. El emoji de tenis en Android se
-                    renderiza como raqueta con pelota, que es otra cosa. */}
-                {serving ? (
-                  <View style={s.ball} />
-                ) : won && i === 0 ? (
-                  <MaterialIcons name="emoji-events" size={m.board.names} color={colors.golden} />
-                ) : null}
+                    renderiza como raqueta con pelota, que es otra cosa.
+
+                    Terminado el partido no hay nada: no hay sacador, y una pelotita ahi
+                    sugeriria que el juego sigue. Tampoco va una copita — al lado de UNO de
+                    los dos nombres se lee como "gano el", no "gano la pareja". El ganador ya
+                    se lee igual: el perdedor queda atenuado y el resultado esta en las
+                    columnas. La copita vive en el overlay de fin de partido, que es donde
+                    habla de la pareja entera. */}
+                {serving ? <View style={s.ball} /> : null}
               </View>
               {/* Si ni al tamano minimo entra, ahi si se corta con puntos suspensivos. */}
               <Text
@@ -146,13 +165,13 @@ function TeamBlock({
         );
       })}
 
-      {!state.finished && (
+      {col.games && (
         <View style={[s.cell, s.cellGames]}>
           <Text style={[s.num, s.gamesText]}>{state.games[team]}</Text>
         </View>
       )}
 
-      {!state.finished && (
+      {col.points && (
         <View
           style={[
             s.cell,

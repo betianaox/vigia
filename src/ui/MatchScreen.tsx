@@ -2,7 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useMemo, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { reduce, undo } from '../engine';
@@ -21,7 +21,7 @@ import { useMetrics, type Metrics } from './metrics';
 import { Scoreboard } from './Scoreboard';
 import { STROKE_LABELS, STROKES_CON_LADO, STROKES_POR_ALTO, VARIANT_LABELS } from './shots';
 import { StatsScreen } from './StatsScreen';
-import { alpha, colors, radius, space, teamColor } from './theme';
+import { alpha, colors, pressed, radius, ripple, space, teamColor } from './theme';
 
 type RallyAction = 'WINNER' | 'ERROR_FORZADO' | 'ERROR_NO_FORZADO';
 
@@ -53,7 +53,14 @@ const initials = (name: string): string => {
 const tick = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 const thud = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-export function MatchScreen({ config }: { config: MatchConfig }) {
+export function MatchScreen({
+  config,
+  onHome,
+}: {
+  config: MatchConfig;
+  /** Todavia no existe la pantalla de inicio: sin esto, el boton de la casita va apagado. */
+  onHome?: () => void;
+}) {
   useKeepAwake();
 
   const m = useMetrics();
@@ -137,10 +144,49 @@ export function MatchScreen({ config }: { config: MatchConfig }) {
    * Por eso el orden no es una propiedad del equipo sino de la FILA — y con eso el giro de
    * 180 grados sale solo: al cambiar de fila, el equipo se da vuelta tambien en horizontal,
    * que es exactamente lo que hace una rotacion de verdad.
+   *
+   * Se dibuja con `layout` —donde esta parado cada uno EN ESTE PUNTO— y no con `positions`,
+   * que es el rol. Casi siempre son lo mismo. Se separan en un caso: el equipo que saca con
+   * formacion "cambiando de lado", donde el sacador se queda del lado desde el que saco y la
+   * pareja intercambia lugar EN CADA PUNTO, porque el cuadro alterna.
+   *
+   * Que las tarjetas se muevan no es un capricho: es lo que esta pasando en la cancha, y el
+   * layout tiene que espejar lo que el observador esta mirando o le va a errar al jugador.
    */
   const playersOf = (t: TeamId, row: number): PlayerId[] => {
-    const { drive, reves } = config.teams[t];
+    const { drive, reves } = state.layout[t];
     return row === 0 ? [drive, reves] : [reves, drive];
+  };
+
+  /**
+   * Volver al inicio TIRA EL PARTIDO. Todavia no hay guardado: lo que se cargo se pierde
+   * entero. Se confirma siempre — y cuando exista el historial, este cartel cambia de "se va
+   * a perder" a "se guarda y volves", que es lo que uno espera.
+   */
+  const confirmHome = () => {
+    if (!onHome) return;
+    tick();
+    Alert.alert(
+      '¿Volver al inicio?',
+      state.finished
+        ? 'El partido ya terminó. Todavía no se guarda en ningún lado, así que no vas a poder volver a verlo.'
+        : 'El partido en curso se va a perder: los puntos, los golpes, todo. Todavía no hay guardado.',
+      [
+        { text: 'Seguir acá', style: 'cancel' },
+        { text: 'Volver al inicio', style: 'destructive', onPress: onHome },
+      ],
+    );
+  };
+
+  /** El reglamento permite las dos cosas al empezar un set. El motor decide cuando es legal. */
+  const swapPositions = (team: TeamId) => {
+    thud();
+    push({ type: 'CAMBIO_POSICION', team });
+  };
+  const swapServer = (team: TeamId) => {
+    thud();
+    const [first, second] = state.serveOrder[team];
+    push({ type: 'ORDEN_SAQUE', team, order: [second, first] });
   };
 
   return (
@@ -157,7 +203,8 @@ export function MatchScreen({ config }: { config: MatchConfig }) {
               {(['derecha', 'izquierda'] as Box[]).map((b) => (
                 <Pressable
                   key={b}
-                  style={s.goldenBtn}
+                  style={({ pressed: p }) => [s.goldenBtn, p && s.pressed]}
+                  android_ripple={ripple}
                   onPress={() => {
                     tick();
                     push({ type: 'ELECCION_CUADRO', box: b });
@@ -179,10 +226,12 @@ export function MatchScreen({ config }: { config: MatchConfig }) {
                 key={p}
                 name={config.players[p]!.name}
                 team={t}
-                position={config.teams[t].drive === p ? 'drive' : 'reves'}
+                position={state.positions[t].drive === p ? 'drive' : 'reves'}
                 serving={state.server === p}
                 receiving={state.receiver === p}
                 serveState={state.serveState}
+                canSwapServer={state.canSwapServer && state.server === p}
+                onSwapServer={() => swapServer(t)}
                 s={s}
                 m={m}
                 onRally={(type) => registerPoint(type, p)}
@@ -201,15 +250,104 @@ export function MatchScreen({ config }: { config: MatchConfig }) {
                 }}
               />
             ))}
+
+            {/* Dar vuelta la pareja: el ⇄ vive EN EL HUECO entre las dos tarjetas, porque es
+                lo que hace — las intercambia. Al tocarlo, las tarjetas se dan vuelta ante tus
+                ojos. No hay nada que explicar: ves lo que hiciste.
+
+                Solo aparece cuando el reglamento lo permite (antes del primer punto del set)
+                y se va apenas empieza el juego. El resto del partido la cancha se ve limpia. */}
+            {state.canSwapPositions && (
+              <Pressable
+                style={({ pressed: p }) => [s.swapPos, p && s.pressed]}
+                android_ripple={{ ...ripple, borderless: true }}
+                onPress={() => swapPositions(t)}
+                hitSlop={10}
+              >
+                <MaterialIcons name="swap-horiz" size={m.sheet.closeIcon} color={colors.text} />
+              </Pressable>
+            )}
           </View>
         ))}
+
+        {/* Se termino el partido.
+
+            Cubre SOLO la cancha, a proposito: el tanteador de arriba queda a la vista (ahi
+            esta el resultado, no hace falta repetirlo) y la barra de abajo tambien — o sea
+            que DESHACER sigue al alcance. Si el ultimo punto se cargo mal y el partido
+            "termino" por error, se arregla. Con una capa a pantalla completa quedabas
+            encerrado. */}
+        {state.finished && (
+          <View style={s.finished}>
+            {/* La copita en vez de la palabra "ganaron": una palabra menos para traducir, y
+                nada nuevo que entender. Va grande y sola: es el momento del partido, no una
+                viñeta al costado de un nombre. */}
+            <MaterialIcons
+              name="emoji-events"
+              size={Math.round(m.card.avatarMax * 0.65)}
+              color={colors.trophy}
+            />
+
+            <Text style={s.finishedTitle}>Partido terminado</Text>
+
+            <Text
+              style={[s.finishedWinners, { color: teamColor(state.winner!) }]}
+              numberOfLines={1}
+            >
+              {[config.teams[state.winner!].drive, config.teams[state.winner!].reves]
+                .map((p) => config.players[p]!.name)
+                .join(' / ')}
+            </Text>
+
+            <View style={s.finishedRow}>
+              {/* Deshabilitado hasta que exista la pantalla de inicio: un boton que parece
+                  andar y no hace nada te hace pensar que la app esta rota. Se enciende solo
+                  cuando llegue el inicio. */}
+              <Pressable
+                style={({ pressed: p }) => [
+                  s.finishedBtn,
+                  !onHome && s.utilBtnOff,
+                  p && s.pressed,
+                ]}
+                android_ripple={ripple}
+                onPress={confirmHome}
+                disabled={!onHome}
+              >
+                <MaterialIcons name="home" size={m.card.avatarMax * 0.55} color={colors.text} />
+                <Text style={s.finishedBtnText}>Inicio</Text>
+              </Pressable>
+
+              <Pressable
+                style={({ pressed: p }) => [s.finishedBtn, p && s.pressed]}
+                android_ripple={ripple}
+                onPress={() => {
+                  tick();
+                  setShowStats(true);
+                }}
+              >
+                <MaterialIcons
+                  name="bar-chart"
+                  size={m.card.avatarMax * 0.55}
+                  color={colors.text}
+                />
+                <Text style={s.finishedBtnText}>Stats</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
       </View>
 
       {/* Deshacer se lleva el doble de espacio: se usa todo el tiempo y bajo presion.
           Rotar y las estadisticas se tocan poco y con calma. */}
       <View style={s.bottom}>
         <Pressable
-          style={[s.utilBtn, s.utilBtnWide, events.length === 0 && s.utilBtnOff]}
+          style={({ pressed: p }) => [
+            s.utilBtn,
+            s.utilBtnWide,
+            events.length === 0 && s.utilBtnOff,
+            p && s.pressed,
+          ]}
+          android_ripple={ripple}
           onPress={() => {
             tick();
             setEvents(undo);
@@ -222,7 +360,8 @@ export function MatchScreen({ config }: { config: MatchConfig }) {
         {/* Solo icono: la etiqueta no explicaba nada (¿"dar vuelta" que?) y ocupaba lugar.
             Da vuelta la vista 180 grados para que coincida con lo que ve el que mira. */}
         <Pressable
-          style={[s.utilBtn, s.utilBtnIcon]}
+          style={({ pressed: p }) => [s.utilBtn, s.utilBtnIcon, p && s.pressed]}
+          android_ripple={ripple}
           onPress={() => {
             tick();
             setRotated((r) => !r);
@@ -231,13 +370,31 @@ export function MatchScreen({ config }: { config: MatchConfig }) {
           <MaterialIcons name="swap-vert" size={m.bottom.icon} color={colors.text} />
         </Pressable>
         <Pressable
-          style={[s.utilBtn, s.utilBtnIcon]}
+          style={({ pressed: p }) => [s.utilBtn, s.utilBtnIcon, p && s.pressed]}
+          android_ripple={ripple}
           onPress={() => {
             tick();
             setShowStats(true);
           }}
         >
           <MaterialIcons name="bar-chart" size={m.bottom.icon} color={colors.text} />
+        </Pressable>
+
+        {/* Volver al inicio. Va ULTIMO, lo mas lejos posible de Deshacer: es la unica accion
+            destructiva de la pantalla y no puede estar al lado de la que mas se toca.
+            Deshabilitado hasta que exista la pantalla de inicio. */}
+        <Pressable
+          style={({ pressed: p }) => [
+            s.utilBtn,
+            s.utilBtnIcon,
+            !onHome && s.utilBtnOff,
+            p && s.pressed,
+          ]}
+          android_ripple={ripple}
+          onPress={confirmHome}
+          disabled={!onHome}
+        >
+          <MaterialIcons name="home" size={m.bottom.icon} color={colors.text} />
         </Pressable>
       </View>
 
@@ -252,17 +409,6 @@ export function MatchScreen({ config }: { config: MatchConfig }) {
           onSkip={() => setShotFor(null)}
         />
       )}
-
-      {state.finished && (
-        <View style={s.finished}>
-          <Text style={s.finishedText}>
-            Ganó{' '}
-            {[config.teams[state.winner!].drive, config.teams[state.winner!].reves]
-              .map((p) => config.players[p]!.name)
-              .join(' / ')}
-          </Text>
-        </View>
-      )}
     </SafeAreaView>
   );
 }
@@ -274,6 +420,9 @@ function PlayerCard(props: {
   serving: boolean;
   receiving: boolean;
   serveState: 'PRIMERO' | 'SEGUNDO';
+  /** El reglamento permite cambiar el orden de saque al empezar el set. El motor dice cuando. */
+  canSwapServer: boolean;
+  onSwapServer: () => void;
   s: ReturnType<typeof makeStyles>;
   m: Metrics;
   onRally: (t: RallyAction) => void;
@@ -291,12 +440,14 @@ function PlayerCard(props: {
   // en padel es raro: no merece resaltar.
   const serveBtn = (label: string, color: string, onPress: () => void, solid = false) => (
     <Pressable
-      style={[
+      style={({ pressed: p }) => [
         s.serveBtn,
         solid
           ? { backgroundColor: color, borderColor: color }
           : { backgroundColor: alpha(color, 0.16), borderColor: alpha(color, 0.55) },
+        p && s.pressed,
       ]}
+      android_ripple={ripple}
       onPress={onPress}
     >
       <Text style={[s.serveText, { color: solid ? colors.onLight : color }]} numberOfLines={1}>
@@ -338,7 +489,7 @@ function PlayerCard(props: {
               altura del nombre, que con un nombre largo se le montaba encima. Es absoluta y
               no captura toques — informa sin mover ni tapar nada. */}
           <View style={s.sideMark} pointerEvents="none">
-            <Text style={[s.sideMarkText, { color: alpha(c, 0.16) }]}>
+            <Text style={[s.sideMarkText, { color: alpha(c, 0.34) }]}>
               {props.position === 'drive' ? 'D' : 'R'}
             </Text>
           </View>
@@ -349,11 +500,31 @@ function PlayerCard(props: {
         </Text>
 
         {props.serving ? (
-          // El segundo saque se muestra invertido: es el estado peligroso, tiene que saltar.
-          <View style={[s.pill, second ? s.pillHot : s.pillCool]}>
-            <Text style={[s.pillText, second && { color: colors.onLight }]}>
-              {second ? '2DO SAQUE' : '1ER SAQUE'}
-            </Text>
+          <View style={s.pillRow}>
+            {/* El segundo saque se muestra invertido: es el estado peligroso, tiene que saltar. */}
+            <View style={[s.pill, second ? s.pillHot : s.pillCool]}>
+              <Text style={[s.pillText, second && { color: colors.onLight }]}>
+                {second ? '2DO SAQUE' : '1ER SAQUE'}
+              </Text>
+            </View>
+
+            {/* "Saca el otro". Pegado a la pildora porque habla de eso: de quien saca. Solo
+                aparece en el primer game de saque del equipo en el set, y se va apenas hay un
+                evento — despues, dar vuelta el orden no arregla lo ya atribuido. */}
+            {props.canSwapServer && (
+              <Pressable
+                style={({ pressed: p }) => [s.swapServe, p && s.pressed]}
+                android_ripple={{ ...ripple, borderless: true }}
+                onPress={props.onSwapServer}
+                hitSlop={12}
+              >
+                <MaterialIcons
+                  name="swap-horiz"
+                  size={Math.round(m.card.pill * 1.3)}
+                  color={colors.textDim}
+                />
+              </Pressable>
+            )}
           </View>
         ) : props.receiving ? (
           <View style={[s.pill, s.pillGhost]}>
@@ -368,10 +539,12 @@ function PlayerCard(props: {
         {RALLY.map((a) => (
           <Pressable
             key={a.type}
-            style={[
+            style={({ pressed: p }) => [
               s.rallyBtn,
               { backgroundColor: alpha(a.color, 0.15), borderColor: alpha(a.color, 0.5) },
+              p && s.pressed,
             ]}
+            android_ripple={ripple}
             onPress={() => props.onRally(a.type)}
             onLongPress={() => props.onRallyLong(a.type)}
           >
@@ -446,7 +619,12 @@ function ShotSheet(props: {
             </Text>
             {/* Blanca, no roja: cerrar sin elegir golpe no es destructivo ni es un error — el
                 punto ya quedo registrado. Un rojo diria "cuidado", y aca no hay cuidado. */}
-            <Pressable style={s.sheetClose} onPress={props.onSkip} hitSlop={8}>
+            <Pressable
+              style={({ pressed: p }) => [s.sheetClose, p && s.pressed]}
+              android_ripple={{ ...ripple, borderless: true }}
+              onPress={props.onSkip}
+              hitSlop={8}
+            >
               <MaterialIcons name="close" size={m.sheet.closeIcon} color={colors.text} />
             </Pressable>
           </View>
@@ -465,7 +643,12 @@ function ShotSheet(props: {
                   cuerpo de una jugadora diestra, que es la mayoria. No es una lista, es un
                   mapa — se toca del lado en que se pego. */}
               {(['reves', 'drive'] as Side[]).map((side) => (
-                <Pressable key={side} style={s.sheetCell} onPress={() => pick({ stroke, side })}>
+                <Pressable
+                  key={side}
+                  style={({ pressed: p }) => [s.sheetCell, p && s.pressed]}
+                  android_ripple={ripple}
+                  onPress={() => pick({ stroke, side })}
+                >
                   <Text style={s.sheetCellName} numberOfLines={1}>
                     {STROKE_LABELS[stroke]}
                   </Text>
@@ -484,7 +667,11 @@ function ShotSheet(props: {
               {/* El boton base es el golpe mismo: se toca REMATE y es un remate. No hay
                   ningun boton que se llame "normal", que no significa nada. Va SOLIDO: es
                   el que se toca sin pensar, y el ojo tiene que aterrizar ahi primero. */}
-              <Pressable style={s.sheetBase} onPress={() => pick({ stroke })}>
+              <Pressable
+                style={({ pressed: p }) => [s.sheetBase, p && s.pressed]}
+                android_ripple={ripple}
+                onPress={() => pick({ stroke })}
+              >
                 <Text style={s.sheetBaseText}>{STROKE_LABELS[stroke].toUpperCase()}</Text>
               </Pressable>
 
@@ -493,7 +680,8 @@ function ShotSheet(props: {
               {variants.map((variant) => (
                 <Pressable
                   key={variant}
-                  style={s.sheetVariant}
+                  style={({ pressed: p }) => [s.sheetVariant, p && s.pressed]}
+                  android_ripple={ripple}
                   onPress={() => pick({ stroke, variant })}
                 >
                   <Text style={s.sheetVariantText}>{VARIANT_LABELS[variant]}</Text>
@@ -526,6 +714,8 @@ const SHEET_BORDER = alpha(colors.text, 0.2);
 const makeStyles = (m: Metrics) => {
   const k = m.card;
   const h = m.sheet;
+  /** El ⇄ que da vuelta la pareja: flota sobre el hueco entre las dos tarjetas. */
+  const swapSize = Math.round(k.avatarMax * 0.62);
 
   // Dos botones por fila, a todo el ancho de la hoja.
   const cellW = (m.availW - h.pad * 2 - h.gap) / 2;
@@ -559,6 +749,9 @@ const makeStyles = (m: Metrics) => {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.bg },
     row: { flexDirection: 'row', gap: k.rowGap },
+
+    /** El acuse de recibo del toque. Lo llevan TODOS los botones (ver theme.ts). */
+    pressed,
 
     goldenBar: { backgroundColor: colors.golden, padding: k.gap, gap: k.gap, alignItems: 'center' },
     goldenText: { color: '#3B2708', fontWeight: '900', letterSpacing: 1, fontSize: k.pillFont + 2 },
@@ -640,6 +833,38 @@ const makeStyles = (m: Metrics) => {
     /** La inicial se encoge sola contra el circulo que le toco: no hay ningun numero que atar. */
     avatarText: { color: colors.bg, fontWeight: '900', fontSize: Math.round(k.avatarMax * 0.42) },
     cardName: { color: colors.text, fontWeight: '700', fontSize: k.name },
+
+    /** La pildora y, si el reglamento lo permite, el ⇄ que dice "saca el otro". */
+    pillRow: { flexDirection: 'row', alignItems: 'center', gap: k.rowGap },
+    swapServe: {
+      height: Math.round(k.pill * 1.5),
+      width: Math.round(k.pill * 1.5),
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    /**
+     * El ⇄ que da vuelta la pareja. Va centrado en el HUECO entre las dos tarjetas: es
+     * literalmente lo que hace. Absoluto, asi que no corre nada de lugar, y por encima de las
+     * tarjetas para que no lo tapen.
+     */
+    swapPos: {
+      position: 'absolute',
+      left: '50%',
+      top: '50%',
+      width: swapSize,
+      height: swapSize,
+      marginLeft: -swapSize / 2,
+      marginTop: -swapSize / 2,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      borderColor: colors.textFaint,
+      backgroundColor: colors.surfaceAlt,
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 2,
+      elevation: 4,
+    },
 
     pill: {
       height: k.pill,
@@ -772,16 +997,44 @@ const makeStyles = (m: Metrics) => {
     },
     sheetVariantText: { color: colors.textDim, fontSize: strokeFont, fontWeight: '700' },
 
+    /**
+     * Cubre la cancha y NADA MAS: el tanteador queda arriba (con el resultado) y la barra
+     * de abajo queda accesible (con el Deshacer). Va adentro del View de la cancha, no de
+     * la pantalla — de ahi que las cuatro coordenadas en cero alcancen.
+     */
     finished: {
       position: 'absolute',
       top: 0,
       left: 0,
       right: 0,
       bottom: 0,
-      backgroundColor: '#000C',
+      backgroundColor: alpha(colors.bg, 0.93),
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: m.court.gap,
+      padding: m.court.pad,
+    },
+    finishedTitle: { color: colors.text, fontSize: h.title + 4, fontWeight: '900' },
+    /** Quien gano NO es el resultado (ese esta arriba, en el tanteador): es el momento. */
+    finishedWinners: { fontSize: h.label + 1, fontWeight: '800', textAlign: 'center' },
+
+    finishedRow: {
+      flexDirection: 'row',
+      gap: m.court.gap,
+      alignSelf: 'stretch',
+      marginTop: m.court.gap,
+    },
+    finishedBtn: {
+      flex: 1,
+      paddingVertical: k.gap * 2,
+      gap: k.gap,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surfaceAlt,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    finishedText: { color: colors.text, fontSize: 24, fontWeight: '900' },
+    finishedBtnText: { color: colors.text, fontSize: h.label, fontWeight: '800' },
   });
 };

@@ -428,6 +428,146 @@ describe('undo', () => {
   });
 });
 
+/**
+ * Los dos cambios que el reglamento permite al empezar un set. No son adornos: si la pareja
+ * se da vuelta y la app no se entera, muestra el restador equivocado en CADA punto del set y
+ * atribuye mal todas las estadisticas de drive y de reves.
+ */
+describe('cambio de posiciones (la pareja se da vuelta)', () => {
+  const c = baseConfig();
+
+  it('sin cambios, las posiciones son las de la config', () => {
+    const s = reduce(c, []);
+    expect(s.positions.A).toEqual({ drive: 'a1', reves: 'a2' });
+  });
+
+  it('da vuelta el drive y el reves del equipo', () => {
+    const s = reduce(c, [{ type: 'CAMBIO_POSICION', team: 'A' }]);
+    expect(s.positions.A).toEqual({ drive: 'a2', reves: 'a1' });
+    // El otro equipo no se toca.
+    expect(s.positions.B).toEqual({ drive: 'b1', reves: 'b2' });
+  });
+
+  /** Lo que realmente importa: el que resta se deriva del cuadro, y el cuadro de las posiciones. */
+  it('cambia quien resta en cada cuadro', () => {
+    // Saca A desde la derecha: resta el de drive de B.
+    expect(reduce(c, []).receiver).toBe('b1');
+    expect(reduce(c, [{ type: 'CAMBIO_POSICION', team: 'B' }]).receiver).toBe('b2');
+  });
+
+  it('el undo lo revierte como cualquier otro evento', () => {
+    const evs: MatchEvent[] = [{ type: 'CAMBIO_POSICION', team: 'B' }];
+    expect(reduce(c, undo(evs)).receiver).toBe('b1');
+  });
+
+  /**
+   * Divulgacion progresiva: en el primer set las posiciones se acaban de configurar en el
+   * setup, asi que ofrecer cambiarlas es ruido. El boton aparece recien en el segundo,
+   * cuando el usuario ya jugo un set entero y conoce la tarjeta.
+   */
+  it('NO se ofrece en el primer set: se acaba de configurar en el setup', () => {
+    expect(reduce(c, []).canSwapPositions).toBe(false);
+    expect(reduce(c, points('A', 1)).canSwapPositions).toBe(false);
+  });
+
+  it('aparece al empezar el segundo set', () => {
+    // 6-0: se cierra el set y el siguiente arranca en cero.
+    const s = reduce(c, games('A', 6));
+    expect(s.completedSets).toHaveLength(1);
+    expect(s.games).toEqual({ A: 0, B: 0 });
+    expect(s.canSwapPositions).toBe(true);
+  });
+
+  it('y se va apenas se juega el primer punto de ese set', () => {
+    const s = reduce(c, [...games('A', 6), ...points('A', 1)]);
+    expect(s.canSwapPositions).toBe(false);
+  });
+});
+
+describe('cambio del orden de saque', () => {
+  const c = baseConfig();
+
+  it('se puede en el primer game de saque de cada equipo, y no despues', () => {
+    // Game 0: saca A, es su primer game de saque del set.
+    expect(reduce(c, []).canSwapServer).toBe(true);
+    // Game 1: saca B, es el suyo.
+    expect(reduce(c, game('A')).canSwapServer).toBe(true);
+    // Game 2: los dos equipos ya sacaron. Se acabo.
+    expect(reduce(c, [...game('A'), ...game('B')]).canSwapServer).toBe(false);
+  });
+
+  /**
+   * Una falta YA quedo atribuida a ese sacador. Darlo vuelta despues no la arregla: la
+   * ensucia. Para eso esta el Deshacer.
+   */
+  it('se cierra apenas el game tiene un evento, aunque no haya puntos', () => {
+    expect(reduce(c, [{ type: 'FALTA' }]).canSwapServer).toBe(false);
+    expect(reduce(c, points('A', 1)).canSwapServer).toBe(false);
+  });
+
+  it('da vuelta el orden y cambia quien saca', () => {
+    expect(reduce(c, []).server).toBe('a1');
+    const s = reduce(c, [{ type: 'ORDEN_SAQUE', team: 'A', order: ['a2', 'a1'] }]);
+    expect(s.server).toBe('a2');
+  });
+});
+
+/**
+ * Como se para la pareja CUANDO SACA. Es una eleccion por pareja.
+ *
+ * No cambia ningun dato del partido — ni el tanteo, ni quien saca, ni quien resta, ni el
+ * golpe. Cambia DONDE ESTAN PARADOS, y por eso cambia como se dibuja la cancha. El layout de
+ * la app tiene que espejar lo que el observador esta mirando, o le va a errar al jugador.
+ */
+describe('formacion de la pareja que saca', () => {
+  it('australiana (el default): cada uno mantiene su lado siempre, saque desde donde saque', () => {
+    const c = baseConfig(); // sin formacion = australiana
+
+    expect(reduce(c, []).layout.A).toEqual({ drive: 'a1', reves: 'a2' });
+    // Segundo punto, se saca desde la izquierda, y la pareja NO se movio.
+    expect(reduce(c, points('A', 1)).layout.A).toEqual({ drive: 'a1', reves: 'a2' });
+  });
+
+  it('cambiando de lado: el sacador se queda del lado desde el que saco', () => {
+    const c = baseConfig({
+      teams: {
+        A: { id: 'A', drive: 'a1', reves: 'a2', formation: 'cambio' },
+        B: { id: 'B', drive: 'b1', reves: 'b2' },
+      },
+    });
+
+    // Punto 0: se saca desde la DERECHA. a1 (que saca) queda del lado del drive.
+    const p0 = reduce(c, []);
+    expect(p0.box).toBe('derecha');
+    expect(p0.layout.A).toEqual({ drive: 'a1', reves: 'a2' });
+
+    // Punto 1: se saca desde la IZQUIERDA. a1 sigue sacando y queda del lado del reves;
+    // su companero cruza al drive. LA PAREJA INTERCAMBIA LUGAR.
+    const p1 = reduce(c, points('A', 1));
+    expect(p1.box).toBe('izquierda');
+    expect(p1.layout.A).toEqual({ drive: 'a2', reves: 'a1' });
+
+    // Pero su ROL no cambio: a1 sigue siendo el de drive, y por eso resta a la derecha.
+    expect(p1.positions.A).toEqual({ drive: 'a1', reves: 'a2' });
+  });
+
+  /** El que recibe esta obligado a mantener el lugar que eligio al empezar el set. */
+  it('el equipo que RECIBE no se mueve nunca, con ninguna formacion', () => {
+    const c = baseConfig();
+    expect(reduce(c, []).layout.B).toEqual({ drive: 'b1', reves: 'b2' });
+    expect(reduce(c, points('A', 1)).layout.B).toEqual({ drive: 'b1', reves: 'b2' });
+    expect(reduce(c, points('A', 2)).layout.B).toEqual({ drive: 'b1', reves: 'b2' });
+  });
+
+  it('no toca ningun dato del partido: el que resta se sigue derivando del ROL', () => {
+    const c = baseConfig();
+    // Saque desde la derecha: resta el de drive de B, se pare donde se pare el que saca.
+    expect(reduce(c, []).receiver).toBe('b1');
+    // Saque desde la izquierda: resta el de reves.
+    expect(reduce(c, points('A', 1)).receiver).toBe('b2');
+  });
+});
+
 describe('el motor es una funcion pura del log', () => {
   it('el mismo log da siempre el mismo estado', () => {
     const c = baseConfig({ gameFormat: 'punto_estrella' });

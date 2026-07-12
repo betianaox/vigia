@@ -27,8 +27,23 @@ export const colors = {
   serve: '#FFFFFF',
   golden: '#F59E0B',
 
+  /**
+   * La copita del ganador. NO usa `golden`: ese ambar esta a un paso del naranja del equipo
+   * B (#FB923C) y en una pantalla chica se confunden — la copita parecia parte del color del
+   * equipo. Este amarillo tiene carga verde, asi que no choca con ningun equipo ni con el
+   * dorado del punto de oro.
+   */
+  trophy: '#EFDA3E',
+
   /** La pelotita del tanteador: amarillo limon, como una pelota de padel. */
   ball: '#D9F92F',
+
+  /**
+   * El boton que arranca el partido. Verde sobrio, NO el lima de la pelotita: ese amarillo
+   * es el vocabulario del saque y no puede significar dos cosas. Tampoco el verde del
+   * semaforo (`winner`), que ya quiere decir otra cosa en la cancha.
+   */
+  cta: '#2F9E6B',
 
   // Semaforo, desde la perspectiva del jugador de la tarjeta.
   winner: '#22C55E',
@@ -52,3 +67,25 @@ export const alpha = (hex: string, a: number): string =>
 
 export const radius = { sm: 10, md: 14, lg: 20, pill: 999 } as const;
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24 } as const;
+
+/**
+ * El acuse de recibo del toque. Va en TODOS los botones de la app, sin excepcion.
+ *
+ * El caso que lo hace obvio es el LET: registra el evento y en pantalla no cambia nada —el
+ * tanteo no se mueve, porque un let es "no paso nada, saca de nuevo"—. Sin feedback no hay
+ * forma de saber si el toque entro, y en una cancha eso termina en tocarlo dos veces.
+ *
+ * Son DOS cosas, y las dos hacen falta:
+ *
+ * - El hundimiento (`pressed`) se ve siempre, incluso con el dedo encima tapando el boton.
+ *   Pero solo, es sutil.
+ * - El ripple se dibuja ENCIMA del boton (`foreground: true`), asi que se ve sobre
+ *   cualquier color. Es lo que resuelve el caso del LET: bajarle la opacidad a un boton que
+ *   ya es el mas apagado de la pantalla no se nota — pintarle algo encima, si.
+ *
+ * El color del ripple es un gris medio a proposito: sobre el blanco solido de FALTA oscurece,
+ * sobre el gris de LET aclara. Se ve en los dos.
+ */
+export const pressed = { transform: [{ scale: 0.95 }] } as const;
+
+export const ripple = { color: alpha(colors.textDim, 0.4), foreground: true } as const;

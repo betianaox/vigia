@@ -1,4 +1,4 @@
-import type { Box, GameFormat, PlayerId, Team, TeamId } from './types';
+import type { Box, Formation, GameFormat, PlayerId, Positions, Team, TeamId } from './types';
 
 export const otherTeam = (t: TeamId): TeamId => (t === 'A' ? 'B' : 'A');
 
@@ -67,12 +67,52 @@ export const boxForPoint = (pointsPlayed: number): Box =>
 /**
  * Los dos restadores mantienen su cuadro todo el set: el de drive recibe siempre a la
  * derecha y el de reves a la izquierda. Por eso el receptor se deriva del cuadro.
+ *
+ * Toma las posiciones DEL ESTADO, no de la config: una pareja puede darse vuelta al empezar
+ * un set, y desde ahi el que resta en cada cuadro es el otro.
  */
 export const receiverForBox = (
   box: Box,
   receivingTeam: TeamId,
-  teams: Record<TeamId, Team>,
-): PlayerId => (box === 'derecha' ? teams[receivingTeam].drive : teams[receivingTeam].reves);
+  positions: Positions,
+): PlayerId =>
+  box === 'derecha' ? positions[receivingTeam].drive : positions[receivingTeam].reves;
+
+/**
+ * Donde esta parado cada jugador EN ESTE PUNTO, que no es lo mismo que su rol.
+ *
+ * El que RECIBE no se mueve: su de drive esta siempre del lado del drive. Pero el que SACA
+ * depende de la formacion de la pareja:
+ *
+ * - `cambio` (lo habitual): el sacador se queda del lado desde el que saco. Sacando desde la
+ *   derecha queda del lado del drive; desde la izquierda, del lado del reves. Y como el cuadro
+ *   alterna en cada punto, la pareja INTERCAMBIA LUGAR punto a punto.
+ * - `australiana`: el sacador vuelve siempre a su lado. La pareja no se mueve nunca.
+ *
+ * Esto NO cambia ningun dato del partido: ni el tanteo, ni quien saca, ni quien resta, ni el
+ * golpe. Cambia como se DIBUJA la cancha — y la cancha de la app tiene que espejar lo que el
+ * observador esta mirando, o va a errarle al jugador.
+ */
+export const layoutForPoint = (
+  positions: Positions,
+  servingTeam: TeamId,
+  server: PlayerId,
+  box: Box,
+  formation: Formation,
+): Positions => {
+  if (formation === 'australiana') return positions;
+
+  const side = positions[servingTeam];
+  const partner = side.drive === server ? side.reves : side.drive;
+
+  return {
+    ...positions,
+    [servingTeam]:
+      box === 'derecha'
+        ? { drive: server, reves: partner }
+        : { drive: partner, reves: server },
+  };
+};
 
 /** El punto en juego define el game de una sola vez, y el que resta elige cuadro. */
 export const isGoldenPoint = (

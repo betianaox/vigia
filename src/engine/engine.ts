@@ -3,6 +3,7 @@ import {
   displayScore,
   gameWinner,
   isGoldenPoint,
+  layoutForPoint,
   otherTeam,
   receiverForBox,
   serverForGame,
@@ -20,6 +21,7 @@ import type {
   MatchEvent,
   MatchState,
   PlayerId,
+  Positions,
   ServeState,
   TeamId,
 } from './types';
@@ -31,6 +33,8 @@ interface Internal {
   points: Record<TeamId, number>;
   firstServingTeamOfSet: TeamId;
   serveOrder: Record<TeamId, [PlayerId, PlayerId]>;
+  /** Arranca en lo que dice la config, pero la pareja se puede dar vuelta al empezar un set. */
+  positions: Positions;
   inTiebreak: boolean;
   isSuperTiebreak: boolean;
   serveState: ServeState;
@@ -69,6 +73,10 @@ const init = (config: MatchConfig): Internal => {
     points: zero(),
     firstServingTeamOfSet: config.firstServingTeam,
     serveOrder: { A: [...config.serveOrder.A], B: [...config.serveOrder.B] },
+    positions: {
+      A: { drive: config.teams.A.drive, reves: config.teams.A.reves },
+      B: { drive: config.teams.B.drive, reves: config.teams.B.reves },
+    },
     inTiebreak: isSuper || shouldStartTiebreak(games),
     isSuperTiebreak: isSuper,
     serveState: 'PRIMERO',
@@ -176,6 +184,13 @@ const apply = (s: Internal, config: MatchConfig, e: MatchEvent): void => {
       s.serveOrder = { ...s.serveOrder, [e.team]: [...e.order] };
       return;
 
+    /** La pareja se dio vuelta: el de drive pasa a reves y viceversa. */
+    case 'CAMBIO_POSICION': {
+      const p = s.positions[e.team];
+      s.positions = { ...s.positions, [e.team]: { drive: p.reves, reves: p.drive } };
+      return;
+    }
+
     case 'ELECCION_CUADRO':
       s.chosenBox = e.box;
       return;
@@ -244,6 +259,11 @@ const present = (s: Internal, config: MatchConfig): MatchState => {
   const golden = !s.inTiebreak && isGoldenPoint(s.points, config.gameFormat);
   const box: Box = golden && s.chosenBox ? s.chosenBox : boxForPoint(s.points.A + s.points.B);
 
+  const gamesPlayed = s.games.A + s.games.B;
+  const pointsPlayed = s.points.A + s.points.B;
+  /** Un game recien empezado: sin puntos y sin faltas (la falta ya movio el serveState). */
+  const gameUntouched = pointsPlayed === 0 && s.serveState === 'PRIMERO';
+
   return {
     finished: s.finished,
     winner: s.winner,
@@ -256,8 +276,41 @@ const present = (s: Internal, config: MatchConfig): MatchState => {
     serveState: s.serveState,
     servingTeam,
     server,
-    receiver: receiverForBox(box, otherTeam(servingTeam), config.teams),
+    receiver: receiverForBox(box, otherTeam(servingTeam), s.positions),
     box,
+    positions: { A: { ...s.positions.A }, B: { ...s.positions.B } },
+    layout: layoutForPoint(
+      s.positions,
+      servingTeam,
+      server,
+      box,
+      config.teams[servingTeam].formation ?? 'australiana',
+    ),
+    serveOrder: { A: [...s.serveOrder.A], B: [...s.serveOrder.B] },
+
+    /**
+     * Los dos cambios que el reglamento permite al empezar un set, y las ventanas en que
+     * son honestos.
+     *
+     * ORDEN DE SAQUE: solo en el PRIMER game de saque de cada equipo en el set (los indices
+     * 0 y 1 — despues de esos dos, cada equipo ya saco), y solo si ese game todavia no tiene
+     * ningun evento. Si ya hay una falta cargada, esa falta quedo atribuida a ese sacador:
+     * darlo vuelta despues no la arregla, la ensucia. Para eso esta el Deshacer.
+     *
+     * POSICIONES: solo antes del primer punto del set, y NO en el primer set. En el primero
+     * las posiciones se acaban de configurar en el setup — ofrecer cambiar algo que se
+     * definio hace treinta segundos es ruido. Aparece recien en el segundo set, cuando el
+     * usuario ya jugo uno entero, conoce la tarjeta, y puede reconocer un componente nuevo
+     * cuando aparece. La app se vuelve mas capaz a medida que el usuario se vuelve mas
+     * experto.
+     */
+    canSwapServer: !s.finished && gamesPlayed <= 1 && gameUntouched,
+    canSwapPositions:
+      !s.finished &&
+      s.completedSets.length > 0 &&
+      gamesPlayed === 0 &&
+      pointsPlayed === 0,
+
     isGoldenPoint: golden,
     awaitingBoxChoice: golden && s.chosenBox === null,
     endsSwapped: s.endsSwapped,
