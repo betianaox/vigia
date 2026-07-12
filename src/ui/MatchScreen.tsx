@@ -11,11 +11,15 @@ import { alpha, colors, radius, space, teamColor } from './theme';
 
 type RallyAction = 'WINNER' | 'ERROR_FORZADO' | 'ERROR_NO_FORZADO';
 
-/** Semaforo, desde la perspectiva del jugador de la tarjeta. */
+/**
+ * Semaforo, desde la perspectiva del jugador de la tarjeta.
+ * Van las iniciales y no la palabra: el color ya carga el significado, y con texto
+ * completo los tres botones quedaban de distinto alto y desparejos.
+ */
 const RALLY: Array<{ type: RallyAction; label: string; color: string }> = [
-  { type: 'WINNER', label: 'Winner', color: colors.winner },
-  { type: 'ERROR_FORZADO', label: 'Error\nforzado', color: colors.errorForced },
-  { type: 'ERROR_NO_FORZADO', label: 'Error no\nforzado', color: colors.errorUnforced },
+  { type: 'WINNER', label: 'W', color: colors.winner },
+  { type: 'ERROR_FORZADO', label: 'EF', color: colors.errorForced },
+  { type: 'ERROR_NO_FORZADO', label: 'ENF', color: colors.errorUnforced },
 ];
 
 /** Nombre y apellido -> "AR". Un solo nombre -> las dos primeras letras, para no colisionar. */
@@ -219,9 +223,11 @@ function PlayerCard(props: {
           distinta hace imposible no ver quien esta sacando. */}
       {props.serving ? (
         <View style={s.row}>
-          {serveBtn(second ? 'Doble falta' : 'Falta', colors.falta, props.onFalta, true)}
-          {serveBtn('Ace', colors.ace, props.onAce)}
-          {serveBtn('Let', colors.let, props.onLet)}
+          {/* En 2do saque dice DOBLE, no "doble falta": una sola palabra, una sola linea,
+              y la pildora de abajo ya dice 2DO SAQUE. */}
+          {serveBtn(second ? 'DOBLE' : 'FALTA', colors.falta, props.onFalta, true)}
+          {serveBtn('ACE', colors.ace, props.onAce)}
+          {serveBtn('LET', colors.let, props.onLet)}
         </View>
       ) : (
         <View style={s.serveRowEmpty} />
@@ -262,7 +268,9 @@ function PlayerCard(props: {
             onPress={() => props.onRally(a.type)}
             onLongPress={() => props.onRallyLong(a.type)}
           >
-            <Text style={[s.rallyText, { color: a.color }]}>{a.label}</Text>
+            <Text style={[s.rallyText, { color: a.color }]} numberOfLines={1} adjustsFontSizeToFit>
+              {a.label}
+            </Text>
           </Pressable>
         ))}
       </View>
@@ -357,7 +365,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 2,
   },
-  serveText: { fontWeight: '800', fontSize: 12 },
+  serveText: { fontWeight: '900', fontSize: 13, letterSpacing: 0.5 },
 
   identity: { alignItems: 'center', gap: space.sm, paddingVertical: space.sm },
   avatar: { width: 76, height: 76, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
@@ -380,7 +388,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 2,
   },
-  rallyText: { fontWeight: '800', fontSize: 11.5, textAlign: 'center', lineHeight: 14 },
+  rallyText: { fontWeight: '900', fontSize: 26, textAlign: 'center' },
 
   bottom: { flexDirection: 'row', gap: space.sm, padding: space.sm, backgroundColor: colors.surface },
   utilBtn: { flex: 1, paddingVertical: space.lg, borderRadius: radius.md, backgroundColor: colors.surfaceAlt, alignItems: 'center' },
