@@ -29,17 +29,24 @@ const num = (n: number | null, suffix = ''): string =>
  * no estaba codificando nada. Y encima chocaba: el ratio en verde se leia como el grafico de
  * winners de mas abajo, y parecian el mismo.
  *
- * Va el lima del logo, que es el acento de Vigia y no significa ninguna otra cosa.
+ * Los colores ALTERNAN entre el lima y el celeste, y eso si tiene una razon: si cambias de
+ * pastilla y el color no cambia, no se nota que el grafico se actualizo. Alternando, el cambio
+ * de color confirma que estas viendo otra cosa. No codifica nada mas — la metrica ya esta
+ * escrita en la pastilla.
+ *
+ * Los dos van en su version de GRAFICO (`ballChart`, `aceChart`). El lima puro es una pastilla
+ * de 8px al lado de un nombre; en una columna de barras llenas es neon y cansa la vista. Misma
+ * identidad, medio tono de voz.
  *
  * Con UNA excepcion, que es la regla de siempre: los errores no forzados van en bordo, porque
- * ahi mas es PEOR. Una barra lima que sube se lee como que vas bien; si son errores, vas mal.
- * El cambio de color es el aviso de que cambio la regla.
+ * ahi mas es PEOR. Una barra que sube se lee como que vas bien; si son errores, vas mal. El
+ * cambio de color es el aviso de que cambio la regla.
  */
 const METRICS = [
   {
     key: 'ratio',
     label: 'Winners por error',
-    color: colors.ball,
+    color: colors.ballChart,
     of: (p: CareerPoint) =>
       p.stats.unforcedErrors === 0
         ? p.stats.winners === 0
@@ -57,7 +64,7 @@ const METRICS = [
   {
     key: 'primero',
     label: '1er saque adentro',
-    color: colors.ball,
+    color: colors.aceChart,
     of: (p: CareerPoint) => pct(p.stats.firstServesIn, p.stats.servePointsPlayed),
     total: (c: CareerStats) => pct(c.totals.firstServesIn, c.totals.servePointsPlayed),
     format: (v: number) => `${Math.round(v)}%`,
@@ -65,7 +72,7 @@ const METRICS = [
   {
     key: 'gana1',
     label: 'Gana con 1er saque',
-    color: colors.ball,
+    color: colors.ballChart,
     of: (p: CareerPoint) => pct(p.stats.firstServePointsWon, p.stats.firstServesIn),
     total: (c: CareerStats) => pct(c.totals.firstServePointsWon, c.totals.firstServesIn),
     format: (v: number) => `${Math.round(v)}%`,
@@ -73,7 +80,7 @@ const METRICS = [
   {
     key: 'resto',
     label: 'Gana restando',
-    color: colors.ball,
+    color: colors.aceChart,
     of: (p: CareerPoint) => pct(p.stats.returnPointsWon, p.stats.returnPointsPlayed),
     total: (c: CareerStats) => pct(c.totals.returnPointsWon, c.totals.returnPointsPlayed),
     format: (v: number) => `${Math.round(v)}%`,
@@ -184,8 +191,8 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
                   stats.totals.winners === stats.totals.unforcedErrors
                     ? colors.text
                     : stats.totals.winners > stats.totals.unforcedErrors
-                      ? colors.winner
-                      : colors.errorUnforced
+                      ? colors.winnerChart
+                      : colors.errorUnforcedChart
                 }
               />
             </View>
@@ -294,13 +301,17 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
             {shots.scale > 0 && (
               <>
                 <Section title="Winners" subtitle="por golpe, partido a partido">
-                  <ShotStack columns={shots.winners} color={colors.winner} scale={shots.scale} />
+                  <ShotStack
+                    columns={shots.winners}
+                    color={colors.winnerChart}
+                    scale={shots.scale}
+                  />
                 </Section>
 
                 <Section title="Errores forzados" subtitle="por golpe, partido a partido">
                   <ShotStack
                     columns={shots.forced}
-                    color={colors.errorForced}
+                    color={colors.errorForcedChart}
                     scale={shots.scale}
                   />
                 </Section>
@@ -308,7 +319,7 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
                 <Section title="Errores no forzados" subtitle="por golpe, partido a partido">
                   <ShotStack
                     columns={shots.unforced}
-                    color={colors.errorUnforced}
+                    color={colors.errorUnforcedChart}
                     scale={shots.scale}
                   />
                 </Section>
@@ -334,10 +345,16 @@ function Big({
 }) {
   return (
     <View style={s.bigCell}>
-      <Text style={[s.bigValue, accent ? { color: accent } : null]} numberOfLines={1}>
+      {/* Se achica solo si no entra. El ancho de "87/69" no es fijo: crece con los partidos
+          jugados, asi que un tamaño fijo funciona hoy y se corta el mes que viene. */}
+      <Text
+        style={[s.bigValue, accent ? { color: accent } : null]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+      >
         {value}
       </Text>
-      <Text style={s.bigLabel} numberOfLines={1}>
+      <Text style={s.bigLabel} numberOfLines={1} adjustsFontSizeToFit>
         {label}
       </Text>
       {sub ? <Text style={s.bigSub}>{sub}</Text> : null}
@@ -391,18 +408,22 @@ const s = StyleSheet.create({
   scroll: { flex: 1, borderTopWidth: 1, borderColor: colors.border },
   list: { padding: space.md, gap: space.lg, paddingTop: space.lg, paddingBottom: space.xl },
 
-  /** El retrato: cuatro numeros, sin adornos. Es lo que se mira primero y no se lee, se ve. */
+  /** El retrato: quien sos, en cinco numeros. Es lo que se mira primero y no se lee, se ve. */
   portrait: {
     flexDirection: 'row',
     padding: space.md,
     borderRadius: radius.md,
     backgroundColor: colors.surface,
   },
-  /** Cinco celdas: los valores son cortos ("8", "4", "52%"), pero las etiquetas no. */
+  /**
+   * Cinco celdas en el ancho de un telefono. Los valores parecian cortos ("8", "4", "52%") hasta
+   * que W/ENF paso a ser un par ("87/69"), que es el doble de ancho y sigue creciendo con los
+   * partidos jugados. Todo baja de tamaño, y ademas se achica solo si no entra.
+   */
   bigCell: { flex: 1, alignItems: 'center', gap: 2, paddingHorizontal: 2 },
-  bigValue: { color: colors.text, fontSize: 20, fontWeight: '900' },
-  bigLabel: { color: colors.textDim, fontSize: 10, fontWeight: '700' },
-  bigSub: { color: colors.textFaint, fontSize: 9, textAlign: 'center' },
+  bigValue: { color: colors.text, fontSize: 16, fontWeight: '900' },
+  bigLabel: { color: colors.textDim, fontSize: 9, fontWeight: '700' },
+  bigSub: { color: colors.textFaint, fontSize: 8, textAlign: 'center' },
 
   section: { gap: space.sm },
   sectionHead: { flexDirection: 'row', alignItems: 'baseline', gap: space.sm },

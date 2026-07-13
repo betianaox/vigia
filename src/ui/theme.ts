@@ -37,6 +37,12 @@ export const colors = {
 
   /** La pelotita del tanteador: amarillo limon, como una pelota de padel. */
   ball: '#D9F92F',
+  /**
+   * El lima PARA GRAFICOS. El de arriba es una pastilla de 8px al lado de un nombre; en una
+   * barra grande y llena es neon, y una columna entera de eso cansa la vista. Misma identidad,
+   * medio tono de voz — el mismo criterio que el semaforo (ver mas abajo).
+   */
+  ballChart: '#A8C43A',
 
   /**
    * El boton que arranca el partido. Verde sobrio, NO el lima de la pelotita: ese amarillo
@@ -45,10 +51,33 @@ export const colors = {
    */
   cta: '#2F9E6B',
 
-  // Semaforo, desde la perspectiva del jugador de la tarjeta.
+  /**
+   * El semaforo de LOS BOTONES, desde la perspectiva del jugador de la tarjeta.
+   *
+   * Son botones: tienen que gritar desde el otro lado de la cancha, con el sol de frente. Por
+   * eso van saturados. NO SE USAN EN LOS GRAFICOS — para eso estan los tres de abajo.
+   */
   winner: '#22C55E',
   errorForced: '#FACC15',
   errorUnforced: '#F43F5E',
+
+  /**
+   * Los mismos tres, PARA GRAFICOS: mismo tono, menos saturacion.
+   *
+   * Una barra que grita como un boton convierte la pantalla en un arbolito de navidad, y con
+   * treinta barras a la vez cansa la vista en diez segundos. Los botones gritan; los graficos
+   * hablan. El significado es identico —verde winner, amarillo forzado, rojo no forzado—, lo
+   * unico que baja es el tono de voz.
+   *
+   * No se resuelve con transparencia: el alfa sobre fondo oscuro los ensucia y les baja el
+   * contraste. Quedan turbios, no calmos. Son colores propios.
+   */
+  winnerChart: '#3E9D68',
+  errorForcedChart: '#C2A230',
+  errorUnforcedChart: '#C05770',
+
+  /** El celeste del ACE, tambien en su version de grafico. Mismo criterio que los tres de arriba. */
+  aceChart: '#4E9AC0',
 
   /**
    * La fila del grafico donde tener MAS es ir PEOR (los errores). Es la unica que se sale del

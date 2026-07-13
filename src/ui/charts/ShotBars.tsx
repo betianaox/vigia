@@ -27,10 +27,12 @@ export function ShotBars({ lines }: { lines: ShotLine[] }) {
   return (
     <View style={s.root}>
       <View style={s.legend}>
+        {/* Los colores de GRAFICO, no los de los botones: mismo significado, medio tono de voz.
+            Con treinta barras a la vez, el semaforo saturado cansa la vista en diez segundos. */}
         {[
-          ['Winners', colors.winner],
-          ['E. forzados', colors.errorForced],
-          ['E. no forzados', colors.errorUnforced],
+          ['Winners', colors.winnerChart],
+          ['E. forzados', colors.errorForcedChart],
+          ['E. no forzados', colors.errorUnforcedChart],
         ].map(([label, color]) => (
           <View key={label} style={s.legendItem}>
             <View style={[s.swatch, { backgroundColor: color }]} />
@@ -49,9 +51,9 @@ export function ShotBars({ lines }: { lines: ShotLine[] }) {
             <View style={[s.stack, { flex: l.total / max }]}>
               {(
                 [
-                  [l.winners, colors.winner],
-                  [l.forced, colors.errorForced],
-                  [l.unforced, colors.errorUnforced],
+                  [l.winners, colors.winnerChart],
+                  [l.forced, colors.errorForcedChart],
+                  [l.unforced, colors.errorUnforcedChart],
                 ] as Array<[number, string]>
               )
                 .filter(([n]) => n > 0)

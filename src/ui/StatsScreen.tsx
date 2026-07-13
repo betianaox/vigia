@@ -37,7 +37,9 @@ const wOverE = (p: Pick<PlayerStats, 'winners' | 'unforcedErrors'>): string =>
 
 const wOverEColor = (p: Pick<PlayerStats, 'winners' | 'unforcedErrors'>): string => {
   if (p.winners === p.unforcedErrors) return colors.text;
-  return p.winners > p.unforcedErrors ? colors.winner : colors.errorUnforced;
+  // Los de grafico, no los de boton: en esta pantalla el verde y el rojo ya son los suaves, y
+  // dos verdes distintos que significan lo mismo es peor que un color feo.
+  return p.winners > p.unforcedErrors ? colors.winnerChart : colors.errorUnforcedChart;
 };
 
 /**
@@ -178,9 +180,9 @@ const buildRows = (stats: MatchStats, config: MatchConfig): Row[] => {
    * Los porcentajes de saque no salen de ningun boton y ahi mas SI es mejor: color de equipo.
    */
   return [
-    count('Winners', (p) => p.winners, colors.winner),
-    count('Errores\nno forzados', (p) => p.unforcedErrors, colors.errorUnforced),
-    count('Errores\nforzados', (p) => p.forcedErrors, colors.errorForced),
+    count('Winners', (p) => p.winners, colors.winnerChart),
+    count('Errores\nno forzados', (p) => p.unforcedErrors, colors.errorUnforcedChart),
+    count('Errores\nforzados', (p) => p.forcedErrors, colors.errorForcedChart),
     count('Aces', (p) => p.aces, colors.ace),
     count('Dobles\nfaltas', (p) => p.doubleFaults, colors.worse),
     percent(
@@ -260,7 +262,7 @@ export function StatsScreen({
 
                 Sin nombres a proposito: aca se comparan las PAREJAS. Cual de los dos tiro los
                 errores es la pregunta siguiente, y baja al detalle. */}
-            <Section title="El partido" subtitle={`${duration(events)} · ${stats.totalPoints} puntos`}>
+            <Section title="Partido" subtitle={`${duration(events)} · ${stats.totalPoints} puntos`}>
               <TeamCompare rows={globalRows(stats)} />
             </Section>
 
@@ -281,7 +283,9 @@ export function StatsScreen({
                 </Section>
               ))}
 
-            <Section title="El detalle">
+            {/* Una tarjeta POR PERSONA. Los cuatro estaban adentro de una sola caja, y eso era
+                un muro de numeros donde no se veia donde terminaba uno y empezaba el otro. */}
+            <Section title="Detalle" bare>
               {(['A', 'B'] as TeamId[]).flatMap((t) =>
                 ([config.teams[t].drive, config.teams[t].reves] as const).map((id, i) => (
                   <PlayerCard
@@ -328,11 +332,20 @@ function Section({
   title,
   subtitle,
   accent,
+  bare,
   children,
 }: {
   title: string;
   subtitle?: string;
   accent?: string;
+  /**
+   * Sin la caja de la seccion: los hijos traen la suya.
+   *
+   * Los cuatro jugadores estaban METIDOS ADENTRO DE UNA sola tarjeta, y eso era un muro de
+   * numeros de mil pixeles de alto donde no se sabia donde terminaba uno y empezaba el otro.
+   * Cada persona es una cosa aparte: cada una su tarjeta.
+   */
+  bare?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -342,7 +355,7 @@ function Section({
         <Text style={s.sectionTitle}>{title}</Text>
         {subtitle ? <Text style={s.sectionSub}>{subtitle}</Text> : null}
       </View>
-      <View style={s.card}>{children}</View>
+      {bare ? children : <View style={s.card}>{children}</View>}
     </View>
   );
 }
@@ -487,6 +500,7 @@ const s = StyleSheet.create({
   list: { padding: space.md, gap: space.lg, paddingTop: space.lg, paddingBottom: space.xl },
   empty: { color: colors.textFaint, textAlign: 'center', marginTop: space.xl },
 
+  /** El `gap` tambien separa las tarjetas cuando la seccion es `bare` (una por jugador). */
   section: { gap: space.sm },
   sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   sectionDot: { width: 8, height: 8, borderRadius: radius.pill },
@@ -508,7 +522,21 @@ const s = StyleSheet.create({
     borderColor: colors.border,
   },
 
-  player: { gap: space.sm, paddingBottom: space.sm },
+  /**
+   * Cada persona, su propia caja. Antes eran cuatro apiladas adentro de una sola.
+   *
+   * SIN RELLENO: solo el borde. Cuatro tarjetas grises seguidas vuelven a ser una masa —lo que
+   * se gana separandolas se pierde en peso—. El borde alcanza para decir donde empieza y donde
+   * termina cada una, y el fondo sigue siendo el de la pagina.
+   */
+  player: {
+    gap: space.sm,
+    backgroundColor: 'transparent',
+    borderRadius: radius.lg,
+    padding: space.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   dot: { width: 10, height: 10, borderRadius: radius.pill },
   cardName: { color: colors.text, fontSize: 15, fontWeight: '800' },
@@ -516,7 +544,7 @@ const s = StyleSheet.create({
   cardSide: { flex: 1, fontSize: 11, fontWeight: '700', opacity: 0.75 },
   ratioBox: { alignItems: 'flex-end' },
   /** El COLOR ya lo destaca. Con el tamaño y el peso encima, gritaba. */
-  ratioValue: { color: colors.text, fontSize: 16, fontWeight: '800' },
+  ratioValue: { color: colors.text, fontSize: 14, fontWeight: '800' },
   ratioLabel: { color: colors.textFaint, fontSize: 9, fontWeight: '800', letterSpacing: 0.6 },
 
   grid: { flexDirection: 'row' },
