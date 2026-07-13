@@ -111,14 +111,24 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
           <Text style={s.empty}>Todavía no jugó ningún partido.</Text>
         ) : (
           <>
-            {/* EL RETRATO. Quien sos, en cuatro numeros. */}
+            {/* EL RETRATO. Quien sos, de un vistazo.
+
+                Ganados y perdidos son DOS numeros, no un "4-2": ese guion obliga a decodificar
+                cual es cual, y no hay ninguna razon para hacerlo trabajar.
+
+                Y los que se cortaron a mano se dicen "sin terminar", que es como los llama el
+                historial. Antes decia "sin definir" — una palabra que no existia en ningun otro
+                lado de la app, inventada para un solo cartel. */}
             <View style={s.portrait}>
-              <Big value={`${stats.matches}`} label="Partidos" />
               <Big
-                value={`${stats.won}-${stats.lost}`}
-                label="Ganados"
-                sub={stats.undecided > 0 ? `${stats.undecided} sin definir` : undefined}
+                value={`${stats.matches}`}
+                label="Partidos"
+                sub={
+                  stats.undecided > 0 ? `${stats.undecided} sin terminar` : 'todos terminados'
+                }
               />
+              <Big value={`${stats.won}`} label="Ganados" />
+              <Big value={`${stats.lost}`} label="Perdidos" />
               <Big value={num(share, '%')} label="Puntos" />
               <Big
                 value={ratio === null ? '—' : ratio.toFixed(1)}
@@ -241,8 +251,12 @@ function Big({
 }) {
   return (
     <View style={s.bigCell}>
-      <Text style={[s.bigValue, accent ? { color: accent } : null]}>{value}</Text>
-      <Text style={s.bigLabel}>{label}</Text>
+      <Text style={[s.bigValue, accent ? { color: accent } : null]} numberOfLines={1}>
+        {value}
+      </Text>
+      <Text style={s.bigLabel} numberOfLines={1}>
+        {label}
+      </Text>
       {sub ? <Text style={s.bigSub}>{sub}</Text> : null}
     </View>
   );
@@ -301,10 +315,11 @@ const s = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: colors.surface,
   },
-  bigCell: { flex: 1, alignItems: 'center', gap: 2 },
-  bigValue: { color: colors.text, fontSize: 22, fontWeight: '900' },
+  /** Cinco celdas: los valores son cortos ("8", "4", "52%"), pero las etiquetas no. */
+  bigCell: { flex: 1, alignItems: 'center', gap: 2, paddingHorizontal: 2 },
+  bigValue: { color: colors.text, fontSize: 20, fontWeight: '900' },
   bigLabel: { color: colors.textDim, fontSize: 10, fontWeight: '700' },
-  bigSub: { color: colors.textFaint, fontSize: 9 },
+  bigSub: { color: colors.textFaint, fontSize: 9, textAlign: 'center' },
 
   section: { gap: space.sm },
   sectionHead: { flexDirection: 'row', alignItems: 'baseline', gap: space.sm },
