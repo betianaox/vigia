@@ -481,13 +481,20 @@ const s = StyleSheet.create({
   /** Sin `tabular-nums`: aca ya no van solo cifras, van los duelos ("3 a Beto · 1 a Bea"). */
   statSub: { color: colors.textFaint, fontSize: 9, textAlign: 'center' },
 
-  /** Parte la tarjeta en las dos mitades del partido: la que sacas y la que restas. */
+  /**
+   * Parte la tarjeta en las dos mitades del partido: la que sacas y la que restas.
+   *
+   * En `textDim`, NO en `textFaint`: encabeza a las etiquetas de abajo ("Winners", "1er saque"),
+   * que van en textDim — y un encabezado que se lee peor que lo que encabeza esta mal por
+   * definicion. Sobre fondo oscuro, textFaint se leia como negro.
+   */
   blockLabel: {
-    color: colors.textFaint,
-    fontSize: 9,
+    color: colors.textDim,
+    fontSize: 10,
     fontWeight: '900',
-    letterSpacing: 1.2,
+    letterSpacing: 1.4,
     marginTop: 2,
+    marginBottom: 2,
   },
 
   divider: { height: 1, backgroundColor: colors.border },
