@@ -2,7 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { computeStats, pct, teamShotLines, winnerErrorRatio, shotLines } from '../engine/stats';
+import { computeStats, pct, teamShotLines, shotLines } from '../engine/stats';
 import type { MatchStats, PlayerStats } from '../engine/stats';
 import type { MatchConfig, MatchEvent, MatchState, PlayerId, TeamId } from '../engine';
 import { Brand } from './Brand';
@@ -15,11 +15,29 @@ import { colors, pressed, radius, ripple, space, teamColor } from './theme';
 const num = (n: number | null, suffix = ''): string =>
   n === null ? '—' : `${Math.round(n)}${suffix}`;
 
-const ratio = (p: PlayerStats): string => {
-  const r = winnerErrorRatio(p);
-  if (r === null) return '—';
-  if (r === Infinity) return `${p.winners}/0`;
-  return r.toFixed(1);
+/**
+ * Winners contra errores no forzados, LOS DOS CRUDOS: "22/14".
+ *
+ * Antes iba el ratio (1.6). El problema del ratio es que tiene un UMBRAL INVISIBLE: para saber
+ * si un 1.6 es bueno hay que saber que el corte esta en 1.0, y nadie lo sabe la primera vez.
+ *
+ * El par no tiene umbral: tiene COLOR. Verde si pegaste mas de lo que regalaste, rojo si es al
+ * reves — y son el verde y el rojo de los botones de la cancha, los mismos que ya significan
+ * winner y error no forzado. Se ven los dos numeros y el veredicto de una, sin aprender nada.
+ *
+ * Y los dos van en POSITIVO. Se penso mostrarlo como una resta con signo (+8 / −8), pero en
+ * padel amateur los errores casi siempre superan a los winners, asi que casi todo daria
+ * negativo — y si en cambio se invertia a "errores menos winners" para que diera positivo, seria
+ * el unico numero de la app donde el signo se lee al reves: un "+12" querria decir que estas
+ * jugando mal. Es la misma trampa que sacamos de las barras, y en un numero es peor, porque de
+ * un numero nadie sospecha.
+ */
+const wOverE = (p: Pick<PlayerStats, 'winners' | 'unforcedErrors'>): string =>
+  `${p.winners}/${p.unforcedErrors}`;
+
+const wOverEColor = (p: Pick<PlayerStats, 'winners' | 'unforcedErrors'>): string => {
+  if (p.winners === p.unforcedErrors) return colors.text;
+  return p.winners > p.unforcedErrors ? colors.winner : colors.errorUnforced;
 };
 
 /**
@@ -265,8 +283,13 @@ export function StatsScreen({
 
             <Section title="El detalle">
               {(['A', 'B'] as TeamId[]).flatMap((t) =>
-                [config.teams[t].drive, config.teams[t].reves].map((id) => (
-                  <PlayerCard key={id} p={stats.players[id]!} names={firstNames} />
+                ([config.teams[t].drive, config.teams[t].reves] as const).map((id, i) => (
+                  <PlayerCard
+                    key={id}
+                    p={stats.players[id]!}
+                    names={firstNames}
+                    side={i === 0 ? 'Drive' : 'Revés'}
+                  />
                 )),
               )}
             </Section>
@@ -344,7 +367,16 @@ const duels = (
   return lines.length > 0 ? lines.join(' · ') : undefined;
 };
 
-function PlayerCard({ p, names }: { p: PlayerStats; names: Record<PlayerId, string> }) {
+function PlayerCard({
+  p,
+  names,
+  side,
+}: {
+  p: PlayerStats;
+  names: Record<PlayerId, string>;
+  /** De que lado juega: "Drive" o "Revés". */
+  side: string;
+}) {
   const c = teamColor(p.team);
   const first = pct(p.firstServesIn, p.servePointsPlayed);
   const won1 = pct(p.firstServePointsWon, p.firstServesIn);
@@ -355,9 +387,19 @@ function PlayerCard({ p, names }: { p: PlayerStats; names: Record<PlayerId, stri
     <View style={s.player}>
       <View style={s.cardHead}>
         <View style={[s.dot, { backgroundColor: c }]} />
-        <Text style={s.cardName}>{p.name}</Text>
+        <Text style={s.cardName} numberOfLines={1}>
+          {p.name}
+        </Text>
+
+        {/* De que lado juega. Y NADA MAS que eso.
+            El drive sostiene y el reves arriesga, asi que diez errores de uno no significan lo
+            mismo que diez del otro. Pero CUANTO no significan depende del nivel, del estilo, del
+            rival y del dia — y de eso la app no sabe nada. Si insinuara la conclusion estaria
+            opinando disfrazada de dato. Se le da el hecho al entrenador; la lectura es suya. */}
+        <Text style={[s.cardSide, { color: c }]}>{side}</Text>
+
         <View style={s.ratioBox}>
-          <Text style={s.ratioValue}>{ratio(p)}</Text>
+          <Text style={[s.ratioValue, { color: wOverEColor(p) }]}>{wOverE(p)}</Text>
           <Text style={s.ratioLabel}>W / ENF</Text>
         </View>
       </View>
@@ -469,9 +511,12 @@ const s = StyleSheet.create({
   player: { gap: space.sm, paddingBottom: space.sm },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   dot: { width: 10, height: 10, borderRadius: radius.pill },
-  cardName: { flex: 1, color: colors.text, fontSize: 15, fontWeight: '800' },
+  cardName: { color: colors.text, fontSize: 15, fontWeight: '800' },
+  /** Del color de su equipo, y apagado: es un dato de contexto, no un numero mas. */
+  cardSide: { flex: 1, fontSize: 11, fontWeight: '700', opacity: 0.75 },
   ratioBox: { alignItems: 'flex-end' },
-  ratioValue: { color: colors.text, fontSize: 20, fontWeight: '900' },
+  /** El COLOR ya lo destaca. Con el tamaño y el peso encima, gritaba. */
+  ratioValue: { color: colors.text, fontSize: 16, fontWeight: '800' },
   ratioLabel: { color: colors.textFaint, fontSize: 9, fontWeight: '800', letterSpacing: 0.6 },
 
   grid: { flexDirection: 'row' },

@@ -98,7 +98,6 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
     [stats.timeline, m],
   );
 
-  const ratio = METRICS[0].total(stats);
   const first = pct(stats.totals.firstServesIn, stats.totals.servePointsPlayed);
   const share = pct(stats.teamPointsWon, stats.totalPoints);
 
@@ -171,10 +170,23 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
               <Big value={`${stats.won}`} label="Ganados" />
               <Big value={`${stats.lost}`} label="Perdidos" />
               <Big value={num(share, '%')} label="Puntos" />
+
+              {/* Los dos crudos y el color, igual que en la tarjeta de cada jugador. El ratio
+                  (1.3) tiene un umbral invisible —hay que saber que el corte esta en 1.0— y el
+                  par no: verde si pegaste mas de lo que regalaste, rojo si es al reves.
+
+                  Antes este numero iba en verde SIEMPRE, como acento. Ahora el verde significa
+                  algo, y dos verdes con dos significados es peor que un color feo. */}
               <Big
-                value={ratio === null ? '—' : ratio.toFixed(1)}
+                value={`${stats.totals.winners}/${stats.totals.unforcedErrors}`}
                 label="W / ENF"
-                accent={colors.winner}
+                accent={
+                  stats.totals.winners === stats.totals.unforcedErrors
+                    ? colors.text
+                    : stats.totals.winners > stats.totals.unforcedErrors
+                      ? colors.winner
+                      : colors.errorUnforced
+                }
               />
             </View>
 
