@@ -706,11 +706,24 @@ function Segmented(props: {
  */
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  /** `flexGrow` para que el contenido pueda OCUPAR la pantalla aunque no la llene: sin esto,
-      centrar no significa nada — el contenedor mide lo mismo que su contenido. */
-  page: { flexGrow: 1, padding: space.lg, gap: space.lg, paddingBottom: space.xl },
+  /**
+   * `flexGrow` para que el contenido pueda OCUPAR la pantalla aunque no la llene: sin esto,
+   * centrar no significa nada — el contenedor mide lo mismo que su contenido.
+   *
+   * El aire se saca de ARRIBA, no se agrega abajo. Los botones tocaban el borde inferior porque
+   * el contenido no entraba y la pantalla scrolleaba; agregarle margen abajo solo alarga el
+   * scroll. Subiendolo, entra — y el fondo se acomoda solo.
+   */
+  page: {
+    flexGrow: 1,
+    padding: space.lg,
+    paddingTop: space.sm,
+    gap: space.lg,
+    paddingBottom: space.xl,
+  },
 
-  head: { marginBottom: space.md },
+  /** El `gap` del cuerpo ya separa el encabezado de lo que sigue: no hace falta sumarle margen. */
+  head: {},
 
   body: { gap: space.lg },
   /** La tarjeta y el historial en el centro optico —un poco arriba del geometrico, que es donde
