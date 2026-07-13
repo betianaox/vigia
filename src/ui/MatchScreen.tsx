@@ -1,8 +1,8 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useKeepAwake } from 'expo-keep-awake';
-import { useMemo, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { reduce, undo } from '../engine';
@@ -18,6 +18,7 @@ import type {
 } from '../engine';
 import { CHAR, fitWidth } from './layout';
 import { useMetrics, type Metrics } from './metrics';
+import { usePulse } from './pulse';
 import { useRoster } from './roster';
 import { Scoreboard } from './Scoreboard';
 import { STROKE_LABELS, STROKES_CON_LADO, STROKES_POR_ALTO, VARIANT_LABELS } from './shots';
@@ -434,6 +435,13 @@ function PlayerCard(props: {
   const c = teamColor(props.team);
   const second = props.serveState === 'SEGUNDO';
 
+  /** Al pasar a 2do saque —o sea, cuando la falta entro— la pildora destella. */
+  const [faltaAt, setFaltaAt] = useState(0);
+  useEffect(() => {
+    if (second) setFaltaAt(Date.now());
+  }, [second]);
+  const faltaPulse = usePulse(faltaAt);
+
   // Mismo tamano los tres, los distingue el color. Pero la falta va SOLIDA: es la mas
   // frecuente y la que menos tiempo tiene (cae entre los dos saques). El ace, en cambio,
   // en padel es raro: no merece resaltar.
@@ -500,12 +508,27 @@ function PlayerCard(props: {
 
         {props.serving ? (
           <View style={s.pillRow}>
-            {/* El segundo saque se muestra invertido: es el estado peligroso, tiene que saltar. */}
-            <View style={[s.pill, second ? s.pillHot : s.pillCool]}>
+            {/* El segundo saque se muestra invertido: es el estado peligroso, tiene que saltar.
+
+                Y DESTELLA al pasar a segundo, con el mismo gesto con que el tanteador avisa un
+                punto. La falta es el unico toque que NO mueve el marcador: sin esto, quien la
+                carga mirando la cancha se queda sin saber si entro. El aviso va donde ocurrio el
+                cambio — igual que el punto va al tanteador, la falta va al saque. */}
+            <Animated.View
+              style={[
+                s.pill,
+                second ? s.pillHot : s.pillCool,
+                {
+                  transform: [
+                    { scale: faltaPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] }) },
+                  ],
+                },
+              ]}
+            >
               <Text style={[s.pillText, second && { color: colors.onLight }]}>
                 {second ? '2DO SAQUE' : '1ER SAQUE'}
               </Text>
-            </View>
+            </Animated.View>
 
             {/* "Saca el otro". Pegado a la pildora porque habla de eso: de quien saca. Solo
                 aparece en el primer game de saque del equipo en el set, y se va apenas hay un

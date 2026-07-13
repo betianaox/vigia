@@ -1,9 +1,10 @@
-import { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import type { MatchConfig, MatchState, TeamId } from '../engine';
 import { CHAR, fitWidth } from './layout';
 import { useMetrics, type Metrics } from './metrics';
+import { usePulse } from './pulse';
 import { useRoster } from './roster';
 import { alpha, colors, radius, teamColor } from './theme';
 
@@ -99,6 +100,28 @@ export function Scoreboard({
   const label = state.isSuperTiebreak ? 'SÚPER TIEBREAK' : state.inTiebreak ? 'TIEBREAK' : null;
   const col = columns(state);
 
+  /**
+   * EL AVISO DE QUE EL PUNTO ENTRO.
+   *
+   * Quien opera la app esta mirando la cancha, no la pantalla: toca y vuelve al partido. Sin un
+   * aviso, la unica forma de saber si el toque entro —y si entro PARA EL EQUIPO CORRECTO— es
+   * quedarse mirando el tanteador, que es justo lo que no puede hacer.
+   *
+   * El aviso vive donde ocurrio el cambio, y dice las tres cosas juntas: que entro, para quien
+   * (el color del equipo) y como quedo. Se descarto un beep: un club es ruidoso, la mitad de los
+   * telefonos estan en silencio, sonaria doscientas veces por partido — y sobre todo no puede
+   * decir DE QUIEN fue el punto, que es el unico error que hay que poder cazar.
+   */
+  const [pulse, setPulse] = useState<Pulse | null>(null);
+  const prev = useRef<MatchState>(state);
+
+  useEffect(() => {
+    const before = prev.current;
+    prev.current = state;
+    const p = scored(before, state);
+    if (p) setPulse(p);
+  }, [state]);
+
   return (
     <View style={s.root}>
       {/* El header espeja la estructura de los bloques para que las columnas alineen. */}
@@ -115,13 +138,83 @@ export function Scoreboard({
         {col.points && <Text style={[s.headCell, s.headWide, s.headText]}>PTS</Text>}
       </View>
 
-      <TeamBlock team="A" config={config} state={state} s={s} m={m} nameSize={nameSize} />
+      <TeamBlock team="A" config={config} state={state} pulse={pulse} s={s} m={m} nameSize={nameSize} />
       {/* Una linea fina entre las parejas: sin ella los cuatro nombres se leen como una sola
           lista y hay que pensar un segundo para ver donde termina un equipo. Ese segundo es
           justo el que no se tiene. */}
       <View style={s.divider} />
-      <TeamBlock team="B" config={config} state={state} s={s} m={m} nameSize={nameSize} />
+      <TeamBlock team="B" config={config} state={state} pulse={pulse} s={s} m={m} nameSize={nameSize} />
     </View>
+  );
+}
+
+/**
+ * QUE CAMBIO EN EL TANTEADOR, y de quien.
+ *
+ * Sale de comparar dos estados, no de escuchar el tap. La diferencia no es un capricho: **no
+ * todo toque suma un punto**. Una falta cambia el saque y no el marcador; un let no cambia nada.
+ * Un aviso colgado del tap confirmaria puntos que no existieron — que es exactamente el error que
+ * este aviso tiene que ayudar a cazar.
+ *
+ * Y por la misma razon, deshacer no dispara nada: el marcador baja, no sube.
+ */
+type Pulse = { team: TeamId; cell: 'points' | 'games' | 'set'; at: number };
+
+/** Los sets viejos no destellan nunca: uno solo, quieto, para todos. */
+const STILL = new Animated.Value(0);
+
+const scored = (prev: MatchState, next: MatchState): Pulse | null => {
+  const at = Date.now();
+
+  // El orden importa: cerrar un set tambien mueve los games, y cerrar un game tambien
+  // toca los puntos (los pone en cero). Se avisa donde quedo el resultado, no donde rebotó.
+  if (next.completedSets.length > prev.completedSets.length) {
+    const set = next.completedSets[next.completedSets.length - 1]!;
+    return { team: set.winner, cell: 'set', at };
+  }
+  for (const t of ['A', 'B'] as TeamId[]) {
+    if (next.games[t] > prev.games[t]) return { team: t, cell: 'games', at };
+  }
+  for (const t of ['A', 'B'] as TeamId[]) {
+    if (next.points[t] > prev.points[t]) return { team: t, cell: 'points', at };
+  }
+  return null;
+};
+
+/** La celda que acaba de cambiar: crece un toque y se enciende en el color de su equipo. */
+function Flash({
+  v,
+  team,
+  style,
+  children,
+}: {
+  v: Animated.Value;
+  team: TeamId;
+  style: StyleProp<ViewStyle>;
+  children: React.ReactNode;
+}) {
+  return (
+    <Animated.View
+      style={[
+        style,
+        { transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 1.16] }) }] },
+      ]}
+    >
+      {/* El color va ENCIMA y se apaga, en vez de reemplazar el fondo: asi el numero nunca
+          desaparece debajo del destello, que es lo unico que no se puede perder. */}
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          StyleSheet.absoluteFill,
+          {
+            borderRadius: radius.sm,
+            backgroundColor: teamColor(team),
+            opacity: v.interpolate({ inputRange: [0, 1], outputRange: [0, 0.45] }),
+          },
+        ]}
+      />
+      {children}
+    </Animated.View>
   );
 }
 
@@ -129,6 +222,7 @@ function TeamBlock({
   team,
   config,
   state,
+  pulse,
   s,
   m,
   nameSize,
@@ -136,12 +230,19 @@ function TeamBlock({
   team: TeamId;
   config: MatchConfig;
   state: MatchState;
+  /** Lo ultimo que cambio en el tanteador. Solo el equipo que sumo se enciende. */
+  pulse: Pulse | null;
   s: ReturnType<typeof makeStyles>;
   m: Metrics;
   /** Igual para los cuatro: se calcula contra el nombre mas largo. */
   nameSize: number;
 }) {
   const { nameOf } = useRoster();
+
+  const mine = pulse?.team === team ? pulse : null;
+  const pPoints = usePulse(mine?.cell === 'points' ? mine.at : 0);
+  const pGames = usePulse(mine?.cell === 'games' ? mine.at : 0);
+  const pSet = usePulse(mine?.cell === 'set' ? mine.at : 0);
 
   // El de drive arriba: el mismo orden que en la cancha.
   const ids = [config.teams[team].drive, config.teams[team].reves];
@@ -187,25 +288,28 @@ function TeamBlock({
 
       {state.completedSets.map((set, i) => {
         const setLost = set.winner !== team;
+        const last = i === state.completedSets.length - 1;
         return (
-          <View key={i} style={[s.cell, s.setCell]}>
+          <Flash key={i} v={last ? pSet : STILL} team={team} style={[s.cell, s.setCell]}>
             <Text style={[s.num, s.setText, !setLost && s.setWon]}>{set.games[team]}</Text>
             {/* Convencion de transmision: el tanteo del tiebreak va como superindice, y solo
                 sobre el que PERDIO el set. Va como Text hermano y levantado media altura:
                 anidado adentro del otro, RN lo pega a la linea de base y queda abajo. */}
             {set.tiebreak && setLost && <Text style={s.sup}>{set.tiebreak[team]}</Text>}
-          </View>
+          </Flash>
         );
       })}
 
       {col.games && (
-        <View style={[s.cell, s.cellGames]}>
+        <Flash v={pGames} team={team} style={[s.cell, s.cellGames]}>
           <Text style={[s.num, s.gamesText]}>{state.games[team]}</Text>
-        </View>
+        </Flash>
       )}
 
       {col.points && (
-        <View
+        <Flash
+          v={pPoints}
+          team={team}
           style={[
             s.cell,
             s.cellPoints,
@@ -219,7 +323,7 @@ function TeamBlock({
           >
             {state.display[team]}
           </Text>
-        </View>
+        </Flash>
       )}
     </View>
   );
