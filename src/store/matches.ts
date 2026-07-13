@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Directory, File, Paths } from 'expo-file-system';
 
 import type { PlayerId } from '../engine';
+import { canonical, loadMerges } from './store';
 import { summarize, type MatchSummary, type SavedMatch } from './summary';
 
 // Lo que se deriva del log es puro y vive en `summary.ts`, sin tocar el disco: asi se puede
@@ -91,8 +92,11 @@ export const loadMatch = async (id: string): Promise<SavedMatch | null> => {
  * archivos, no quinientos.
  */
 export const loadMatchesOf = async (player: PlayerId): Promise<SavedMatch[]> => {
-  const index = await loadIndex();
-  const mine = index.filter((s) => s.playerIds.includes(player));
+  const [index, merges] = await Promise.all([loadIndex(), loadMerges()]);
+
+  // Un partido viejo puede tener guardado el id VIEJO de esta persona, de antes de una union.
+  // Tambien es suyo: la union se resuelve al leer, no reescribiendo el archivo.
+  const mine = index.filter((s) => s.playerIds.some((id) => canonical(id, merges) === player));
 
   const out: SavedMatch[] = [];
   for (const s of mine) {

@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import type { Player, PlayerId } from '../engine';
-import { loadPlayers } from '../store/store';
+import { canonical, loadMerges, loadPlayers, type Merges } from '../store/store';
 
 /**
  * De donde sale el NOMBRE de una persona.
@@ -21,24 +21,36 @@ import { loadPlayers } from '../store/store';
  * solo dueño.
  */
 interface Roster {
+  /** Los que se ven: los absorbidos por una union NO estan. */
   players: Player[];
+  /** Todos, incluidos los absorbidos. Hace falta para resolver un nombre viejo. */
+  all: Player[];
+  merges: Merges;
+  /** El id que representa a esta persona HOY: sigue la cadena de uniones. */
+  canon: (id: PlayerId) => PlayerId;
   /** El nombre de esa persona HOY. `fallback` es la copia guardada en el partido. */
   nameOf: (id: PlayerId, fallback?: string) => string;
-  /** Volver a leer el plantel. Se llama despues de renombrar o unificar. */
+  /** Volver a leer. Se llama despues de renombrar o unificar. */
   reload: () => Promise<void>;
 }
 
 const Ctx = createContext<Roster>({
   players: [],
+  all: [],
+  merges: {},
+  canon: (id) => id,
   nameOf: (id, fallback) => fallback ?? id,
   reload: async () => {},
 });
 
 export function RosterProvider({ children }: { children: React.ReactNode }) {
-  const [players, setPlayers] = useState<Player[]>([]);
+  const [all, setAll] = useState<Player[]>([]);
+  const [merges, setMerges] = useState<Merges>({});
 
   const reload = useCallback(async () => {
-    setPlayers(await loadPlayers());
+    const [p, m] = await Promise.all([loadPlayers(), loadMerges()]);
+    setAll(p);
+    setMerges(m);
   }, []);
 
   useEffect(() => {
@@ -46,13 +58,25 @@ export function RosterProvider({ children }: { children: React.ReactNode }) {
   }, [reload]);
 
   const value = useMemo<Roster>(() => {
-    const byId = new Map(players.map((p) => [p.id, p.name]));
+    const byId = new Map(all.map((p) => [p.id, p.name]));
+    const canon = (id: PlayerId) => canonical(id, merges);
+
     return {
-      players,
-      nameOf: (id, fallback) => byId.get(id) ?? fallback ?? id,
+      all,
+      merges,
+      canon,
+      // Los absorbidos desaparecen de la lista: siguen existiendo en los partidos viejos, pero
+      // como PERSONA ya no son una — son la misma que la que las absorbio.
+      players: all.filter((p) => !merges[p.id]),
+      /**
+       * El nombre se resuelve SOBRE EL CANONICO: si Ana absorbio a "Ana R.", un partido viejo que
+       * guardo el id de "Ana R." ahora muestra "Ana Ruiz". Es la union entera, hecha al leer, sin
+       * haber tocado un solo archivo.
+       */
+      nameOf: (id, fallback) => byId.get(canon(id)) ?? byId.get(id) ?? fallback ?? id,
       reload,
     };
-  }, [players, reload]);
+  }, [all, merges, reload]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -17,7 +17,7 @@ import {
 import { CareerScreen } from './src/ui/CareerScreen';
 import { HistoryScreen } from './src/ui/HistoryScreen';
 import { PlayersScreen } from './src/ui/PlayersScreen';
-import { RosterProvider } from './src/ui/roster';
+import { RosterProvider, useRoster } from './src/ui/roster';
 import { MatchScreen } from './src/ui/MatchScreen';
 import { ScoreboardPreview } from './src/ui/ScoreboardPreview';
 import { SetupScreen } from './src/ui/SetupScreen';
@@ -67,6 +67,7 @@ export default function App() {
  * pantalla. La copia que cada partido guarda adentro queda como respaldo (ver `roster.tsx`).
  */
 function Vigia() {
+  const { canon } = useRoster();
   const [screen, setScreen] = useState<Screen>({ name: 'setup' });
   const [match, setMatch] = useState<SavedMatch | null>(null);
   /** El partido a medias que quedo de la vez pasada, para poder ofrecer retomarlo. */
@@ -156,10 +157,15 @@ function Vigia() {
               : () => setScreen({ name: 'setup' }),
   );
 
-  /** Abrir el juego de alguien. Se recalcula del log, y solo se abren SUS partidos. */
+  /**
+   * Abrir el juego de alguien. Se recalcula del log, y solo se abren SUS partidos.
+   *
+   * `canon` resuelve las uniones: un partido viejo puede tener guardado el id de antes, y tambien
+   * es suyo. Nada se reescribio — la union se resuelve al leer.
+   */
   const openCareer = (p: { id: string }, from: 'players' | 'history') => {
     void loadMatchesOf(p.id).then((ms) =>
-      setScreen({ name: 'career', stats: career(p.id, ms), from }),
+      setScreen({ name: 'career', stats: career(p.id, ms, canon), from }),
     );
   };
 

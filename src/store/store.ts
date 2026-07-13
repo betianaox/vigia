@@ -1,6 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import type { ChangeEndsRule, GameFormat, MatchLength, Player, ThirdSetFormat } from '../engine';
+import type {
+  ChangeEndsRule,
+  GameFormat,
+  MatchLength,
+  Player,
+  PlayerId,
+  ThirdSetFormat,
+} from '../engine';
 
 /**
  * El guardado local. Es lo unico que persiste hoy, y es a proposito el pedazo mas aburrido
@@ -23,6 +30,7 @@ import type { ChangeEndsRule, GameFormat, MatchLength, Player, ThirdSetFormat } 
 
 const KEY_PLAYERS = 'vigia.players.v1';
 const KEY_PREFS = 'vigia.prefs.v1';
+const KEY_MERGES = 'vigia.merges.v1';
 
 /** Lo que se acuerda del ultimo partido: el formato, no los jugadores. */
 export interface Prefs {
@@ -99,3 +107,120 @@ export const addPlayer = async (name: string, roster: Player[]): Promise<Player[
 
 export const findPlayer = (name: string, roster: Player[]): Player | undefined =>
   roster.find((p) => normalize(p.name) === normalize(name));
+
+/**
+ * Por que renombrar puede FALLAR.
+ *
+ * Un nombre vacio no es un nombre. Y si el nombre nuevo YA ES de otra persona del plantel, eso
+ * no es renombrar: es UNIFICAR — una operacion distinta, que junta dos historiales.
+ *
+ * Y no es un problema: es JUSTO EL MOMENTO en que se descubre el duplicado. Alguien escribe
+ * "Ana Ruiz" sobre "Ana", choca, y ahi es exactamente cuando hay que preguntarle si son la misma
+ * persona. Por eso el choque devuelve CON QUIEN choco: la pantalla puede ofrecer unirlas.
+ */
+export type RenameError =
+  | { kind: 'vacio' }
+  | { kind: 'ya_existe'; other: Player };
+
+/**
+ * Renombrar a una persona. El ID NO CAMBIA — de el cuelga todo su historial.
+ *
+ * Los partidos ya guardados no se tocan: siguen con la copia del nombre viejo adentro, que es
+ * su paracaidas. Lo que se ve en pantalla sale de esta tabla (ver `ui/roster.tsx`), asi que el
+ * cambio aparece en todos lados, incluidos los partidos de hace dos años.
+ */
+/**
+ * LA REGLA, separada de la escritura: es pura, y se puede probar en un segundo. Lo que toca el
+ * disco no se puede — y lo unico que importa probar aca es la regla.
+ */
+export const validateRename = (
+  id: PlayerId,
+  name: string,
+  roster: Player[],
+): { ok: true; clean: string } | { ok: false; error: RenameError } => {
+  const clean = name.trim().replace(/\s+/g, ' ');
+  if (!clean) return { ok: false, error: { kind: 'vacio' } };
+
+  // Cambiarse a uno mismo con otra ortografia SI vale ("ana ruiz" -> "Ana Ruiz"): es la misma
+  // persona arreglando como se escribe. Lo que no vale es pisar a OTRA.
+  const other = roster.find((p) => p.id !== id && normalize(p.name) === normalize(clean));
+  if (other) return { ok: false, error: { kind: 'ya_existe', other } };
+
+  return { ok: true, clean };
+};
+
+export const renamePlayer = async (
+  id: PlayerId,
+  name: string,
+  roster: Player[],
+): Promise<{ ok: true; roster: Player[] } | { ok: false; error: RenameError }> => {
+  const check = validateRename(id, name, roster);
+  if (!check.ok) return check;
+
+  const next = roster.map((p) => (p.id === id ? { ...p, name: check.clean } : p));
+  await write(KEY_PLAYERS, next);
+  return { ok: true, roster: next };
+};
+
+// ---- Unificar dos personas ----
+
+/**
+ * "Este jugador es en realidad aquel". Del id que se absorbe, al que queda.
+ *
+ * NO SE REESCRIBE NI UN SOLO PARTIDO. La tentacion era abrir cada archivo y cambiar el id viejo
+ * por el nuevo, y seria un error por dos razones concretas:
+ *
+ * 1. ES IRREVERSIBLE. Si se unen por error dos personas que no eran la misma, los logs quedan
+ *    mezclados para siempre. Con un mapa, deshacerlo es borrar una linea.
+ * 2. TOCA LOS EVENTOS. Cada WINNER lleva un id adentro. Reescribir eventos es exactamente lo que
+ *    esta arquitectura no hace nunca — y si la escritura falla a la mitad, quedan partidos
+ *    corruptos.
+ *
+ * Asi que la union se resuelve AL LEER. Los partidos siguen diciendo lo que dijeron siempre.
+ */
+export type Merges = Record<PlayerId, PlayerId>;
+
+export const loadMerges = (): Promise<Merges> => read<Merges>(KEY_MERGES, {});
+
+/**
+ * El id que representa a esta persona HOY.
+ *
+ * Sigue la cadena, por si A se unio a B y despues B a C. El tope es una guarda contra un ciclo:
+ * no deberia pasar nunca —`mergePlayers` lo evita— pero un dato corrupto no puede colgar la app.
+ */
+export const canonical = (id: PlayerId, merges: Merges): PlayerId => {
+  let at = id;
+  for (let i = 0; i < 16; i++) {
+    const next = merges[at];
+    if (!next || next === at) return at;
+    at = next;
+  }
+  return at;
+};
+
+/**
+ * Une a `from` dentro de `into`. Los dos ids siguen existiendo en los partidos viejos; lo que
+ * cambia es que ahora los dos apuntan a la misma persona.
+ *
+ * El que ABSORBE (`into`) es el que sobrevive: su id es el canonico y su nombre es el que se ve.
+ */
+export const mergePlayers = async (
+  from: PlayerId,
+  into: PlayerId,
+  roster: Player[],
+  merges: Merges,
+): Promise<{ roster: Player[]; merges: Merges }> => {
+  const target = canonical(into, merges);
+  if (from === target) return { roster, merges }; // ya son la misma: no hay nada que hacer
+
+  const nextMerges: Merges = { ...merges, [from]: target };
+
+  // Si alguien ya apuntaba a `from`, ahora apunta al destino final: la cadena queda de un salto y
+  // no se puede armar un ciclo.
+  for (const [old, to] of Object.entries(merges) as Array<[PlayerId, PlayerId]>) {
+    if (to === from) nextMerges[old] = target;
+  }
+
+  await write(KEY_MERGES, nextMerges);
+  return { roster, merges: nextMerges };
+};

@@ -39,7 +39,7 @@ export function Trend({
   if (values.length < 2) {
     return (
       <Text style={s.empty}>
-        Con un solo partido no hay evolución que mostrar. Jugá otro y esto se llena.
+        Con un solo partido no hay evolución que mostrar. Juega otro y esto se llena.
       </Text>
     );
   }

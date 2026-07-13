@@ -133,3 +133,70 @@ describe('el acumulado de una persona', () => {
     expect(c.timeline).toEqual([]);
   });
 });
+
+/**
+ * UNIR DOS PERSONAS, SIN TOCAR UN SOLO PARTIDO.
+ *
+ * "Ana" se cargo un dia con un id, y "Ana Ruiz" otro dia con otro: son la misma persona, con el
+ * historial partido en dos. Al unirlas, los partidos NO se reescriben — el de aquel dia sigue
+ * guardando el id viejo. Lo que cambia es que ese id ahora apunta a Ana Ruiz, y el acumulado lo
+ * resuelve AL LEER.
+ *
+ * Esto es lo que hace que la union sea reversible y que no haya forma de corromper un partido en
+ * el intento.
+ */
+describe('el acumulado, despues de unir dos personas', () => {
+  /** El partido viejo: la misma gente, pero Ana cargada con OTRO id. */
+  const viejo = config({
+    players: {
+      'a1-viejo': { id: 'a1-viejo', name: 'Ana' },
+      a2: { id: 'a2', name: 'Aldo' },
+      b1: { id: 'b1', name: 'Bea' },
+      b2: { id: 'b2', name: 'Beto' },
+    },
+    teams: {
+      A: { id: 'A', drive: 'a1-viejo', reves: 'a2' },
+      B: { id: 'B', drive: 'b1', reves: 'b2' },
+    },
+    serveOrder: { A: ['a1-viejo', 'a2'], B: ['b1', 'b2'] },
+  });
+
+  const puntoViejo = (): MatchEvent => ({ type: 'WINNER', player: 'a1-viejo' });
+  const gameViejo = (): MatchEvent[] => Array.from({ length: 4 }, () => puntoViejo());
+
+  const ms = [
+    match('m1', 100, gameViejo(), viejo), // Ana, con el id viejo
+    match('m2', 200, game('A')), // Ana Ruiz, con el id nuevo
+  ];
+
+  /** "a1-viejo" es en realidad "a1". */
+  const canon = (id: string) => (id === 'a1-viejo' ? 'a1' : id);
+
+  it('sin la union, el historial esta partido en dos', () => {
+    expect(career('a1', ms).matches).toBe(1);
+    expect(career('a1-viejo', ms).matches).toBe(1);
+  });
+
+  it('unidas, los dos partidos son de la misma persona', () => {
+    const c = career('a1', ms, canon);
+    expect(c.matches).toBe(2);
+    expect(c.won).toBe(2);
+  });
+
+  it('y los contadores se suman: el partido viejo tambien cuenta', () => {
+    const c = career('a1', ms, canon);
+    // Cuatro winners con el id viejo, cuatro con el nuevo.
+    expect(c.totals.winners).toBe(8);
+  });
+
+  it('la linea de tiempo trae los dos, en orden', () => {
+    const c = career('a1', ms, canon);
+    expect(c.timeline.map((t) => t.matchId)).toEqual(['m1', 'm2']);
+  });
+
+  /** El partido viejo sigue diciendo lo que decia: no se reescribio nada. */
+  it('el partido viejo no se toco: sigue guardando el id de antes', () => {
+    expect(Object.keys(ms[0]!.config.players)).toContain('a1-viejo');
+    expect(ms[0]!.events[0]).toEqual({ type: 'WINNER', player: 'a1-viejo' });
+  });
+});

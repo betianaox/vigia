@@ -127,20 +127,47 @@ const SUMMED = [
   'returnPointsWon',
 ] as const;
 
+/**
+ * Con quien id aparece esta persona en ESTE partido.
+ *
+ * Casi siempre es el suyo. Pero si se unieron dos personas, un partido viejo tiene guardado el id
+ * VIEJO — y ese partido tambien es suyo. `canon` resuelve la union: nada se reescribio, se
+ * resuelve al leer.
+ */
+const idIn = (m: PlayedMatch, player: PlayerId, canon: Canon): PlayerId | null => {
+  for (const id of Object.keys(m.config.players) as PlayerId[]) {
+    if (canon(id) === player) return id;
+  }
+  return null;
+};
+
+/** Por defecto, cada uno es el mismo: sin uniones, esto no cambia nada. */
+export type Canon = (id: PlayerId) => PlayerId;
+const SELF: Canon = (id) => id;
+
 /** Los partidos donde jugo esa persona, del mas viejo al mas nuevo. */
-export const playedBy = (player: PlayerId, matches: PlayedMatch[]): PlayedMatch[] =>
+export const playedBy = (
+  player: PlayerId,
+  matches: PlayedMatch[],
+  canon: Canon = SELF,
+): PlayedMatch[] =>
   matches
-    .filter((m) => Object.prototype.hasOwnProperty.call(m.config.players, player))
+    .filter((m) => idIn(m, player, canon) !== null)
     .sort((a, b) => a.startedAt - b.startedAt);
 
-export const career = (player: PlayerId, matches: PlayedMatch[]): CareerStats => {
-  const mine = playedBy(player, matches);
+export const career = (
+  player: PlayerId,
+  matches: PlayedMatch[],
+  canon: Canon = SELF,
+): CareerStats => {
+  const mine = playedBy(player, matches, canon);
 
   const first = mine[0];
+  const firstId = first ? idIn(first, player, canon) : null;
   const totals = empty(
     player,
-    first ? first.config.players[player]!.name : '',
-    first ? teamOfPlayer(player, first.config.teams) : 'A',
+    first && firstId ? first.config.players[firstId]!.name : '',
+    first && firstId ? teamOfPlayer(firstId, first.config.teams) : 'A',
   );
 
   let won = 0;
@@ -151,10 +178,13 @@ export const career = (player: PlayerId, matches: PlayedMatch[]): CareerStats =>
   const timeline: CareerPoint[] = [];
 
   for (const m of mine) {
+    // El id con el que aparece en ESTE partido: el suyo, o uno viejo si hubo una union.
+    const here = idIn(m, player, canon)!;
+
     const st = reduce(m.config, m.events);
     const stats = computeStats(m.config, m.events);
-    const mineStats = stats.players[player]!;
-    const team = teamOfPlayer(player, m.config.teams);
+    const mineStats = stats.players[here]!;
+    const team = teamOfPlayer(here, m.config.teams);
     const rival: TeamId = team === 'A' ? 'B' : 'A';
 
     for (const k of SUMMED) totals[k] += mineStats[k];
@@ -184,7 +214,7 @@ export const career = (player: PlayerId, matches: PlayedMatch[]): CareerStats =>
       matchId: m.id,
       at: m.startedAt,
       won: result,
-      partner: t.drive === player ? t.reves : t.drive,
+      partner: t.drive === here ? t.reves : t.drive,
       opponents: [r.drive, r.reves],
       stats: mineStats,
       teamPointsWon: mineTeamPoints,

@@ -67,8 +67,18 @@ export function HistoryScreen({
   onCareer: (player: Player) => void;
 }) {
   // El plantel sale del contexto: una sola fuente, y un renombre se ve en todas las pantallas.
-  const { players: roster } = useRoster();
-  const byId = useMemo(() => new Map(roster.map((p) => [p.id, p.name])), [roster]);
+  const { players: roster, all: everyone, canon } = useRoster();
+
+  /**
+   * El nombre de una persona, resuelto AL CANONICO.
+   *
+   * Un partido viejo guardo el id de antes de una union. Resolverlo contra ese id daria el nombre
+   * viejo — y entonces la union no se veria en el historial. Se canonicaliza primero.
+   */
+  const resolve = useMemo(() => {
+    const byId = new Map(everyone.map((p) => [p.id, p.name]));
+    return (id: PlayerId): string | undefined => byId.get(canon(id));
+  }, [everyone, canon]);
 
   const [all, setAll] = useState<MatchSummary[]>([]);
   const [query, setQuery] = useState('');
@@ -111,12 +121,15 @@ export function HistoryScreen({
     return all
       .filter((m) => m.startedAt >= since)
       .filter((m) => {
-        if (player) return m.playerIds.includes(player);
+        // `canon` resuelve las uniones: un partido viejo puede tener guardado el id de antes.
+        if (player) return m.playerIds.some((id) => canon(id) === player);
         // Contra los nombres RESUELTOS: si alguien se renombro, buscar por el nombre nuevo tiene
         // que encontrarlo. El texto horneado en el indice quedo viejo el dia que se renombro.
-        return !q || normalize(`${teamText(m, 'A', byId)} ${teamText(m, 'B', byId)}`).includes(q);
+        return (
+          !q || normalize(`${teamText(m, 'A', resolve)} ${teamText(m, 'B', resolve)}`).includes(q)
+        );
       });
-  }, [all, period, query, player, byId]);
+  }, [all, period, query, player, resolve, canon]);
 
   const chosen = roster.find((p) => p.id === player);
 
@@ -227,13 +240,14 @@ export function HistoryScreen({
         ListEmptyComponent={
           <Text style={s.empty}>
             {all.length === 0
-              ? 'Todavía no hay partidos guardados. Jugá uno y va a aparecer acá.'
+              ? 'Todavía no hay partidos guardados. Juega uno y aparecerá aquí.'
               : 'Ningún partido con esos filtros.'}
           </Text>
         }
         renderItem={({ item }) => (
           <Row
             m={item}
+            resolve={resolve}
             onPress={() => void open(item)}
             onDelete={() => {
               tick();
@@ -257,7 +271,7 @@ export function HistoryScreen({
         title="Borrar el partido"
         message={
           deleting
-            ? `${teamText(deleting, 'A', byId)} vs ${teamText(deleting, 'B', byId)}\n` +
+            ? `${teamText(deleting, 'A', resolve)} vs ${teamText(deleting, 'B', resolve)}\n` +
               `${formatDate(deleting.startedAt)} · ${formatTime(deleting.startedAt)}` +
               `${deleting.score ? ` · ${deleting.score}` : ''}\n\n` +
               'Se borra para siempre, con todas sus estadísticas.'
@@ -286,9 +300,13 @@ export function HistoryScreen({
  *
  * `playerIds` viene en orden: [A drive, A reves, B drive, B reves].
  */
-const teamText = (m: MatchSummary, t: TeamId, byId: Map<PlayerId, string>): string => {
+const teamText = (
+  m: MatchSummary,
+  t: TeamId,
+  resolve: (id: PlayerId) => string | undefined,
+): string => {
   const ids = t === 'A' ? m.playerIds.slice(0, 2) : m.playerIds.slice(2, 4);
-  const names = ids.map((id) => byId.get(id));
+  const names = ids.map(resolve);
 
   // Si alguno de los dos ya no esta en la tabla, se usa el texto guardado del par entero: mejor
   // "Ana Ruiz / Aldo Vega" con un nombre viejo que "Ana Ruiz / p_k3f9a2".
@@ -299,16 +317,15 @@ const teamText = (m: MatchSummary, t: TeamId, byId: Map<PlayerId, string>): stri
 /** El ganador en el color de su equipo, el perdedor atenuado: el mismo vocabulario del tanteador. */
 function Row({
   m,
+  resolve,
   onPress,
   onDelete,
 }: {
   m: MatchSummary;
+  resolve: (id: PlayerId) => string | undefined;
   onPress: () => void;
   onDelete: () => void;
 }) {
-  const { players } = useRoster();
-  const byId = useMemo(() => new Map(players.map((p) => [p.id, p.name])), [players]);
-
   const line = (t: TeamId) => {
     const lost = m.finished && m.winner !== t;
     return (
@@ -316,7 +333,7 @@ function Row({
         style={[s.team, { color: teamColor(t) }, lost && s.lost]}
         numberOfLines={1}
       >
-        {teamText(m, t, byId)}
+        {teamText(m, t, resolve)}
       </Text>
     );
   };

@@ -111,7 +111,7 @@ const VARIANTS: Array<{ title: string; note: string; config: MatchConfig; events
   },
   {
     title: 'Set ganado en tiebreak',
-    note: 'El 7-6 queda con el superíndice del tiebreak (acá lo ganó A por 7-5).',
+    note: 'El 7-6 queda con el superíndice del tiebreak (aquí lo ganó A por 7-5).',
     config: cfg(),
     // 5-5 en el tiebreak y despues A gana dos: 7-5.
     events: [...alt(6), ...altPts(10), ...pts('A', 2), ...games('B', 3), ...pts('A', 1)],
