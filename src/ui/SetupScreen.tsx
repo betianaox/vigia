@@ -76,10 +76,18 @@ const CHANGE_ENDS = [
 /**
  * Como se para la pareja cuando saca. Es por PAREJA, no por partido — cada equipo elige.
  * Recibiendo no cambia nada: eso esta fijo por reglamento.
+ *
+ * SE DICE LO QUE PASA, no como se llama. La palabra "australiana" significa cosas distintas
+ * segun con quien hables —unos le dicen asi a no cambiar de lado, otros a otra cosa— y una
+ * palabra ambigua en un formulario no es un nombre: es una trampa. "Mantiene el lado" no se
+ * puede malinterpretar.
+ *
+ * La CLAVE sigue siendo `australiana` / `cambio`: el motor no se entera, y los partidos ya
+ * jugados no se tocan. Para esto existe la separacion entre la etiqueta y el dato.
  */
 const FORMATIONS = [
-  { value: 'australiana', label: 'Australiana' },
-  { value: 'cambio', label: 'Cambiando de lado' },
+  { value: 'australiana', label: 'Mantiene el lado' },
+  { value: 'cambio', label: 'Cambia de lado' },
 ] as const;
 
 export function SetupScreen({
