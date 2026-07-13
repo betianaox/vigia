@@ -515,7 +515,33 @@ export function SetupScreen({
           </>
         )}
 
-        {/* Abajo quedan SOLO las dos puertas. Hermanas de verdad: las dos te sacan de esta
+        {/* EMPEZAR CIERRA EL FORMULARIO. Ahi termina el camino: se llenan los nombres, se elige
+            el formato, se toca Empezar. Nada mas.
+
+            Estaba DEBAJO de Historial y Jugadores, y eso hacia que un usuario nuevo tuviera que
+            pasar por encima de dos botones que no tienen nada que ver para llegar al que si.
+            Parecian escalones del camino, y no lo son. */}
+        {!onCourt && (
+          <Pressable
+            style={({ pressed: pr }) => [s.start, !ready && s.startOff, pr && pressed]}
+            android_ripple={ripple}
+            onPress={start}
+            disabled={!ready}
+          >
+            <MaterialIcons
+              name="play-arrow"
+              size={26}
+              color={ready ? colors.text : colors.textFaint}
+            />
+            <Text style={[s.startText, !ready && s.startTextOff]}>Empezar</Text>
+          </Pressable>
+        )}
+
+        {/* Y aca se corta. La linea no es decoracion: le dice a alguien que abre la app por
+            primera vez que lo de abajo NO HACE FALTA para empezar a jugar. */}
+        <View style={s.split} />
+
+        {/* Debajo de la linea, SOLO las dos puertas. Hermanas de verdad: las dos te sacan de esta
             pantalla, van iguales y van juntas. Avanzadas ya no esta aca — se fue al renglon de
             PARTIDO, que es donde pertenece. */}
         <View style={s.doors}>
@@ -548,22 +574,6 @@ export function SetupScreen({
             <Text style={s.doorText}>Jugadores</Text>
           </Pressable>
         </View>
-
-        {!onCourt && (
-          <Pressable
-            style={({ pressed: pr }) => [s.start, !ready && s.startOff, pr && pressed]}
-            android_ripple={ripple}
-            onPress={start}
-            disabled={!ready}
-          >
-            <MaterialIcons
-              name="play-arrow"
-              size={26}
-              color={ready ? colors.text : colors.textFaint}
-            />
-            <Text style={[s.startText, !ready && s.startTextOff]}>Empezar</Text>
-          </Pressable>
-        )}
 
         {/* Siembra un partido entero, jugado por el motor, para poder probar las estadisticas
             sin cargar cien puntos a mano. `__DEV__` es false en el build de produccion, asi
@@ -818,8 +828,21 @@ const s = StyleSheet.create({
     backgroundColor: colors.surface,
   },
 
+  /**
+   * La linea que corta el formulario.
+   *
+   * Arriba: llenar los nombres, elegir el formato, Empezar. Ese es el camino, y termina ahi.
+   * Abajo: dos puertas que no tienen nada que ver con jugar un partido.
+   *
+   * No es decoracion: le dice a alguien que abre la app por primera vez que lo de abajo NO HACE
+   * FALTA para arrancar. Sin la linea, Historial y Jugadores parecen escalones del camino.
+   */
+  /** Sin margenes propios: el `gap` del cuerpo ya la separa de arriba y de abajo. Agregarle mas
+      aire empujaba las dos puertas fuera de la pantalla, que es lo que veniamos de arreglar. */
+  split: { height: 1, backgroundColor: colors.border },
+
   /** Las dos puertas: iguales y juntas, porque las dos hacen lo mismo — sacarte de esta pantalla. */
-  doors: { flexDirection: 'row', gap: space.sm, marginTop: space.md },
+  doors: { flexDirection: 'row', gap: space.sm },
   /**
    * Icono y texto EN LINEA. Apilados fue una solucion a un problema que ya no existe: cuando
    * eran tres en la fila, cada uno tenia un tercio de pantalla y no entraban. Ahora son dos, con
