@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, type TextStyle } from 'react-native';
 
 import { colors, space } from '../theme';
 
@@ -51,31 +51,73 @@ export function HeadToHead({
   playersB,
   colorA,
   colorB,
+  /**
+   * Cuanto pesan los nombres de la cabecera.
+   *
+   * En la app son una etiqueta: el tanteador esta justo arriba, grande, y ahi se lee quien jugo.
+   * En la TARJETA no: el tanteador va chico y al que perdio lo dibuja en gris, asi que estos
+   * nombres pasan a ser los que sostienen la lectura. Crecen y se encienden.
+   */
+  nameSize = 11,
+  nameColor = colors.textDim,
+  /**
+   * Y MENOS NEGRITA CUANTO MAS GRANDE. Un nombre chico necesita peso para no desaparecer; uno
+   * grande no, y con 800 encima grita. Se lee mejor un cuerpo mas grande y un trazo mas liviano.
+   */
+  nameWeight = '700',
+  /** Cuanto respira el nombre del punto de color. Cuanto mas grande la letra, mas aire pide. */
+  nameGap = 6,
 }: {
   rows: Row[];
   playersA: [string, string];
   playersB: [string, string];
   colorA: string;
   colorB: string;
+  nameSize?: number;
+  nameColor?: string;
+  nameWeight?: TextStyle['fontWeight'];
+  nameGap?: number;
 }) {
   return (
     <View style={s.root}>
       {/* La cabecera declara el orden una sola vez: arriba el primero, abajo el segundo. */}
       <View style={s.header}>
-        <View style={s.headSide}>
+        <View style={[s.headSide, { gap: nameGap }]}>
           <View style={[s.swatch, { backgroundColor: colorA }]} />
           <View>
             {playersA.map((n) => (
-              <Text key={n} style={s.headName} numberOfLines={1}>
+              <Text
+                key={n}
+                style={[s.headName, {
+                    fontSize: nameSize,
+                    lineHeight: nameSize + 4,
+                    color: nameColor,
+                    fontWeight: nameWeight,
+                  }]}
+                numberOfLines={1}
+              >
                 {n}
               </Text>
             ))}
           </View>
         </View>
-        <View style={[s.headSide, s.headSideRight]}>
+        <View style={[s.headSide, s.headSideRight, { gap: nameGap }]}>
           <View>
             {playersB.map((n) => (
-              <Text key={n} style={[s.headName, s.headNameRight]} numberOfLines={1}>
+              <Text
+                key={n}
+                style={[
+                  s.headName,
+                  s.headNameRight,
+                  {
+                    fontSize: nameSize,
+                    lineHeight: nameSize + 4,
+                    color: nameColor,
+                    fontWeight: nameWeight,
+                  },
+                ]}
+                numberOfLines={1}
+              >
                 {n}
               </Text>
             ))}

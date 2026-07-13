@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons';
+import { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -6,11 +7,14 @@ import { computeStats, pct, teamShotLines, shotLines } from '../engine/stats';
 import type { MatchStats, PlayerStats } from '../engine/stats';
 import type { MatchConfig, MatchEvent, MatchState, PlayerId, TeamId } from '../engine';
 import { Brand } from './Brand';
-import { HeadToHead, type Cell, type Row } from './charts/HeadToHead';
+import { HeadToHead } from './charts/HeadToHead';
+import { playerRows } from './charts/playerRows';
 import { ShotBars } from './charts/ShotBars';
 import { TeamCompare, type CompareRow } from './charts/TeamCompare';
 import { useRoster } from './roster';
 import { Scoreboard } from './Scoreboard';
+import { shareCard } from './share';
+import { CARD_WIDTH, ShareCard } from './ShareCard';
 import { colors, pressed, radius, ripple, space, teamColor } from './theme';
 
 const num = (n: number | null, suffix = ''): string =>
@@ -111,7 +115,12 @@ const globalRows = (stats: MatchStats): CompareRow[] => {
       bValue: rb.value,
     },
     {
-      label: 'Breaks',
+      /**
+       * "Breaks 9/17" deja al 17 sin explicar: ¿17 games?, ¿17 saques? Nombrando el
+       * DENOMINADOR se entiende sola — 9 de los 17 break points que tuvo. Y es la palabra que
+       * se dice en la tele, asi que no hay nada que traducir.
+       */
+      label: 'Break points',
       a: `${a.breakPointsConverted}/${a.breakPointsPlayed}`,
       b: `${b.breakPointsConverted}/${b.breakPointsPlayed}`,
       aValue: a.breakPointsConverted,
@@ -138,85 +147,12 @@ const playerNames = (config: MatchConfig, t: TeamId, nameOf: NameOf): [string, s
     nameOf(p, config.players[p]?.name),
   ) as [string, string];
 
-/**
- * Las filas de la comparativa, POR JUGADOR. Un entrenador no corrige a un equipo:
- * la suma por equipo esconde cual de los dos esta tirando los errores.
- *
- * Las etiquetas van partidas en dos renglones a proposito, para que todas las filas
- * midan lo mismo y la grilla se lea pareja.
- */
-const buildRows = (stats: MatchStats, config: MatchConfig): Row[] => {
-  const four = (['A', 'B'] as TeamId[]).map((t) =>
-    [config.teams[t].drive, config.teams[t].reves].map((id) => stats.players[id]!),
-  ) as [PlayerStats[], PlayerStats[]];
-
-  const cells = (
-    pick: (p: PlayerStats) => number,
-    fmt: (p: PlayerStats) => string,
-  ): Pick<Row, 'a' | 'b'> => ({
-    a: four[0].map((p) => ({ text: fmt(p), value: pick(p) })) as [Cell, Cell],
-    b: four[1].map((p) => ({ text: fmt(p), value: pick(p) })) as [Cell, Cell],
-  });
-
-  const count = (label: string, pick: (p: PlayerStats) => number, fill?: string): Row => ({
-    label,
-    fill,
-    ...cells(pick, (p) => `${pick(p)}`),
-  });
-
-  const percent = (
-    label: string,
-    won: (p: PlayerStats) => number,
-    played: (p: PlayerStats) => number,
-  ): Row => ({
-    label,
-    ...cells(
-      (p) => pct(won(p), played(p)) ?? 0,
-      (p) => num(pct(won(p), played(p)), '%'),
-    ),
-  });
-
-  /**
-   * Cada fila con el color del BOTON que la genero. La barra deja de decir "quien va ganando"
-   * y pasa a decir "de que accion hablamos" — y asi ninguna fila se lee al reves de las otras.
-   *
-   * La doble falta no tiene boton propio (existe FALTA, que es blanco, y una barra blanca
-   * seria lo mas brillante de la pantalla para la peor estadistica). Va en bordo, que es el
-   * color con el que la app ya dice "mas es peor".
-   *
-   * Los porcentajes de saque no salen de ningun boton y ahi mas SI es mejor: color de equipo.
-   */
-  return [
-    count('Winners', (p) => p.winners, colors.winnerChart),
-    count('Errores\nno forzados', (p) => p.unforcedErrors, colors.errorUnforcedChart),
-    count('Errores\nforzados', (p) => p.forcedErrors, colors.errorForcedChart),
-    count('Aces', (p) => p.aces, colors.ace),
-    count('Dobles\nfaltas', (p) => p.doubleFaults, colors.worse),
-    percent(
-      '1er saque\nadentro',
-      (p) => p.firstServesIn,
-      (p) => p.servePointsPlayed,
-    ),
-    percent(
-      'Gana con\n1er saque',
-      (p) => p.firstServePointsWon,
-      (p) => p.firstServesIn,
-    ),
-    percent(
-      'Gana con\n2do saque',
-      (p) => p.secondServePointsWon,
-      (p) => p.secondServePointsPlayed,
-    ),
-  ];
-};
-
 export function StatsScreen({
   config,
   events,
   state,
   finishedEarly,
   onClose,
-  onShare,
 }: {
   config: MatchConfig;
   events: MatchEvent[];
@@ -225,11 +161,28 @@ export function StatsScreen({
   finishedEarly: boolean;
   /** Cerrar y volver a lo que estabas: la cancha, o el historial. */
   onClose: () => void;
-  onShare: () => void;
 }) {
   const { nameOf } = useRoster();
   const stats = computeStats(config, events);
   const over = state.finished || finishedEarly;
+
+  /**
+   * La tarjeta compartible. Se dibuja SIEMPRE, fuera de la pantalla: para capturarla, Android
+   * necesita que exista de verdad. Renderizarla recien al tocar Compartir obligaria a esperar un
+   * cuadro antes de sacarle la foto, y esa espera se paga con una imagen a medio pintar.
+   */
+  const card = useRef<View>(null);
+  const [sharing, setSharing] = useState(false);
+
+  const share = async () => {
+    if (sharing) return; // dos toques no son dos tarjetas
+    setSharing(true);
+    try {
+      await shareCard(card, 'Compartir el partido');
+    } finally {
+      setSharing(false);
+    }
+  };
 
   /** Solo el nombre de pila: los duelos van como subtitulo y "3 a Beto Lino" no entra. */
   const firstNames: Record<PlayerId, string> = Object.fromEntries(
@@ -276,7 +229,7 @@ export function StatsScreen({
 
             <Section title="Jugador por jugador">
               <HeadToHead
-                rows={buildRows(stats, config)}
+                rows={playerRows(stats, config, true)}
                 playersA={playerNames(config, 'A', nameOf)}
                 playersB={playerNames(config, 'B', nameOf)}
                 colorA={colors.teamAFill}
@@ -331,11 +284,22 @@ export function StatsScreen({
         <Pressable
           style={({ pressed: p }) => [s.btn, s.btnGhost, p && pressed]}
           android_ripple={ripple}
-          onPress={onShare}
+          onPress={() => void share()}
         >
-          <MaterialIcons name="ios-share" size={20} color={colors.text} />
+          {/* El de Android, no el de iOS: la cajita con la flecha hacia arriba es un simbolo de
+              otra plataforma, y aca nadie lo aprendio. Este es el que ya vieron mil veces. */}
+          <MaterialIcons name="share" size={20} color={colors.text} />
           <Text style={s.btnGhostText}>Compartir</Text>
         </Pressable>
+      </View>
+
+      {/* El lienzo de la tarjeta, fuera de la pantalla. `collapsable={false}` no es opcional:
+          sin eso Android se come la vista por ser un contenedor sin nada propio que dibujar, y
+          la captura devuelve el vacio. */}
+      <View style={s.offscreen} pointerEvents="none">
+        <View ref={card} collapsable={false}>
+          <ShareCard config={config} events={events} state={state} />
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -453,6 +417,9 @@ function PlayerCard({
           value={`${p.doubleFaults}`}
           sub={duels(p.doubleFaultsAgainst, names)}
         />
+        {/* EL BREAK NO ENTRA ACA. Se lo quiebran al equipo y lo quiebra el equipo: el game se
+            pierde de a cuatro, y el punto que lo cierra lo puede haber regalado el companero.
+            Ponerlo en la ficha de una persona seria repartir una culpa que el log no conoce. */}
         <View style={s.statCell} />
       </View>
 
@@ -494,6 +461,8 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
+  /** Existe, esta dibujada, y nadie la ve. Es lo que la camara necesita para poder sacarle la foto. */
+  offscreen: { position: 'absolute', left: -CARD_WIDTH * 2, top: 0 },
   row: { flexDirection: 'row', gap: space.sm },
   /**
    * Las dos lineas que despegan el contenido de los bordes fijos.

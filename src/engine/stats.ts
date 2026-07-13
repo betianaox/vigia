@@ -68,6 +68,18 @@ export interface PlayerStats {
   /** Restando: cuantos puntos jugo de resto y cuantos gano. */
   returnPointsPlayed: number;
   returnPointsWon: number;
+
+  /**
+   * EL BREAK NO TIENE DUEÑO, Y POR ESO NO ESTA ACA.
+   *
+   * Se penso contarlo por persona —quien saca esta identificado, asi que "a quien le quebraron"
+   * parecia un dato mas. No lo es. El game se pierde de a cuatro: el punto que cierra el quiebre
+   * lo puede haber regalado el companero con un error no forzado, y la app estaria diciendo "le
+   * quebraron a Ana" sobre un game que Ana no perdio. Del otro lado es igual: el break point que
+   * "gana" el que resta lo puede haber definido su companero.
+   *
+   * Al equipo se lo quiebran y el equipo quiebra. El break vive en `TeamStats` y ahi se queda.
+   */
 }
 
 export interface TeamStats {

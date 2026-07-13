@@ -73,13 +73,20 @@ const mergeTally = (a: ShotTally, b: ShotTally): ShotTally => {
   return out;
 };
 
+/**
+ * Los duelos, sumados a lo largo de los años. Las CLAVES pasan por `canon`: el rival de hace dos
+ * años puede estar guardado con un id viejo, y si no se resuelve la union, "8 dobles faltas
+ * sacandole a Beto" se parte en dos Betos que no existen.
+ */
 const mergeAgainst = (
   a: Partial<Record<PlayerId, number>>,
   b: Partial<Record<PlayerId, number>>,
+  canon: Canon,
 ): Partial<Record<PlayerId, number>> => {
   const out = { ...a };
   for (const [id, n] of Object.entries(b) as Array<[PlayerId, number]>) {
-    out[id] = (out[id] ?? 0) + n;
+    const who = canon(id);
+    out[who] = (out[who] ?? 0) + n;
   }
   return out;
 };
@@ -191,10 +198,11 @@ export const career = (
     totals.winnersByShot = mergeTally(totals.winnersByShot, mineStats.winnersByShot);
     totals.forcedByShot = mergeTally(totals.forcedByShot, mineStats.forcedByShot);
     totals.unforcedByShot = mergeTally(totals.unforcedByShot, mineStats.unforcedByShot);
-    totals.acesAgainst = mergeAgainst(totals.acesAgainst, mineStats.acesAgainst);
+    totals.acesAgainst = mergeAgainst(totals.acesAgainst, mineStats.acesAgainst, canon);
     totals.doubleFaultsAgainst = mergeAgainst(
       totals.doubleFaultsAgainst,
       mineStats.doubleFaultsAgainst,
+      canon,
     );
 
     const mineTeamPoints = stats.teams[team].pointsWon;

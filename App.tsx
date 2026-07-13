@@ -190,7 +190,6 @@ function Vigia() {
           state={reduce(match.config, match.events)}
           finishedEarly={false}
           onClose={() => setScreen({ name: 'match' })}
-          onShare={() => {}}
         />
       ) : screen.name === 'history' ? (
         <HistoryScreen
@@ -217,7 +216,6 @@ function Vigia() {
           state={reduce(screen.match.config, screen.match.events)}
           finishedEarly
           onClose={() => setScreen({ name: 'history' })}
-          onShare={() => {}}
         />
       ) : (
         <SetupScreen
