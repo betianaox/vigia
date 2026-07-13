@@ -12,6 +12,21 @@ export interface Row {
   label: string;
   a: [Cell, Cell];
   b: [Cell, Cell];
+  /**
+   * El color de la barra, cuando la fila NO es una competencia.
+   *
+   * Aca cada fila es, literalmente, UN BOTON de la cancha: winner, error forzado, error no
+   * forzado, ace. Si la barra toma el color de ese boton, deja de decir "quien va ganando" y
+   * pasa a decir "de que accion estamos hablando" — y el problema de la fila que se lee al
+   * reves desaparece solo, porque ninguna fila es ya una competencia. Nadie mira una barra
+   * roja de errores y piensa que la mas larga va ganando.
+   *
+   * Es ademas el idioma que la app YA habla: el desglose de golpes usa esa misma leyenda.
+   *
+   * Sin `fill`, la barra va del color de su equipo — que es lo correcto en las filas que no
+   * salen de ningun boton (los porcentajes de saque) y donde tener mas SI es ir mejor.
+   */
+  fill?: string;
 }
 
 const BAR = 8; // marca fina, muy por debajo del tope de 24px
@@ -72,6 +87,11 @@ export function HeadToHead({
       {rows.map((r, i) => {
         const max = Math.max(...[...r.a, ...r.b].map((c) => c.value), 1);
 
+        // Con color de accion, las cuatro barras van del mismo: la fila habla de la accion,
+        // no de quien gana. Sin el, cada una del color de su equipo.
+        const fillA = r.fill ?? colorA;
+        const fillB = r.fill ?? colorB;
+
         return (
           <View key={r.label}>
             {i > 0 && <View style={s.sep} />}
@@ -86,7 +106,7 @@ export function HeadToHead({
                     <View style={s.track}>
                       <View style={{ flex: 1 - c.value / max }} />
                       <View
-                        style={[s.bar, s.barLeft, { backgroundColor: colorA, flex: c.value / max }]}
+                        style={[s.bar, s.barLeft, { backgroundColor: fillA, flex: c.value / max }]}
                       />
                     </View>
                   </View>
@@ -102,7 +122,7 @@ export function HeadToHead({
                   <View key={k} style={s.sub}>
                     <View style={s.track}>
                       <View
-                        style={[s.bar, s.barRight, { backgroundColor: colorB, flex: c.value / max }]}
+                        style={[s.bar, s.barRight, { backgroundColor: fillB, flex: c.value / max }]}
                       />
                       <View style={{ flex: 1 - c.value / max }} />
                     </View>

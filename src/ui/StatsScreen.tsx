@@ -131,8 +131,9 @@ const buildRows = (stats: MatchStats, config: MatchConfig): Row[] => {
     b: four[1].map((p) => ({ text: fmt(p), value: pick(p) })) as [Cell, Cell],
   });
 
-  const count = (label: string, pick: (p: PlayerStats) => number): Row => ({
+  const count = (label: string, pick: (p: PlayerStats) => number, fill?: string): Row => ({
     label,
+    fill,
     ...cells(pick, (p) => `${pick(p)}`),
   });
 
@@ -148,12 +149,22 @@ const buildRows = (stats: MatchStats, config: MatchConfig): Row[] => {
     ),
   });
 
+  /**
+   * Cada fila con el color del BOTON que la genero. La barra deja de decir "quien va ganando"
+   * y pasa a decir "de que accion hablamos" — y asi ninguna fila se lee al reves de las otras.
+   *
+   * La doble falta no tiene boton propio (existe FALTA, que es blanco, y una barra blanca
+   * seria lo mas brillante de la pantalla para la peor estadistica). Va en bordo, que es el
+   * color con el que la app ya dice "mas es peor".
+   *
+   * Los porcentajes de saque no salen de ningun boton y ahi mas SI es mejor: color de equipo.
+   */
   return [
-    count('Winners', (p) => p.winners),
-    count('Errores\nno forzados', (p) => p.unforcedErrors),
-    count('Errores\nforzados', (p) => p.forcedErrors),
-    count('Aces', (p) => p.aces),
-    count('Dobles\nfaltas', (p) => p.doubleFaults),
+    count('Winners', (p) => p.winners, colors.winner),
+    count('Errores\nno forzados', (p) => p.unforcedErrors, colors.errorUnforced),
+    count('Errores\nforzados', (p) => p.forcedErrors, colors.errorForced),
+    count('Aces', (p) => p.aces, colors.ace),
+    count('Dobles\nfaltas', (p) => p.doubleFaults, colors.worse),
     percent(
       '1er saque\nadentro',
       (p) => p.firstServesIn,
