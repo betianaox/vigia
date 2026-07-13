@@ -222,7 +222,11 @@ export function StatsScreen({
 
       <Scoreboard config={config} state={state} />
 
-      <ScrollView contentContainerStyle={s.list}>
+      {/* Una linea fina arriba y otra abajo: el tanteador y el boton son BORDES, no contenido —
+          se quedan quietos mientras el resto se desliza. Sin ellas, el primer numero de la lista
+          nace pegado al tanteador y el ultimo muere debajo del boton, y no se sabe donde termina
+          una cosa y empieza la otra. */}
+      <ScrollView style={s.scroll} contentContainerStyle={s.list}>
         {stats.totalPoints === 0 ? (
           <Text style={s.empty}>Todavía no se jugó ningún punto.</Text>
         ) : (
@@ -284,6 +288,7 @@ export function StatsScreen({
           android_ripple={ripple}
           onPress={onShare}
         >
+          <MaterialIcons name="ios-share" size={20} color={colors.text} />
           <Text style={s.btnGhostText}>Compartir</Text>
         </Pressable>
       </View>
@@ -374,7 +379,23 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   row: { flexDirection: 'row', gap: space.sm },
-  list: { padding: space.md, gap: space.lg, paddingBottom: space.xl },
+  /**
+   * Las dos lineas que despegan el contenido de los bordes fijos.
+   *
+   * Van en el ScrollView, NO en su contenido: una linea puesta adentro se desliza con la lista
+   * y deja de marcar el borde justo cuando hace falta. Estas se quedan quietas, que es todo el
+   * punto — dicen "de aca para arriba no se mueve nada".
+   *
+   * Un pixel entero, no `hairlineWidth`: en una pantalla de esta densidad eso es un tercio de
+   * pixel y sobre fondo oscuro se pierde. Una linea que no se ve no separa nada.
+   */
+  scroll: {
+    flex: 1,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: colors.border,
+  },
+  list: { padding: space.md, gap: space.lg, paddingTop: space.lg, paddingBottom: space.xl },
   empty: { color: colors.textFaint, textAlign: 'center', marginTop: space.xl },
 
   section: { gap: space.sm },
@@ -431,9 +452,14 @@ const s = StyleSheet.create({
   overNote: { color: colors.textFaint, fontSize: 11, textAlign: 'center' },
   actions: { padding: space.md, gap: space.sm, backgroundColor: colors.surface },
   // Sin flex: dentro de un contenedor en columna, flex:1 colapsa el boton y le come el texto.
-  btn: { paddingVertical: space.md, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
-  btnPrimary: { backgroundColor: colors.text },
-  btnPrimaryText: { color: colors.onLight, fontWeight: '800', fontSize: 15 },
+  btn: {
+    flexDirection: 'row',
+    gap: space.sm,
+    paddingVertical: space.md,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   btnGhost: { backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border },
-  btnGhostText: { color: colors.text, fontWeight: '700' },
+  btnGhostText: { color: colors.text, fontWeight: '700', fontSize: 15 },
 });
