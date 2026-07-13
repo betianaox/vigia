@@ -6,8 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { Player } from '../engine';
 import { loadIndex, type MatchSummary } from '../store/matches';
-import { loadPlayers } from '../store/store';
 import { Brand } from './Brand';
+import { useRoster } from './roster';
 import { colors, pressed, radius, ripple, space } from './theme';
 
 const tick = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -40,12 +40,12 @@ export function PlayersScreen({
   onBack: () => void;
   onOpen: (p: Player) => void;
 }) {
+  // Del contexto: una sola fuente para el plantel, en toda la app.
+  const { players: roster } = useRoster();
   const [index, setIndex] = useState<MatchSummary[]>([]);
-  const [roster, setRoster] = useState<Player[]>([]);
 
   useEffect(() => {
     void loadIndex().then(setIndex);
-    void loadPlayers().then(setRoster);
   }, []);
 
   /** Los que efectivamente jugaron. Alguien del plantel sin un solo partido no tiene juego. */

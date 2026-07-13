@@ -9,6 +9,7 @@ import { Brand } from './Brand';
 import { HeadToHead, type Cell, type Row } from './charts/HeadToHead';
 import { ShotBars } from './charts/ShotBars';
 import { TeamCompare, type CompareRow } from './charts/TeamCompare';
+import { useRoster } from './roster';
 import { Scoreboard } from './Scoreboard';
 import { colors, pressed, radius, ripple, space, teamColor } from './theme';
 
@@ -119,17 +120,23 @@ const globalRows = (stats: MatchStats): CompareRow[] => {
   ];
 };
 
-const teamNames = (config: MatchConfig, t: TeamId): string =>
+/**
+ * Los nombres salen del PLANTEL, por id — no de la copia que el partido guarda adentro. Asi,
+ * renombrar a alguien cambia tambien sus partidos viejos. La copia es el paracaidas: si esa
+ * persona ya no esta en la tabla, se usa (ver `roster.tsx`).
+ */
+type NameOf = (id: PlayerId, fallback?: string) => string;
+
+const teamNames = (config: MatchConfig, t: TeamId, nameOf: NameOf): string =>
   [config.teams[t].drive, config.teams[t].reves]
-    .map((p) => config.players[p]!.name.split(' ')[0])
+    .map((p) => nameOf(p, config.players[p]?.name).split(' ')[0])
     .join(' / ');
 
 /** En el mismo orden en que se dibujan las barras: primero drive, despues reves. */
-const playerNames = (config: MatchConfig, t: TeamId): [string, string] =>
-  [config.teams[t].drive, config.teams[t].reves].map((p) => config.players[p]!.name) as [
-    string,
-    string,
-  ];
+const playerNames = (config: MatchConfig, t: TeamId, nameOf: NameOf): [string, string] =>
+  [config.teams[t].drive, config.teams[t].reves].map((p) =>
+    nameOf(p, config.players[p]?.name),
+  ) as [string, string];
 
 /**
  * Las filas de la comparativa, POR JUGADOR. Un entrenador no corrige a un equipo:
@@ -220,12 +227,13 @@ export function StatsScreen({
   onClose: () => void;
   onShare: () => void;
 }) {
+  const { nameOf } = useRoster();
   const stats = computeStats(config, events);
   const over = state.finished || finishedEarly;
 
   /** Solo el nombre de pila: los duelos van como subtitulo y "3 a Beto Lino" no entra. */
   const firstNames: Record<PlayerId, string> = Object.fromEntries(
-    Object.values(config.players).map((p) => [p.id, p.name.split(' ')[0]!]),
+    Object.values(config.players).map((p) => [p.id, nameOf(p.id, p.name).split(' ')[0]!]),
   );
 
   return (
@@ -269,8 +277,8 @@ export function StatsScreen({
             <Section title="Jugador por jugador">
               <HeadToHead
                 rows={buildRows(stats, config)}
-                playersA={playerNames(config, 'A')}
-                playersB={playerNames(config, 'B')}
+                playersA={playerNames(config, 'A', nameOf)}
+                playersB={playerNames(config, 'B', nameOf)}
                 colorA={colors.teamAFill}
                 colorB={colors.teamBFill}
               />
@@ -278,7 +286,12 @@ export function StatsScreen({
 
             {stats.hasShotData &&
               (['A', 'B'] as TeamId[]).map((t) => (
-                <Section key={t} title="Golpes" accent={teamColor(t)} subtitle={teamNames(config, t)}>
+                <Section
+                  key={t}
+                  title="Golpes"
+                  accent={teamColor(t)}
+                  subtitle={teamNames(config, t, nameOf)}
+                >
                   <ShotBars lines={teamShotLines(stats, config, t)} />
                 </Section>
               ))}
@@ -390,6 +403,7 @@ function PlayerCard({
   /** De que lado juega: "Drive" o "Revés". */
   side: string;
 }) {
+  const { nameOf } = useRoster();
   const c = teamColor(p.team);
   const first = pct(p.firstServesIn, p.servePointsPlayed);
   const won1 = pct(p.firstServePointsWon, p.firstServesIn);
@@ -401,7 +415,7 @@ function PlayerCard({
       <View style={s.cardHead}>
         <View style={[s.dot, { backgroundColor: c }]} />
         <Text style={s.cardName} numberOfLines={1}>
-          {p.name}
+          {nameOf(p.id, p.name)}
         </Text>
 
         {/* De que lado juega. Y NADA MAS que eso.

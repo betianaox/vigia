@@ -18,6 +18,7 @@ import type {
 } from '../engine';
 import { CHAR, fitWidth } from './layout';
 import { useMetrics, type Metrics } from './metrics';
+import { useRoster } from './roster';
 import { Scoreboard } from './Scoreboard';
 import { STROKE_LABELS, STROKES_CON_LADO, STROKES_POR_ALTO, VARIANT_LABELS } from './shots';
 import { alpha, colors, pressed, radius, ripple, space, teamColor } from './theme';
@@ -80,6 +81,7 @@ export function MatchScreen({
   useKeepAwake();
 
   const m = useMetrics();
+  const { nameOf } = useRoster();
   const s = useMemo(() => makeStyles(m), [m]);
 
   const [shotFor, setShotFor] = useState<number | null>(null);
@@ -127,7 +129,7 @@ export function MatchScreen({
     pendingEvent && 'player' in pendingEvent
       ? {
           action: pendingEvent.type as RallyAction,
-          name: config.players[pendingEvent.player]!.name,
+          name: nameOf(pendingEvent.player, config.players[pendingEvent.player]?.name),
           team: (config.teams.A.drive === pendingEvent.player ||
           config.teams.A.reves === pendingEvent.player
             ? 'A'
@@ -220,7 +222,7 @@ export function MatchScreen({
             {playersOf(t, row).map((p) => (
               <PlayerCard
                 key={p}
-                name={config.players[p]!.name}
+                name={nameOf(p, config.players[p]?.name)}
                 team={t}
                 position={state.positions[t].drive === p ? 'drive' : 'reves'}
                 serving={state.server === p}
@@ -291,7 +293,7 @@ export function MatchScreen({
               numberOfLines={1}
             >
               {[config.teams[state.winner!].drive, config.teams[state.winner!].reves]
-                .map((p) => config.players[p]!.name)
+                .map((p) => nameOf(p, config.players[p]?.name))
                 .join(' / ')}
             </Text>
 

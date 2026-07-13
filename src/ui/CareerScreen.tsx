@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { CareerPoint, CareerStats } from '../engine/career';
 import { pct } from '../engine/stats';
 import { Brand } from './Brand';
+import { useRoster } from './roster';
 import { ShotStack } from './charts/ShotStack';
 import { Trend, type TrendPoint } from './charts/Trend';
 import { alpha, colors, pressed, radius, ripple, space } from './theme';
@@ -97,6 +98,7 @@ const METRICS = [
 ] as const;
 
 export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: () => void }) {
+  const { nameOf } = useRoster();
   const [metric, setMetric] = useState<(typeof METRICS)[number]['key']>('ratio');
   const m = METRICS.find((x) => x.key === metric)!;
 
@@ -141,8 +143,14 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
   return (
     <SafeAreaView style={s.root}>
       <View style={s.head}>
-        {/* Aca el nombre no es una etiqueta de pantalla: es de quien habla todo lo que sigue. */}
-        <Brand size={26} subtitle={stats.totals.name} subject tint={colors.ball} />
+        {/* Aca el nombre no es una etiqueta de pantalla: es de quien habla todo lo que sigue.
+            Sale del plantel, por id — no de la copia que guardo el primer partido que jugo. */}
+        <Brand
+          size={26}
+          subtitle={nameOf(stats.player, stats.totals.name)}
+          subject
+          tint={colors.ball}
+        />
         <Pressable
           style={({ pressed: p }) => [s.close, p && pressed]}
           android_ripple={{ ...ripple, borderless: true }}

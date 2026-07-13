@@ -17,6 +17,7 @@ import {
 import { CareerScreen } from './src/ui/CareerScreen';
 import { HistoryScreen } from './src/ui/HistoryScreen';
 import { PlayersScreen } from './src/ui/PlayersScreen';
+import { RosterProvider } from './src/ui/roster';
 import { MatchScreen } from './src/ui/MatchScreen';
 import { ScoreboardPreview } from './src/ui/ScoreboardPreview';
 import { SetupScreen } from './src/ui/SetupScreen';
@@ -54,6 +55,18 @@ type Screen =
  * a abrir nunca.
  */
 export default function App() {
+  return (
+    <RosterProvider>
+      <Vigia />
+    </RosterProvider>
+  );
+}
+
+/**
+ * El plantel envuelve a TODO: el nombre de una persona se lee de la tabla, por id, en cualquier
+ * pantalla. La copia que cada partido guarda adentro queda como respaldo (ver `roster.tsx`).
+ */
+function Vigia() {
   const [screen, setScreen] = useState<Screen>({ name: 'setup' });
   const [match, setMatch] = useState<SavedMatch | null>(null);
   /** El partido a medias que quedo de la vez pasada, para poder ofrecer retomarlo. */

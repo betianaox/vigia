@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import type { MatchConfig, MatchState, TeamId } from '../engine';
 import { CHAR, fitWidth } from './layout';
 import { useMetrics, type Metrics } from './metrics';
+import { useRoster } from './roster';
 import { alpha, colors, radius, teamColor } from './theme';
 
 /**
@@ -34,9 +35,10 @@ import { alpha, colors, radius, teamColor } from './theme';
  */
 const nameFontSize = (
   m: Metrics,
-  config: MatchConfig,
   state: MatchState,
   boxW: number,
+  /** Los nombres YA RESUELTOS: si alguien se renombro, el largo cambia y la fuente tambien. */
+  names: string[],
 ): number => {
   const b = m.board;
   const pointsW = b.cellW + Math.round(b.cellW * 0.5);
@@ -49,10 +51,7 @@ const nameFontSize = (
     (col.points ? pointsW : 0);
 
   const nameW = boxW - b.padH * 2 - b.ballSlot - colsW - b.gap * (cols + 1);
-  const longest = Math.max(
-    ...Object.values(config.players).map((p) => p.name.length),
-    1,
-  );
+  const longest = Math.max(...names.map((n) => n.length), 1);
 
   return Math.max(10, Math.min(b.names, fitWidth(longest, nameW, CHAR.semiLower)));
 };
@@ -85,11 +84,17 @@ export function Scoreboard({
   width?: number;
 }) {
   const m = useMetrics();
+  const { nameOf } = useRoster();
   const s = useMemo(() => makeStyles(m), [m]);
   const boxW = width ?? m.availW;
+
+  const names = useMemo(
+    () => Object.values(config.players).map((p) => nameOf(p.id, p.name)),
+    [config.players, nameOf],
+  );
   const nameSize = useMemo(
-    () => nameFontSize(m, config, state, boxW),
-    [m, config, state, boxW],
+    () => nameFontSize(m, state, boxW, names),
+    [m, state, boxW, names],
   );
   const label = state.isSuperTiebreak ? 'SÚPER TIEBREAK' : state.inTiebreak ? 'TIEBREAK' : null;
   const col = columns(state);
@@ -136,6 +141,8 @@ function TeamBlock({
   /** Igual para los cuatro: se calcula contra el nombre mas largo. */
   nameSize: number;
 }) {
+  const { nameOf } = useRoster();
+
   // El de drive arriba: el mismo orden que en la cancha.
   const ids = [config.teams[team].drive, config.teams[team].reves];
   /** Terminado el partido, el perdedor se apaga: el ganador se lee solo, sin ningun icono. */
@@ -161,13 +168,17 @@ function TeamBlock({
                     habla de la pareja entera. */}
                 {serving ? <View style={s.ball} /> : null}
               </View>
-              {/* Si ni al tamano minimo entra, ahi si se corta con puntos suspensivos. */}
+              {/* Si ni al tamano minimo entra, ahi si se corta con puntos suspensivos.
+
+                  El nombre sale de la TABLA de jugadores, por id — no de la copia que el partido
+                  guarda adentro. Asi, renombrar a alguien cambia tambien sus partidos viejos. La
+                  copia queda de paracaidas por si esa persona ya no esta en la tabla. */}
               <Text
                 style={[s.name, { fontSize: nameSize, color: teamColor(team) }, lost && s.lost]}
                 numberOfLines={1}
                 ellipsizeMode="tail"
               >
-                {config.players[p]!.name}
+                {nameOf(p, config.players[p]?.name)}
               </Text>
             </View>
           );

@@ -12,10 +12,11 @@ import {
   type MatchSummary,
   type SavedMatch,
 } from '../store/matches';
-import { loadPlayers, normalize } from '../store/store';
+import { normalize } from '../store/store';
 import { Brand } from './Brand';
 import { Confirm } from './Confirm';
 import { PlayerField } from './PlayerField';
+import { useRoster } from './roster';
 import { alpha, colors, pressed, radius, ripple, space, teamColor } from './theme';
 
 const tick = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -65,8 +66,11 @@ export function HistoryScreen({
   /** Ver el acumulado y la evolucion de una persona. */
   onCareer: (player: Player) => void;
 }) {
+  // El plantel sale del contexto: una sola fuente, y un renombre se ve en todas las pantallas.
+  const { players: roster } = useRoster();
+  const byId = useMemo(() => new Map(roster.map((p) => [p.id, p.name])), [roster]);
+
   const [all, setAll] = useState<MatchSummary[]>([]);
-  const [roster, setRoster] = useState<Player[]>([]);
   const [query, setQuery] = useState('');
   /** El jugador ELEGIDO del desplegable. Es lo que fija el filtro de verdad. */
   const [player, setPlayer] = useState<PlayerId | null>(null);
@@ -76,7 +80,6 @@ export function HistoryScreen({
 
   useEffect(() => {
     void loadIndex().then(setAll);
-    void loadPlayers().then(setRoster);
   }, []);
 
   /**
@@ -109,9 +112,11 @@ export function HistoryScreen({
       .filter((m) => m.startedAt >= since)
       .filter((m) => {
         if (player) return m.playerIds.includes(player);
-        return !q || normalize(`${m.teams.A} ${m.teams.B}`).includes(q);
+        // Contra los nombres RESUELTOS: si alguien se renombro, buscar por el nombre nuevo tiene
+        // que encontrarlo. El texto horneado en el indice quedo viejo el dia que se renombro.
+        return !q || normalize(`${teamText(m, 'A', byId)} ${teamText(m, 'B', byId)}`).includes(q);
       });
-  }, [all, period, query, player]);
+  }, [all, period, query, player, byId]);
 
   const chosen = roster.find((p) => p.id === player);
 
@@ -252,7 +257,7 @@ export function HistoryScreen({
         title="Borrar el partido"
         message={
           deleting
-            ? `${deleting.teams.A} vs ${deleting.teams.B}\n` +
+            ? `${teamText(deleting, 'A', byId)} vs ${teamText(deleting, 'B', byId)}\n` +
               `${formatDate(deleting.startedAt)} · ${formatTime(deleting.startedAt)}` +
               `${deleting.score ? ` · ${deleting.score}` : ''}\n\n` +
               'Se borra para siempre, con todas sus estadísticas.'
@@ -271,6 +276,26 @@ export function HistoryScreen({
   );
 }
 
+/**
+ * Los nombres de una pareja, resueltos contra el PLANTEL.
+ *
+ * El indice guarda el par ya armado como texto ("Ana Ruiz / Aldo Vega"), pero eso se horneo el
+ * dia que se guardo el partido: si despues alguien se renombra, ese texto queda viejo para
+ * siempre. Se reconstruye desde los ids —que si son estables— y el texto guardado queda de
+ * respaldo por si alguno ya no esta en la tabla.
+ *
+ * `playerIds` viene en orden: [A drive, A reves, B drive, B reves].
+ */
+const teamText = (m: MatchSummary, t: TeamId, byId: Map<PlayerId, string>): string => {
+  const ids = t === 'A' ? m.playerIds.slice(0, 2) : m.playerIds.slice(2, 4);
+  const names = ids.map((id) => byId.get(id));
+
+  // Si alguno de los dos ya no esta en la tabla, se usa el texto guardado del par entero: mejor
+  // "Ana Ruiz / Aldo Vega" con un nombre viejo que "Ana Ruiz / p_k3f9a2".
+  if (names.length < 2 || names.some((n) => !n)) return m.teams[t];
+  return names.join(' / ');
+};
+
 /** El ganador en el color de su equipo, el perdedor atenuado: el mismo vocabulario del tanteador. */
 function Row({
   m,
@@ -281,6 +306,9 @@ function Row({
   onPress: () => void;
   onDelete: () => void;
 }) {
+  const { players } = useRoster();
+  const byId = useMemo(() => new Map(players.map((p) => [p.id, p.name])), [players]);
+
   const line = (t: TeamId) => {
     const lost = m.finished && m.winner !== t;
     return (
@@ -288,7 +316,7 @@ function Row({
         style={[s.team, { color: teamColor(t) }, lost && s.lost]}
         numberOfLines={1}
       >
-        {m.teams[t]}
+        {teamText(m, t, byId)}
       </Text>
     );
   };

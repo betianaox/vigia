@@ -23,7 +23,6 @@ import {
   addPlayer,
   DEFAULT_PREFS,
   findPlayer,
-  loadPlayers,
   loadPrefs,
   normalize,
   savePrefs,
@@ -31,6 +30,7 @@ import {
 import type { Prefs } from '../store/store';
 import { Brand } from './Brand';
 import { PlayerField } from './PlayerField';
+import { useRoster } from './roster';
 import { alpha, colors, pressed, radius, ripple, space, teamColor } from './theme';
 
 const tick = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -101,7 +101,8 @@ export function SetupScreen({
   onClosePending: () => void;
 }) {
   const { width } = useWindowDimensions();
-  const [roster, setRoster] = useState<Player[]>([]);
+  // El plantel sale del contexto: una sola fuente en toda la app.
+  const { players: roster, reload } = useRoster();
   const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS);
   /** Lo escrito en cada lugar. El jugador se resuelve al empezar, no antes. */
   const [names, setNames] = useState<Record<Slot, string>>({ a1: '', a2: '', b1: '', b2: '' });
@@ -222,9 +223,8 @@ export function SetupScreen({
     step();
   };
 
-  // El plantel y las preferencias de la ultima vez. La app no pregunta nada que ya sepa.
+  // Las preferencias de la ultima vez. La app no pregunta nada que ya sepa.
   useEffect(() => {
-    void loadPlayers().then(setRoster);
     void loadPrefs().then(setPrefs);
   }, []);
 
@@ -261,7 +261,8 @@ export function SetupScreen({
       next = await addPlayer(name, next);
       resolved[slot] = findPlayer(name, next)!;
     }
-    setRoster(next);
+    // Aca es donde nacen los jugadores nuevos: el resto de la app tiene que enterarse.
+    await reload();
 
     /**
      * El orden de saque arranca por el de DRIVE, siempre. No se pregunta aca: se resuelve en
