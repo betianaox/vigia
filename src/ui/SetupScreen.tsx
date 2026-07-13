@@ -85,12 +85,15 @@ const FORMATIONS = [
 export function SetupScreen({
   onStart,
   onHistory,
+  onPlayers,
   resumable,
   onResume,
   onClosePending,
 }: {
   onStart: (config: MatchConfig) => void;
   onHistory: () => void;
+  /** La gente con la que jugas, y el acumulado de cada una. */
+  onPlayers: () => void;
   /** El partido que quedo a medias, si hay uno. */
   resumable: SavedMatch | null;
   onResume: (m: SavedMatch) => void;
@@ -502,27 +505,15 @@ export function SetupScreen({
           </>
         )}
 
-        {/* Los dos juntos, en la misma fila: apilados, el Historial se iba abajo del pliegue y
-            era como si no existiera. Empezar se lleva el ancho porque es lo que se toca. */}
-        <View style={s.actions}>
-          {!onCourt && (
-            <Pressable
-              style={({ pressed: pr }) => [s.start, !ready && s.startOff, pr && pressed]}
-              android_ripple={ripple}
-              onPress={start}
-              disabled={!ready}
-            >
-              <MaterialIcons
-                name="play-arrow"
-                size={26}
-                color={ready ? colors.text : colors.textFaint}
-              />
-              <Text style={[s.startText, !ready && s.startTextOff]}>Empezar</Text>
-            </Pressable>
-          )}
+        {/* MIRAR y HACER son dos cosas distintas.
 
+            Historial y Jugadores son las dos puertas a lo que ya pasó: van juntas, del mismo
+            tamaño y con el mismo peso, porque son hermanas. Empezar no es una de ellas — es lo
+            que ARRANCA el partido. Metido en la misma fila quedaba igualado con ellas, y no lo
+            es: va solo, a lo ancho, y con el verde que ninguno de los otros dos tiene. */}
+        <View style={s.actions}>
           <Pressable
-            style={({ pressed: pr }) => [s.history, onCourt && s.historyWide, pr && pressed]}
+            style={({ pressed: pr }) => [s.look, pr && pressed]}
             android_ripple={ripple}
             onPress={() => {
               tick();
@@ -530,9 +521,42 @@ export function SetupScreen({
             }}
           >
             <MaterialIcons name="history" size={22} color={colors.textDim} />
-            <Text style={s.historyText}>Historial</Text>
+            <Text style={s.lookText}>Historial</Text>
+          </Pressable>
+
+          {/* El acumulado de cada persona es lo que hace que alguien vuelva a abrir la app en
+              tres meses. Estaba escondido detras del buscador del historial —escribir, elegir,
+              y recien ahi aparecia— y asi no se descubre nunca. Merece una puerta propia. */}
+          <Pressable
+            style={({ pressed: pr }) => [s.look, pr && pressed]}
+            android_ripple={ripple}
+            onPress={() => {
+              tick();
+              onPlayers();
+            }}
+          >
+            {/* Personas, no un grafico: el boton dice "Jugadores", y lo que promete tiene que
+                ser lo que hay del otro lado. El grafico vive adentro. */}
+            <MaterialIcons name="groups" size={22} color={colors.textDim} />
+            <Text style={s.lookText}>Jugadores</Text>
           </Pressable>
         </View>
+
+        {!onCourt && (
+          <Pressable
+            style={({ pressed: pr }) => [s.start, !ready && s.startOff, pr && pressed]}
+            android_ripple={ripple}
+            onPress={start}
+            disabled={!ready}
+          >
+            <MaterialIcons
+              name="play-arrow"
+              size={26}
+              color={ready ? colors.text : colors.textFaint}
+            />
+            <Text style={[s.startText, !ready && s.startTextOff]}>Empezar</Text>
+          </Pressable>
+        )}
 
         {/* Siembra un partido entero, jugado por el motor, para poder probar las estadisticas
             sin cargar cien puntos a mano. `__DEV__` es false en el build de produccion, asi
@@ -742,10 +766,28 @@ const s = StyleSheet.create({
   },
   advancedText: { flex: 1, color: colors.textDim, fontSize: 13, fontWeight: '700' },
 
+  /** Las dos puertas a lo que ya paso. Hermanas: mismo tamaño, mismo peso. */
   actions: { flexDirection: 'row', gap: space.sm, marginTop: space.md },
-  /** Empezar se lleva algo mas de ancho, pero no aplasta al Historial: los dos son destinos. */
+  look: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space.sm,
+    height: 56,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: alpha(colors.text, 0.2),
+    backgroundColor: colors.surfaceAlt,
+  },
+  lookText: { color: colors.textDim, fontSize: 14, fontWeight: '800' },
+
+  /**
+   * Empezar no es una de esas dos: es lo que ARRANCA el partido. Va solo, a lo ancho, y con el
+   * verde que ninguno de los otros tiene. Metido en la misma fila quedaba igualado con ellos, y
+   * mirar lo que ya paso y empezar algo nuevo no son la misma categoria de cosa.
+   */
   start: {
-    flex: 3,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -762,24 +804,6 @@ const s = StyleSheet.create({
    */
   startOff: { backgroundColor: colors.surface },
   startTextOff: { color: colors.textFaint },
-  off: { opacity: 0.45 },
-
-  /** El icono y el texto EN LINEA, como Empezar. Mas angosto, porque se toca menos. */
-  history: {
-    flex: 2,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: space.sm,
-    height: 56,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: alpha(colors.text, 0.2),
-    backgroundColor: colors.surfaceAlt,
-  },
-  /** Sin el formulario, el Historial es lo unico que queda: se lleva todo el ancho. */
-  historyWide: { flex: 1 },
-  historyText: { color: colors.textDim, fontSize: 14, fontWeight: '800' },
 
   /** Solo en desarrollo. Apagado a proposito: es una herramienta, no una funcion de la app. */
   seed: {

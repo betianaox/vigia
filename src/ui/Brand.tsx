@@ -56,7 +56,7 @@ export function Brand({
           style={[
             s.subtitle,
             subject && s.subject,
-            { fontSize: Math.round(size * (subject ? 0.72 : 0.3)) },
+            { fontSize: Math.round(size * (subject ? 0.55 : 0.3)) },
           ]}
           numberOfLines={1}
         >

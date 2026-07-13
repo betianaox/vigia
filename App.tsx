@@ -16,6 +16,7 @@ import {
 } from './src/store/matches';
 import { CareerScreen } from './src/ui/CareerScreen';
 import { HistoryScreen } from './src/ui/HistoryScreen';
+import { PlayersScreen } from './src/ui/PlayersScreen';
 import { MatchScreen } from './src/ui/MatchScreen';
 import { ScoreboardPreview } from './src/ui/ScoreboardPreview';
 import { SetupScreen } from './src/ui/SetupScreen';
@@ -31,10 +32,18 @@ type Screen =
   /** Las estadisticas del partido que se esta jugando. */
   | { name: 'stats' }
   | { name: 'history' }
+  /** La gente con la que jugas. La puerta al juego de cada una. */
+  | { name: 'players' }
   /** Un partido del historial, de solo lectura. */
   | { name: 'archive'; match: SavedMatch }
-  /** El acumulado y la evolucion de una persona, a lo largo de todos sus partidos. */
-  | { name: 'career'; stats: CareerStats };
+  /**
+   * El acumulado y la evolucion de una persona.
+   *
+   * Se llega de dos lados —de la lista de jugadores y del filtro del historial— asi que se
+   * anota de cual: cerrar tiene que devolverte a donde estabas, no a un lugar que elegimos
+   * nosotros.
+   */
+  | { name: 'career'; stats: CareerStats; from: 'players' | 'history' };
 
 /**
  * El dueño del partido.
@@ -127,10 +136,19 @@ export default function App() {
         ? home
         : screen.name === 'stats'
           ? () => setScreen({ name: 'match' })
-          : screen.name === 'archive' || screen.name === 'career'
+          : screen.name === 'archive'
             ? () => setScreen({ name: 'history' })
-            : () => setScreen({ name: 'setup' }),
+            : screen.name === 'career'
+              ? () => setScreen(screen.from === 'players' ? { name: 'players' } : { name: 'history' })
+              : () => setScreen({ name: 'setup' }),
   );
+
+  /** Abrir el juego de alguien. Se recalcula del log, y solo se abren SUS partidos. */
+  const openCareer = (p: { id: string }, from: 'players' | 'history') => {
+    void loadMatchesOf(p.id).then((ms) =>
+      setScreen({ name: 'career', stats: career(p.id, ms), from }),
+    );
+  };
 
   return (
     <SafeAreaProvider>
@@ -159,18 +177,19 @@ export default function App() {
         <HistoryScreen
           onBack={() => setScreen({ name: 'setup' })}
           onOpen={(m) => setScreen({ name: 'archive', match: m })}
-          onCareer={(p) => {
-            // Se recalcula del log, cada vez. No hay ningun total guardado que pueda separarse
-            // de la verdad — y solo se abren SUS partidos, no los quinientos del historial.
-            void loadMatchesOf(p.id).then((ms) =>
-              setScreen({ name: 'career', stats: career(p.id, ms) }),
-            );
-          }}
+          onCareer={(p) => openCareer(p, 'history')}
+        />
+      ) : screen.name === 'players' ? (
+        <PlayersScreen
+          onBack={() => setScreen({ name: 'setup' })}
+          onOpen={(p) => openCareer(p, 'players')}
         />
       ) : screen.name === 'career' ? (
         <CareerScreen
           stats={screen.stats}
-          onClose={() => setScreen({ name: 'history' })}
+          onClose={() =>
+            setScreen(screen.from === 'players' ? { name: 'players' } : { name: 'history' })
+          }
         />
       ) : screen.name === 'archive' ? (
         <StatsScreen
@@ -188,6 +207,7 @@ export default function App() {
           onClosePending={closePending}
           onStart={start}
           onHistory={() => setScreen({ name: 'history' })}
+          onPlayers={() => setScreen({ name: 'players' })}
         />
       )}
     </SafeAreaProvider>

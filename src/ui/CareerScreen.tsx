@@ -195,9 +195,14 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
                       setMetric(x.key);
                     }}
                   >
+                    {/* Dos renglones, no puntos suspensivos: los nombres completos entran, y
+                        cortar "Errores no forzados" en "Errores no fo…" no ahorra nada — hay
+                        que leerlo igual, solo que peor. Es lo mismo que ya hace la grilla por
+                        jugador con sus etiquetas. */}
                     <Text
                       style={[s.chipText, x.key === metric && s.chipTextOn]}
-                      numberOfLines={1}
+                      numberOfLines={2}
+                      ellipsizeMode="tail"
                     >
                       {x.label}
                     </Text>
@@ -398,17 +403,35 @@ const s = StyleSheet.create({
     backgroundColor: colors.surface,
   },
 
+  /**
+   * TRES por fila, con el ancho fijado.
+   *
+   * Dejadas a su tamaño natural entraban dos y sobraba media pantalla a un costado: los
+   * nombres son largos y desparejos, asi que el acomodo automatico desperdiciaba el lugar.
+   *
+   * Y con alto fijo, para que todas midan igual aunque una use un renglon y otra dos — si no,
+   * la fila queda escalonada y se lee como si algunas fueran mas importantes que otras.
+   */
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.xs },
   chip: {
-    paddingHorizontal: space.sm,
-    paddingVertical: 6,
-    borderRadius: radius.pill,
+    width: '32%',
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: alpha(colors.text, 0.2),
     backgroundColor: colors.surfaceAlt,
   },
   chipOn: { backgroundColor: alpha(colors.text, 0.16), borderColor: alpha(colors.text, 0.5) },
-  chipText: { color: colors.textFaint, fontSize: 11, fontWeight: '700' },
+  chipText: {
+    color: colors.textFaint,
+    fontSize: 11.5,
+    fontWeight: '700',
+    textAlign: 'center',
+    lineHeight: 15,
+  },
   chipTextOn: { color: colors.text, fontWeight: '900' },
 
   grid: { flexDirection: 'row' },
