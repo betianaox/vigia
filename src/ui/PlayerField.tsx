@@ -103,7 +103,13 @@ export function PlayerField({
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, gap: space.xs },
+  /**
+   * SIN `flex`. El componente no sabe —ni tiene por que saber— si lo van a poner en una fila o
+   * en una columna: `flex: 1` significa "ocupa el ancho que sobra" en una y "ocupa el alto que
+   * sobra" en la otra, y de la segunda salio una caja aplastada con los filtros encima. Como
+   * se acomoda lo decide quien lo usa.
+   */
+  root: { gap: space.xs },
 
   box: {
     flexDirection: 'row',

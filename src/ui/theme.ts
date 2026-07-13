@@ -50,6 +50,21 @@ export const colors = {
   errorForced: '#FACC15',
   errorUnforced: '#F43F5E',
 
+  /**
+   * La fila del grafico donde tener MAS es ir PEOR (los errores). Es la unica que se sale del
+   * violeta y el naranja, y ese cambio de color es justamente el aviso de que cambio la regla.
+   *
+   * Bordo, NO el rojo de `errorUnforced`. Ese rojo es un BOTON: si aparece en un grafico, el
+   * ojo lo lee como "hay algo para tocar". El color tiene que decir categoria, no accion.
+   *
+   * Y NO hay verde del otro lado: rojo contra verde es el par que no distingue ~1 de cada 12
+   * varones, y aca el verde no aportaba nada — en esa fila el segmento mas largo ES siempre el
+   * del que erro mas, asi que el largo y el numero ya lo dicen dos veces. Va gris: se pierde
+   * cero informacion y se gana que lo lea todo el mundo.
+   */
+  worse: '#8F3A4B',
+  neutralFill: '#4E5C6B',
+
   // Saque: tres botones del mismo tamano, distinto color.
   falta: '#E2E8F0',
   ace: '#38BDF8',

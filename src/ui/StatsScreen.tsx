@@ -8,6 +8,7 @@ import type { MatchConfig, MatchEvent, MatchState, TeamId } from '../engine';
 import { Brand } from './Brand';
 import { HeadToHead, type Cell, type Row } from './charts/HeadToHead';
 import { ShotBars } from './charts/ShotBars';
+import { TeamCompare, type CompareRow } from './charts/TeamCompare';
 import { Scoreboard } from './Scoreboard';
 import { colors, pressed, radius, ripple, space, teamColor } from './theme';
 
@@ -19,6 +20,83 @@ const ratio = (p: PlayerStats): string => {
   if (r === null) return '—';
   if (r === Infinity) return `${p.winners}/0`;
   return r.toFixed(1);
+};
+
+/**
+ * Cuanto duro, del log mismo: la hora del primer evento a la del ultimo.
+ *
+ * No hay ningun cronometro corriendo — la hora la estampa la UI en cada punto. Un partido que
+ * quedo a medias hace tres semanas devuelve lo que efectivamente se jugo, no tres semanas.
+ */
+const duration = (events: MatchEvent[]): string => {
+  const stamps = events.map((e) => e.t).filter((t): t is number => typeof t === 'number');
+  if (stamps.length < 2) return '—';
+  const min = Math.round((Math.max(...stamps) - Math.min(...stamps)) / 60000);
+  if (min < 1) return '—';
+  return min < 60 ? `${min}m` : `${Math.floor(min / 60)}h ${min % 60}m`;
+};
+
+/**
+ * Las cinco filas de la vista global. Es lo que se lee en tres segundos —y lo que va a llevar
+ * la tarjeta que se comparte—, asi que cada una tiene que ganarse el lugar.
+ *
+ * Winners y errores no forzados son las dos columnas que cuentan la historia: un partido se
+ * gana pegandola o esperando a que el otro se equivoque, y el tanteo no distingue entre las
+ * dos. El ratio entre ellas es EL numero del entrenador.
+ */
+const globalRows = (stats: MatchStats): CompareRow[] => {
+  const [a, b] = [stats.teams.A, stats.teams.B];
+
+  const ratio = (t: typeof a): { text: string; value: number } => {
+    if (t.unforcedErrors === 0) {
+      return t.winners === 0
+        ? { text: '—', value: 0 }
+        : { text: `${t.winners}/0`, value: t.winners };
+    }
+    const r = t.winners / t.unforcedErrors;
+    return { text: r.toFixed(1), value: r };
+  };
+  const [ra, rb] = [ratio(a), ratio(b)];
+
+  return [
+    {
+      label: 'Puntos ganados',
+      a: `${a.pointsWon}`,
+      b: `${b.pointsWon}`,
+      aValue: a.pointsWon,
+      bValue: b.pointsWon,
+    },
+    {
+      label: 'Winners',
+      a: `${a.winners}`,
+      b: `${b.winners}`,
+      aValue: a.winners,
+      bValue: b.winners,
+    },
+    {
+      // Aca gana el que MENOS tiene. Sin esto, la barra premiaria al que mas se equivoco.
+      label: 'Errores no forzados',
+      a: `${a.unforcedErrors}`,
+      b: `${b.unforcedErrors}`,
+      aValue: a.unforcedErrors,
+      bValue: b.unforcedErrors,
+      lowerIsBetter: true,
+    },
+    {
+      label: 'Winners por error',
+      a: ra.text,
+      b: rb.text,
+      aValue: ra.value,
+      bValue: rb.value,
+    },
+    {
+      label: 'Breaks',
+      a: `${a.breakPointsConverted}/${a.breakPointsPlayed}`,
+      b: `${b.breakPointsConverted}/${b.breakPointsPlayed}`,
+      aValue: a.breakPointsConverted,
+      bValue: b.breakPointsConverted,
+    },
+  ];
 };
 
 const teamNames = (config: MatchConfig, t: TeamId): string =>
@@ -138,35 +216,17 @@ export function StatsScreen({
           <Text style={s.empty}>Todavía no se jugó ningún punto.</Text>
         ) : (
           <>
-            {/* Lo primero que ves: quien va ganando cada cosa, sin leer un numero. */}
-            <Section title="Cara a cara">
-              {/* Puntos y breaks son del EQUIPO por naturaleza: van aparte, no en el
-                  grafico por jugador. */}
-              <View style={s.teamStrip}>
-                <TeamKpi
-                  value={`${stats.teams.A.pointsWon}`}
-                  sub={num(pct(stats.teams.A.pointsWon, stats.totalPoints), '%')}
-                  color={colors.teamA}
-                  align="flex-start"
-                />
-                <View style={s.teamStripMid}>
-                  <Text style={s.teamStripLabel}>Puntos ganados</Text>
-                  <Text style={s.teamStripLabel}>
-                    Breaks {stats.teams.A.breakPointsConverted}/{stats.teams.A.breakPointsPlayed}
-                    {'  ·  '}
-                    {stats.teams.B.breakPointsConverted}/{stats.teams.B.breakPointsPlayed}
-                  </Text>
-                </View>
-                <TeamKpi
-                  value={`${stats.teams.B.pointsWon}`}
-                  sub={num(pct(stats.teams.B.pointsWon, stats.totalPoints), '%')}
-                  color={colors.teamB}
-                  align="flex-end"
-                />
-              </View>
+            {/* LA VISTA GLOBAL. Lo que se lee en tres segundos, sin leer un solo numero: la
+                barra ya dice quien gano cada cosa. Va primero porque es la unica que le sirve
+                a alguien que no estuvo en la cancha — y es la que va a llevar la tarjeta.
 
-              <View style={s.divider} />
+                Sin nombres a proposito: aca se comparan las PAREJAS. Cual de los dos tiro los
+                errores es la pregunta siguiente, y baja al detalle. */}
+            <Section title="El partido" subtitle={`${duration(events)} · ${stats.totalPoints} puntos`}>
+              <TeamCompare rows={globalRows(stats)} />
+            </Section>
 
+            <Section title="Jugador por jugador">
               <HeadToHead
                 rows={buildRows(stats, config)}
                 playersA={playerNames(config, 'A')}
@@ -176,13 +236,14 @@ export function StatsScreen({
               />
             </Section>
 
-            {(['A', 'B'] as TeamId[]).map((t) => (
-              <Section key={t} title="Golpes" accent={teamColor(t)} subtitle={teamNames(config, t)}>
-                <ShotBars lines={teamShotLines(stats, config, t)} />
-              </Section>
-            ))}
+            {stats.hasShotData &&
+              (['A', 'B'] as TeamId[]).map((t) => (
+                <Section key={t} title="Golpes" accent={teamColor(t)} subtitle={teamNames(config, t)}>
+                  <ShotBars lines={teamShotLines(stats, config, t)} />
+                </Section>
+              ))}
 
-            <Section title="Jugador por jugador">
+            <Section title="El detalle">
               {(['A', 'B'] as TeamId[]).flatMap((t) =>
                 [config.teams[t].drive, config.teams[t].reves].map((id) => (
                   <PlayerCard key={id} p={stats.players[id]!} />
@@ -289,30 +350,6 @@ function PlayerCard({ p }: { p: PlayerStats }) {
   );
 }
 
-function TeamKpi({
-  value,
-  sub,
-  color,
-  align,
-}: {
-  value: string;
-  sub: string;
-  color: string;
-  align: 'flex-start' | 'flex-end';
-}) {
-  return (
-    <View style={{ alignItems: align, gap: 2 }}>
-      {/* La cifra grande va en tinta; el color de equipo lo carga la pastilla de al lado. */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-        {align === 'flex-start' && <View style={[s.dot, { backgroundColor: color }]} />}
-        <Text style={s.kpi}>{value}</Text>
-        {align === 'flex-end' && <View style={[s.dot, { backgroundColor: color }]} />}
-      </View>
-      <Text style={s.kpiSub}>{sub}</Text>
-    </View>
-  );
-}
-
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <View style={s.statCell}>
@@ -366,9 +403,6 @@ const s = StyleSheet.create({
 
   divider: { height: 1, backgroundColor: colors.border },
 
-  teamStrip: { flexDirection: 'row', alignItems: 'center' },
-  teamStripMid: { flex: 1, alignItems: 'center', gap: 2 },
-  teamStripLabel: { color: colors.textDim, fontSize: 10, fontWeight: '600' },
   /** Cifra grande: figuras proporcionales, no tabulares. */
   kpi: { color: colors.text, fontSize: 26, fontWeight: '900' },
   kpiSub: { color: colors.textFaint, fontSize: 10, fontWeight: '700' },

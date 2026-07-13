@@ -378,6 +378,8 @@ export function SetupScreen({
             {SLOTS.filter((x) => x.team === team).map(({ slot, label }) => (
               <View key={slot} style={s.slotRow}>
                 <Text style={s.slotLabel}>{label}</Text>
+                {/* El ancho que sobra lo pide QUIEN LO USA, no el componente. */}
+                <View style={s.slotField}>
                 <PlayerField
                   value={names[slot]}
                   onChangeText={(v) => setNames((n) => ({ ...n, [slot]: v }))}
@@ -395,6 +397,7 @@ export function SetupScreen({
                   onFocus={() => setFocused(slot)}
                   onBlur={() => setFocused((f) => (f === slot ? null : f))}
                 />
+                </View>
               </View>
             ))}
           </View>
@@ -653,6 +656,7 @@ const s = StyleSheet.create({
 
   /** La etiqueta del lugar, y al lado el campo (que se dibuja solo, en PlayerField). */
   slotRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },
+  slotField: { flex: 1 },
   slotLabel: {
     width: 48,
     height: 48,
