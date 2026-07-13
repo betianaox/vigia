@@ -439,32 +439,49 @@ export function SetupScreen({
           }
         />
 
+        {/* Avanzadas viaja MONTADO en el renglon del titulo, igual que Sortear en EMPIEZA
+            SACANDO. No cuesta un solo pixel de alto — y sobre todo, vive donde pertenece: es
+            una opcion del partido que estas armando, no una puerta a otra pantalla.
+
+            Estuvo un rato abajo, en la misma fila que Historial y Jugadores. Entraba, pero
+            juntaba dos cosas que no son la misma: esos dos te sacan de la pantalla, este
+            configura lo que tenes delante. La costura se notaba por mas que se pintara
+            distinto. */}
         <Segmented
           title="PARTIDO"
           options={LENGTHS}
           value={prefs.length}
           onChange={(v) => setPrefs((x) => ({ ...x, length: v as Prefs['length'] }))}
+          right={
+            <Pressable
+              style={({ pressed: pr }) => [s.adv, advanced && s.advOn, pr && pressed]}
+              android_ripple={ripple}
+              onPress={() => {
+                tick();
+                setAdvanced((a) => !a);
+              }}
+            >
+              {/* UN solo icono, y es el que cambia: cerrado, el `tune` dice que hay opciones
+                  adentro; abierto, el chevron ocupa su lugar y dice como se cierra. Dos iconos
+                  a la vez —el `tune` y el chevron— eran uno de mas: el estado ya lo cuenta el
+                  panel que esta ahi abajo. */}
+              <MaterialIcons
+                name={advanced ? 'expand-less' : 'tune'}
+                size={16}
+                color={advanced ? colors.text : colors.textDim}
+              />
+              <Text style={[s.advText, advanced && s.advTextOn]}>Avanzadas</Text>
+            </Pressable>
+          }
         />
 
-        <Pressable
-          style={({ pressed: pr }) => [s.advanced, pr && pressed]}
-          android_ripple={ripple}
-          onPress={() => {
-            tick();
-            setAdvanced((a) => !a);
-          }}
-        >
-          <MaterialIcons name="tune" size={18} color={colors.textDim} />
-          <Text style={s.advancedText}>Opciones avanzadas</Text>
-          <MaterialIcons
-            name={advanced ? 'expand-less' : 'expand-more'}
-            size={20}
-            color={colors.textDim}
-          />
-        </Pressable>
+        {/* El panel: justo debajo de lo que lo abrio, y adentro del formulario.
 
+            El problema original nunca fue que faltara una pestaña — era que las opciones se
+            soltaban DESNUDAS en el flujo, indistinguibles de PARTIDO o de EMPIEZA SACANDO. Lo
+            que las agrupa es la CAJA. */}
         {advanced && (
-          <>
+          <View style={s.panel}>
             <Segmented
               title="AL 40-40"
               options={FORMATS}
@@ -500,20 +517,18 @@ export function SetupScreen({
             ))}
 
             <Text style={s.hint}>La app recuerda esto para el próximo partido.</Text>
-          </>
+          </View>
         )}
+
           </>
         )}
 
-        {/* MIRAR y HACER son dos cosas distintas.
-
-            Historial y Jugadores son las dos puertas a lo que ya pasó: van juntas, del mismo
-            tamaño y con el mismo peso, porque son hermanas. Empezar no es una de ellas — es lo
-            que ARRANCA el partido. Metido en la misma fila quedaba igualado con ellas, y no lo
-            es: va solo, a lo ancho, y con el verde que ninguno de los otros dos tiene. */}
-        <View style={s.actions}>
+        {/* Abajo quedan SOLO las dos puertas. Hermanas de verdad: las dos te sacan de esta
+            pantalla, van iguales y van juntas. Avanzadas ya no esta aca — se fue al renglon de
+            PARTIDO, que es donde pertenece. */}
+        <View style={s.doors}>
           <Pressable
-            style={({ pressed: pr }) => [s.look, pr && pressed]}
+            style={({ pressed: pr }) => [s.door, pr && pressed]}
             android_ripple={ripple}
             onPress={() => {
               tick();
@@ -521,24 +536,24 @@ export function SetupScreen({
             }}
           >
             <MaterialIcons name="history" size={22} color={colors.textDim} />
-            <Text style={s.lookText}>Historial</Text>
+            <Text style={s.doorText}>Historial</Text>
           </Pressable>
 
           {/* El acumulado de cada persona es lo que hace que alguien vuelva a abrir la app en
               tres meses. Estaba escondido detras del buscador del historial —escribir, elegir,
               y recien ahi aparecia— y asi no se descubre nunca. Merece una puerta propia. */}
           <Pressable
-            style={({ pressed: pr }) => [s.look, pr && pressed]}
+            style={({ pressed: pr }) => [s.door, pr && pressed]}
             android_ripple={ripple}
             onPress={() => {
               tick();
               onPlayers();
             }}
           >
-            {/* Personas, no un grafico: el boton dice "Jugadores", y lo que promete tiene que
-                ser lo que hay del otro lado. El grafico vive adentro. */}
+            {/* Personas, no un grafico: lo que hay del otro lado son las personas. El grafico
+                vive adentro. */}
             <MaterialIcons name="groups" size={22} color={colors.textDim} />
-            <Text style={s.lookText}>Jugadores</Text>
+            <Text style={s.doorText}>Jugadores</Text>
           </Pressable>
         </View>
 
@@ -755,32 +770,53 @@ const s = StyleSheet.create({
   segText: { color: colors.textDim, fontSize: 12, fontWeight: '700' },
   segTextOn: { color: colors.text, fontWeight: '900' },
 
-  advanced: {
+  /**
+   * Avanzadas, montado en el renglon del titulo de PARTIDO — el mismo lugar y la misma forma
+   * que Sortear en EMPIEZA SACANDO. No cuesta un pixel de alto, y vive donde pertenece: es una
+   * opcion del partido, no una puerta a otra pantalla.
+   */
+  adv: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
-    height: 48,
-    paddingHorizontal: space.md,
+    gap: 4,
+    height: 30,
+    paddingHorizontal: space.sm,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: alpha(colors.text, 0.2),
+    backgroundColor: colors.surfaceAlt,
+  },
+  advOn: { backgroundColor: alpha(colors.text, 0.16), borderColor: alpha(colors.text, 0.5) },
+  advText: { color: colors.textDim, fontSize: 11, fontWeight: '800' },
+  advTextOn: { color: colors.text, fontWeight: '900' },
+
+  /** Una caja propia, justo debajo de lo que la abrio: lo que agrupa a las opciones ES la caja. */
+  panel: {
+    gap: space.lg,
+    padding: space.md,
     borderRadius: radius.md,
     backgroundColor: colors.surface,
   },
-  advancedText: { flex: 1, color: colors.textDim, fontSize: 13, fontWeight: '700' },
 
-  /** Las dos puertas a lo que ya paso. Hermanas: mismo tamaño, mismo peso. */
-  actions: { flexDirection: 'row', gap: space.sm, marginTop: space.md },
-  look: {
+  /** Las dos puertas: iguales y juntas, porque las dos hacen lo mismo — sacarte de esta pantalla. */
+  doors: { flexDirection: 'row', gap: space.sm, marginTop: space.md },
+  /**
+   * El icono ARRIBA y el texto DEBAJO: en linea no entran, y cuanto entra depende del telefono
+   * y de la escala de fuente del sistema. Apilados, cada uno tiene su renglon entero.
+   */
+  door: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: space.sm,
-    height: 56,
+    gap: 3,
+    height: 60,
+    paddingHorizontal: 4,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: alpha(colors.text, 0.2),
     backgroundColor: colors.surfaceAlt,
   },
-  lookText: { color: colors.textDim, fontSize: 14, fontWeight: '800' },
+  doorText: { color: colors.textDim, fontSize: 13, fontWeight: '800' },
 
   /**
    * Empezar no es una de esas dos: es lo que ARRANCA el partido. Va solo, a lo ancho, y con el
