@@ -421,21 +421,13 @@ export function SetupScreen({
              leerlas; con el color, se reconocen sin leer. */
           colorOf={(v) => teamColor(v as TeamId)}
           right={
-            <Pressable
-              style={({ pressed: pr }) => [s.draw, drawing && s.drawOn, pr && pressed]}
-              android_ripple={ripple}
-              onPress={drawServe}
+            <HeadChip
+              icon="casino"
+              label={drawing ? 'Sorteando…' : 'Sortear'}
+              on={drawing}
               disabled={drawing}
-            >
-              <MaterialIcons
-                name="casino"
-                size={16}
-                color={drawing ? colors.text : colors.textDim}
-              />
-              <Text style={[s.drawText, drawing && { color: colors.text }]}>
-                {drawing ? 'Sorteando…' : 'Sortear'}
-              </Text>
-            </Pressable>
+              onPress={drawServe}
+            />
           }
         />
 
@@ -453,25 +445,18 @@ export function SetupScreen({
           value={prefs.length}
           onChange={(v) => setPrefs((x) => ({ ...x, length: v as Prefs['length'] }))}
           right={
-            <Pressable
-              style={({ pressed: pr }) => [s.adv, advanced && s.advOn, pr && pressed]}
-              android_ripple={ripple}
+            /* UN solo icono, y es el que cambia: cerrado, el `tune` dice que hay opciones
+               adentro; abierto, el chevron ocupa su lugar y dice como se cierra. Los dos a la
+               vez eran uno de mas — el estado ya lo cuenta el panel que esta ahi abajo. */
+            <HeadChip
+              icon={advanced ? 'expand-less' : 'tune'}
+              label="Avanzadas"
+              on={advanced}
               onPress={() => {
                 tick();
                 setAdvanced((a) => !a);
               }}
-            >
-              {/* UN solo icono, y es el que cambia: cerrado, el `tune` dice que hay opciones
-                  adentro; abierto, el chevron ocupa su lugar y dice como se cierra. Dos iconos
-                  a la vez —el `tune` y el chevron— eran uno de mas: el estado ya lo cuenta el
-                  panel que esta ahi abajo. */}
-              <MaterialIcons
-                name={advanced ? 'expand-less' : 'tune'}
-                size={16}
-                color={advanced ? colors.text : colors.textDim}
-              />
-              <Text style={[s.advText, advanced && s.advTextOn]}>Avanzadas</Text>
-            </Pressable>
+            />
           }
         />
 
@@ -604,6 +589,41 @@ export function SetupScreen({
         </Animated.View>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+/**
+ * La pastilla que viaja montada en el renglon de un titulo: Sortear, Avanzadas.
+ *
+ * ES UN SOLO COMPONENTE, no dos estilos parecidos. Tenian que verse iguales, y dos cosas que
+ * "tienen que verse iguales" se separan el dia que alguien toca una sola.
+ */
+function HeadChip({
+  icon,
+  label,
+  on,
+  disabled,
+  onPress,
+}: {
+  icon: keyof typeof MaterialIcons.glyphMap;
+  label: string;
+  /** Encendida: el sorteo corriendo, las avanzadas abiertas. */
+  on?: boolean;
+  disabled?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      style={({ pressed: pr }) => [s.chip, on && s.chipOn, pr && pressed]}
+      android_ripple={ripple}
+      onPress={onPress}
+      disabled={disabled}
+    >
+      <MaterialIcons name={icon} size={16} color={on ? colors.text : colors.textDim} />
+      <Text style={[s.chipText, on && s.chipTextOn]} numberOfLines={1}>
+        {label}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -741,19 +761,6 @@ const s = StyleSheet.create({
   segHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   segTitle: { flex: 1, color: colors.textFaint, fontSize: 10, fontWeight: '900', letterSpacing: 1.5 },
 
-  draw: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    height: 30,
-    paddingHorizontal: space.sm,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: alpha(colors.text, 0.2),
-    backgroundColor: colors.surfaceAlt,
-  },
-  drawOn: { backgroundColor: colors.cta, borderColor: colors.cta },
-  drawText: { color: colors.textDim, fontSize: 11, fontWeight: '800' },
   segRow: { flexDirection: 'row', gap: space.sm },
   seg: {
     flex: 1,
@@ -771,24 +778,27 @@ const s = StyleSheet.create({
   segTextOn: { color: colors.text, fontWeight: '900' },
 
   /**
-   * Avanzadas, montado en el renglon del titulo de PARTIDO — el mismo lugar y la misma forma
-   * que Sortear en EMPIEZA SACANDO. No cuesta un pixel de alto, y vive donde pertenece: es una
-   * opcion del partido, no una puerta a otra pantalla.
+   * La pastilla del renglon de titulo. Ver `HeadChip`.
+   *
+   * Probamos darla vuelta —maciza, fondo claro, texto oscuro— y era estridente: en una pantalla
+   * oscura, un rectangulo blanco al lado de un titulo se lleva toda la atencion, y estas dos son
+   * acciones secundarias. Se queda tenue, y encendida se aclara apenas: lo justo para que se vea
+   * que esta activa sin gritarlo.
    */
-  adv: {
+  chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    height: 30,
+    gap: 5,
+    height: 32,
     paddingHorizontal: space.sm,
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: alpha(colors.text, 0.2),
     backgroundColor: colors.surfaceAlt,
   },
-  advOn: { backgroundColor: alpha(colors.text, 0.16), borderColor: alpha(colors.text, 0.5) },
-  advText: { color: colors.textDim, fontSize: 11, fontWeight: '800' },
-  advTextOn: { color: colors.text, fontWeight: '900' },
+  chipOn: { backgroundColor: alpha(colors.text, 0.16), borderColor: alpha(colors.text, 0.5) },
+  chipText: { color: colors.textDim, fontSize: 11.5, fontWeight: '800' },
+  chipTextOn: { color: colors.text, fontWeight: '900' },
 
   /** Una caja propia, justo debajo de lo que la abrio: lo que agrupa a las opciones ES la caja. */
   panel: {
@@ -801,22 +811,23 @@ const s = StyleSheet.create({
   /** Las dos puertas: iguales y juntas, porque las dos hacen lo mismo — sacarte de esta pantalla. */
   doors: { flexDirection: 'row', gap: space.sm, marginTop: space.md },
   /**
-   * El icono ARRIBA y el texto DEBAJO: en linea no entran, y cuanto entra depende del telefono
-   * y de la escala de fuente del sistema. Apilados, cada uno tiene su renglon entero.
+   * Icono y texto EN LINEA. Apilados fue una solucion a un problema que ya no existe: cuando
+   * eran tres en la fila, cada uno tenia un tercio de pantalla y no entraban. Ahora son dos, con
+   * la mitad cada uno, y les sobra el ancho.
    */
   door: {
     flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
-    height: 60,
-    paddingHorizontal: 4,
+    gap: space.sm,
+    height: 56,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: alpha(colors.text, 0.2),
     backgroundColor: colors.surfaceAlt,
   },
-  doorText: { color: colors.textDim, fontSize: 13, fontWeight: '800' },
+  doorText: { color: colors.textDim, fontSize: 14, fontWeight: '800' },
 
   /**
    * Empezar no es una de esas dos: es lo que ARRANCA el partido. Va solo, a lo ancho, y con el
