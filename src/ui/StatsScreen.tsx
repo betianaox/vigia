@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { computeStats, pct, teamShotLines, winnerErrorRatio, shotLines } from '../engine/stats';
 import type { MatchStats, PlayerStats } from '../engine/stats';
-import type { MatchConfig, MatchEvent, MatchState, TeamId } from '../engine';
+import type { MatchConfig, MatchEvent, MatchState, PlayerId, TeamId } from '../engine';
 import { Brand } from './Brand';
 import { HeadToHead, type Cell, type Row } from './charts/HeadToHead';
 import { ShotBars } from './charts/ShotBars';
@@ -203,6 +203,11 @@ export function StatsScreen({
   const stats = computeStats(config, events);
   const over = state.finished || finishedEarly;
 
+  /** Solo el nombre de pila: los duelos van como subtitulo y "3 a Beto Lino" no entra. */
+  const firstNames: Record<PlayerId, string> = Object.fromEntries(
+    Object.values(config.players).map((p) => [p.id, p.name.split(' ')[0]!]),
+  );
+
   return (
     <SafeAreaView style={s.root}>
       {/* La ✕ cierra, y es la MISMA ✕ de la hoja de golpes: un solo simbolo, un solo
@@ -261,7 +266,7 @@ export function StatsScreen({
             <Section title="El detalle">
               {(['A', 'B'] as TeamId[]).flatMap((t) =>
                 [config.teams[t].drive, config.teams[t].reves].map((id) => (
-                  <PlayerCard key={id} p={stats.players[id]!} />
+                  <PlayerCard key={id} p={stats.players[id]!} names={firstNames} />
                 )),
               )}
             </Section>
@@ -319,11 +324,32 @@ function Section({
   );
 }
 
-function PlayerCard({ p }: { p: PlayerStats }) {
+/**
+ * Contra quien fue cada ace y cada doble falta: "3 a Beto · 1 a Bea".
+ *
+ * Va como subtitulo del numero, no en una seccion aparte. La pregunta "¿a quien?" nace mirando
+ * el 4 de aces — si la respuesta esta tres pantallazos mas abajo, nadie la va a buscar.
+ *
+ * Ordenado de mayor a menor, que es justo el caso que importa: cinco dobles faltas repartidas
+ * son mala suerte; cinco sacandole siempre al mismo son un problema con esa persona.
+ */
+const duels = (
+  against: Partial<Record<PlayerId, number>>,
+  names: Record<PlayerId, string>,
+): string | undefined => {
+  const lines = (Object.entries(against) as Array<[PlayerId, number]>)
+    .filter(([, n]) => n > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([id, n]) => `${n} a ${names[id]}`);
+  return lines.length > 0 ? lines.join(' · ') : undefined;
+};
+
+function PlayerCard({ p, names }: { p: PlayerStats; names: Record<PlayerId, string> }) {
   const c = teamColor(p.team);
   const first = pct(p.firstServesIn, p.servePointsPlayed);
   const won1 = pct(p.firstServePointsWon, p.firstServesIn);
   const won2 = pct(p.secondServePointsWon, p.secondServePointsPlayed);
+  const returning = pct(p.returnPointsWon, p.returnPointsPlayed);
 
   return (
     <View style={s.player}>
@@ -343,6 +369,7 @@ function PlayerCard({ p }: { p: PlayerStats }) {
       </View>
 
       <View style={s.divider} />
+      <Text style={s.blockLabel}>SACANDO</Text>
 
       <View style={s.grid}>
         <Stat label="1er saque" value={num(first, '%')} sub={`${p.firstServesIn}/${p.servePointsPlayed}`} />
@@ -351,9 +378,29 @@ function PlayerCard({ p }: { p: PlayerStats }) {
       </View>
 
       <View style={s.grid}>
-        <Stat label="Aces" value={`${p.aces}`} />
-        <Stat label="Dobles faltas" value={`${p.doubleFaults}`} />
+        <Stat label="Aces" value={`${p.aces}`} sub={duels(p.acesAgainst, names)} />
+        <Stat
+          label="Dobles faltas"
+          value={`${p.doubleFaults}`}
+          sub={duels(p.doubleFaultsAgainst, names)}
+        />
         <View style={s.statCell} />
+      </View>
+
+      {/* El otro lado del duelo. Hasta ahora la tarjeta solo contaba lo que haces SACANDO, y
+          media cancha se jugaba del otro lado. "Provoco 4 dobles faltas" no es una curiosidad:
+          es lo que hace el resto de alguien al que le tenes miedo. */}
+      <View style={s.divider} />
+      <Text style={s.blockLabel}>RESTANDO</Text>
+
+      <View style={s.grid}>
+        <Stat
+          label="Gana restando"
+          value={num(returning, '%')}
+          sub={`${p.returnPointsWon}/${p.returnPointsPlayed}`}
+        />
+        <Stat label="Aces recibidos" value={`${p.acesConceded}`} />
+        <Stat label="Dobles provocadas" value={`${p.doubleFaultsForced}`} />
       </View>
 
       {shotLines(p).length > 0 && (
@@ -431,7 +478,17 @@ const s = StyleSheet.create({
   statCell: { flex: 1, alignItems: 'center', gap: 1 },
   statValue: { color: colors.text, fontSize: 16, fontWeight: '800' },
   statLabel: { color: colors.textDim, fontSize: 10, fontWeight: '600' },
-  statSub: { color: colors.textFaint, fontSize: 9, fontVariant: ['tabular-nums'] },
+  /** Sin `tabular-nums`: aca ya no van solo cifras, van los duelos ("3 a Beto · 1 a Bea"). */
+  statSub: { color: colors.textFaint, fontSize: 9, textAlign: 'center' },
+
+  /** Parte la tarjeta en las dos mitades del partido: la que sacas y la que restas. */
+  blockLabel: {
+    color: colors.textFaint,
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+    marginTop: 2,
+  },
 
   divider: { height: 1, backgroundColor: colors.border },
 
