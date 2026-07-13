@@ -5,9 +5,9 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { CareerPoint, CareerStats } from '../engine/career';
-import { pct, shotLines } from '../engine/stats';
+import { pct } from '../engine/stats';
 import { Brand } from './Brand';
-import { ShotBars } from './charts/ShotBars';
+import { ShotStack } from './charts/ShotStack';
 import { Trend, type TrendPoint } from './charts/Trend';
 import { alpha, colors, pressed, radius, ripple, space } from './theme';
 
@@ -23,12 +23,23 @@ const num = (n: number | null, suffix = ''): string =>
  * contadores — nunca promediando las barras. Son dos cuentas distintas a proposito: la linea
  * del promedio tiene que ser el acumulado de verdad, no el promedio de lo dibujado, que
  * mentiria a favor de los partidos cortos.
+ *
+ * EL COLOR NO CAMBIA CON LA METRICA. Antes cada una traia el suyo —verde el ratio, celeste el
+ * saque— y eso era decoracion pura: la metrica ya esta escrita en el chip de arriba, el color
+ * no estaba codificando nada. Y encima chocaba: el ratio en verde se leia como el grafico de
+ * winners de mas abajo, y parecian el mismo.
+ *
+ * Va el lima del logo, que es el acento de Vigia y no significa ninguna otra cosa.
+ *
+ * Con UNA excepcion, que es la regla de siempre: los errores no forzados van en bordo, porque
+ * ahi mas es PEOR. Una barra lima que sube se lee como que vas bien; si son errores, vas mal.
+ * El cambio de color es el aviso de que cambio la regla.
  */
 const METRICS = [
   {
     key: 'ratio',
     label: 'Winners por error',
-    color: colors.winner,
+    color: colors.ball,
     of: (p: CareerPoint) =>
       p.stats.unforcedErrors === 0
         ? p.stats.winners === 0
@@ -46,7 +57,7 @@ const METRICS = [
   {
     key: 'primero',
     label: '1er saque adentro',
-    color: colors.ace,
+    color: colors.ball,
     of: (p: CareerPoint) => pct(p.stats.firstServesIn, p.stats.servePointsPlayed),
     total: (c: CareerStats) => pct(c.totals.firstServesIn, c.totals.servePointsPlayed),
     format: (v: number) => `${Math.round(v)}%`,
@@ -54,7 +65,7 @@ const METRICS = [
   {
     key: 'gana1',
     label: 'Gana con 1er saque',
-    color: colors.ace,
+    color: colors.ball,
     of: (p: CareerPoint) => pct(p.stats.firstServePointsWon, p.stats.firstServesIn),
     total: (c: CareerStats) => pct(c.totals.firstServePointsWon, c.totals.firstServesIn),
     format: (v: number) => `${Math.round(v)}%`,
@@ -90,12 +101,42 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
   const ratio = METRICS[0].total(stats);
   const first = pct(stats.totals.firstServesIn, stats.totals.servePointsPlayed);
   const share = pct(stats.teamPointsWon, stats.totalPoints);
-  const lines = shotLines(stats.totals);
+
+  /**
+   * Los golpes de cada categoria, partido a partido — y UNA escala para los tres.
+   *
+   * La escala sale del partido con mas golpes de CUALQUIER categoria. Si cada grafico se
+   * escalara a su propio maximo, los tres se verian igual de altos: dos winners y veinte
+   * errores ocuparian lo mismo, y la unica pregunta que importa —¿pego mas de lo que
+   * regalo?— quedaria sin respuesta.
+   */
+  const shots = useMemo(() => {
+    const total = (t: Record<string, number | undefined>) =>
+      Object.values(t).reduce<number>((n, v) => n + (v ?? 0), 0);
+
+    let scale = 0;
+    for (const p of stats.timeline) {
+      scale = Math.max(
+        scale,
+        total(p.stats.winnersByShot),
+        total(p.stats.forcedByShot),
+        total(p.stats.unforcedByShot),
+      );
+    }
+
+    return {
+      scale,
+      winners: stats.timeline.map((p) => ({ at: p.at, byShot: p.stats.winnersByShot })),
+      forced: stats.timeline.map((p) => ({ at: p.at, byShot: p.stats.forcedByShot })),
+      unforced: stats.timeline.map((p) => ({ at: p.at, byShot: p.stats.unforcedByShot })),
+    };
+  }, [stats.timeline]);
 
   return (
     <SafeAreaView style={s.root}>
       <View style={s.head}>
-        <Brand size={26} subtitle={stats.totals.name} tint={colors.ball} />
+        {/* Aca el nombre no es una etiqueta de pantalla: es de quien habla todo lo que sigue. */}
+        <Brand size={26} subtitle={stats.totals.name} subject tint={colors.ball} />
         <Pressable
           style={({ pressed: p }) => [s.close, p && pressed]}
           android_ripple={{ ...ripple, borderless: true }}
@@ -226,10 +267,35 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
               </View>
             </Section>
 
-            {lines.length > 0 && (
-              <Section title="Golpes" subtitle="de todos sus partidos">
-                <ShotBars lines={lines} />
-              </Section>
+            {/* LOS GOLPES, CONTRA EL TIEMPO. El desglose sumado dice cuanto, pero no dice si
+                estas mejorando — y esta pantalla existe para lo segundo.
+
+                Los tres comparten la escala a proposito: asi la altura significa lo mismo en
+                los tres, y de un vistazo se ve si pegas mas winners de los que regalas
+                errores. Con cada uno escalado a su propio maximo, los tres se verian igual de
+                altos y no se podrian comparar — que es la unica pregunta que importa. */}
+            {shots.scale > 0 && (
+              <>
+                <Section title="Winners" subtitle="por golpe, partido a partido">
+                  <ShotStack columns={shots.winners} color={colors.winner} scale={shots.scale} />
+                </Section>
+
+                <Section title="Errores forzados" subtitle="por golpe, partido a partido">
+                  <ShotStack
+                    columns={shots.forced}
+                    color={colors.errorForced}
+                    scale={shots.scale}
+                  />
+                </Section>
+
+                <Section title="Errores no forzados" subtitle="por golpe, partido a partido">
+                  <ShotStack
+                    columns={shots.unforced}
+                    color={colors.errorUnforced}
+                    scale={shots.scale}
+                  />
+                </Section>
+              </>
             )}
           </>
         )}

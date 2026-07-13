@@ -17,12 +17,23 @@ const RATIO = 1596 / 293;
 export function Brand({
   size = 34,
   subtitle,
+  subject,
   tint,
 }: {
   /** Alto del logo. El ancho sale de la proporcion real del archivo. */
   size?: number;
   /** Que estas haciendo: "Partido nuevo", "Historial". Va al lado, no debajo. */
   subtitle?: string;
+  /**
+   * El subtitulo NO es una etiqueta: es EL SUJETO de la pantalla. Un nombre propio.
+   *
+   * "HISTORIAL" es una etiqueta y se escribe como tal: chiquita, en mayusculas, espaciada,
+   * apagada. Pero "Ana Ruiz" no es una etiqueta — es de quien habla toda la pantalla. Y un
+   * nombre en mayusculas espaciadas no se lee como un nombre, se lee como un rotulo.
+   *
+   * Asi que crece, se enciende, y se escribe como se escribe un nombre.
+   */
+  subject?: boolean;
   /**
    * El logo es de UN SOLO COLOR PLANO, asi que se puede tenir por codigo. Un unico PNG sirve
    * para cualquier fondo: blanco sobre la cancha oscura, el azul de marca sobre un fondo
@@ -41,7 +52,14 @@ export function Brand({
       {/* El subtitulo cede si el logo crece: la marca manda, y el subtitulo se achica o se
           corta antes que empujar el logo fuera de la pantalla. */}
       {subtitle ? (
-        <Text style={[s.subtitle, { fontSize: Math.round(size * 0.3) }]} numberOfLines={1}>
+        <Text
+          style={[
+            s.subtitle,
+            subject && s.subject,
+            { fontSize: Math.round(size * (subject ? 0.72 : 0.3)) },
+          ]}
+          numberOfLines={1}
+        >
           {subtitle}
         </Text>
       ) : null}
@@ -61,5 +79,12 @@ const s = StyleSheet.create({
     /** El PNG deja aire abajo (la cola del halcon baja mas que la palabra): se compensa. */
     marginBottom: 2,
     includeFontPadding: false,
+  },
+  /** Un nombre propio se escribe como se escribe. Ni mayusculas, ni espaciado, ni apagado. */
+  subject: {
+    color: colors.text,
+    fontWeight: '900',
+    letterSpacing: 0,
+    textTransform: 'none',
   },
 });
