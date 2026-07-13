@@ -146,7 +146,8 @@ const s = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   rowMain: { flex: 1, gap: 2 },
-  name: { color: colors.text, fontSize: 15, fontWeight: '800' },
+  /** Peso de lista, no de titulo: en una lista de nombres, un 800 hace que cada renglon grite. */
+  name: { color: colors.text, fontSize: 15, fontWeight: '600' },
   meta: { color: colors.textFaint, fontSize: 11, fontWeight: '600' },
 
   empty: { color: colors.textFaint, fontSize: 13, lineHeight: 19, padding: space.md },
