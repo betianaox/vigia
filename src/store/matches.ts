@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Directory, File, Paths } from 'expo-file-system';
 
+import type { PlayerId } from '../engine';
 import { summarize, type MatchSummary, type SavedMatch } from './summary';
 
 // Lo que se deriva del log es puro y vive en `summary.ts`, sin tocar el disco: asi se puede
@@ -77,6 +78,28 @@ export const loadMatch = async (id: string): Promise<SavedMatch | null> => {
     // Un archivo corrupto se lleva UN partido, no el historial entero. Por eso son archivos.
     return null;
   }
+};
+
+/**
+ * Los partidos de UNA persona, enteros. Es lo que come el acumulado.
+ *
+ * Abre los archivos, uno por uno, y vuelve a correr cada log. Es caro y es a proposito: no hay
+ * ningun total guardado que pueda separarse de la verdad (ver `career.ts`).
+ *
+ * Pero solo abre LOS SUYOS: el indice ya sabe quien jugo cada partido, asi que se filtra antes
+ * de tocar el disco. Con quinientos partidos guardados y veinte de esta persona, se leen veinte
+ * archivos, no quinientos.
+ */
+export const loadMatchesOf = async (player: PlayerId): Promise<SavedMatch[]> => {
+  const index = await loadIndex();
+  const mine = index.filter((s) => s.playerIds.includes(player));
+
+  const out: SavedMatch[] = [];
+  for (const s of mine) {
+    const m = await loadMatch(s.id);
+    if (m) out.push(m); // un archivo corrupto se pierde solo, no se lleva el acumulado
+  }
+  return out;
 };
 
 export const deleteMatch = async (id: string): Promise<void> => {

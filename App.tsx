@@ -3,15 +3,18 @@ import { useCallback, useEffect, useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { reduce } from './src/engine';
+import { career, type CareerStats } from './src/engine/career';
 import type { MatchConfig, MatchEvent } from './src/engine';
 import {
   getCurrentId,
   loadMatch,
+  loadMatchesOf,
   newMatchId,
   saveMatch,
   setCurrentId,
   type SavedMatch,
 } from './src/store/matches';
+import { CareerScreen } from './src/ui/CareerScreen';
 import { HistoryScreen } from './src/ui/HistoryScreen';
 import { MatchScreen } from './src/ui/MatchScreen';
 import { ScoreboardPreview } from './src/ui/ScoreboardPreview';
@@ -29,7 +32,9 @@ type Screen =
   | { name: 'stats' }
   | { name: 'history' }
   /** Un partido del historial, de solo lectura. */
-  | { name: 'archive'; match: SavedMatch };
+  | { name: 'archive'; match: SavedMatch }
+  /** El acumulado y la evolucion de una persona, a lo largo de todos sus partidos. */
+  | { name: 'career'; stats: CareerStats };
 
 /**
  * El dueño del partido.
@@ -122,7 +127,7 @@ export default function App() {
         ? home
         : screen.name === 'stats'
           ? () => setScreen({ name: 'match' })
-          : screen.name === 'archive'
+          : screen.name === 'archive' || screen.name === 'career'
             ? () => setScreen({ name: 'history' })
             : () => setScreen({ name: 'setup' }),
   );
@@ -154,6 +159,18 @@ export default function App() {
         <HistoryScreen
           onBack={() => setScreen({ name: 'setup' })}
           onOpen={(m) => setScreen({ name: 'archive', match: m })}
+          onCareer={(p) => {
+            // Se recalcula del log, cada vez. No hay ningun total guardado que pueda separarse
+            // de la verdad — y solo se abren SUS partidos, no los quinientos del historial.
+            void loadMatchesOf(p.id).then((ms) =>
+              setScreen({ name: 'career', stats: career(p.id, ms) }),
+            );
+          }}
+        />
+      ) : screen.name === 'career' ? (
+        <CareerScreen
+          stats={screen.stats}
+          onClose={() => setScreen({ name: 'history' })}
         />
       ) : screen.name === 'archive' ? (
         <StatsScreen

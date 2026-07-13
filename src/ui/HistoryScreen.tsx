@@ -58,9 +58,12 @@ const formatDuration = (ms: number): string => {
 export function HistoryScreen({
   onBack,
   onOpen,
+  onCareer,
 }: {
   onBack: () => void;
   onOpen: (m: SavedMatch) => void;
+  /** Ver el acumulado y la evolucion de una persona. */
+  onCareer: (player: Player) => void;
 }) {
   const [all, setAll] = useState<MatchSummary[]>([]);
   const [roster, setRoster] = useState<Player[]>([]);
@@ -162,6 +165,26 @@ export function HistoryScreen({
           }}
           onClear={clearPlayer}
         />
+
+        {/* Elegida una persona, aparece la puerta a su acumulado. No antes: "el juego de
+            quien" no tiene respuesta si no elegiste a nadie, y un boton que no se puede tocar
+            es peor que uno que no esta. */}
+        {chosen && (
+          <Pressable
+            style={({ pressed: pr }) => [s.career, pr && pressed]}
+            android_ripple={ripple}
+            onPress={() => {
+              tick();
+              onCareer(chosen);
+            }}
+          >
+            <MaterialIcons name="show-chart" size={20} color={colors.ball} />
+            <Text style={s.careerText} numberOfLines={1}>
+              El juego de {chosen.name.split(' ')[0]}
+            </Text>
+            <MaterialIcons name="chevron-right" size={22} color={colors.textDim} />
+          </Pressable>
+        )}
 
         <View style={s.periods}>
           {PERIODS.map((p) => (
@@ -328,6 +351,20 @@ const s = StyleSheet.create({
   close: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginRight: -8 },
 
   filters: { paddingHorizontal: space.lg, gap: space.md, paddingBottom: space.md },
+
+  /** La puerta al acumulado. En el lima de la pelota: es lo que crece, y es lo que trae de vuelta. */
+  career: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    height: 48,
+    paddingHorizontal: space.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: alpha(colors.ball, 0.4),
+    backgroundColor: alpha(colors.ball, 0.08),
+  },
+  careerText: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '800' },
 
   periods: { flexDirection: 'row', gap: space.sm },
   chip: {

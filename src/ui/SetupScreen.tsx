@@ -543,11 +543,23 @@ export function SetupScreen({
             android_ripple={ripple}
             onPress={() => {
               tick();
-              void seedMatch({ seed: Math.floor(Math.random() * 10000) }).then(() => onHistory());
+              // Cinco partidos, repartidos en los ultimos tres meses y con fuerzas distintas:
+              // uno solo no muestra ninguna evolucion, y todos iguales tampoco.
+              void (async () => {
+                const day = 24 * 60 * 60 * 1000;
+                for (let i = 0; i < 5; i++) {
+                  await seedMatch({
+                    seed: Math.floor(Math.random() * 10000),
+                    strengthA: 0.42 + i * 0.05, // va mejorando: eso es lo que hay que poder ver
+                    startedAt: Date.now() - (75 - i * 15) * day,
+                  });
+                }
+                onHistory();
+              })();
             }}
           >
             <MaterialIcons name="science" size={16} color={colors.textFaint} />
-            <Text style={s.seedText}>Sembrar partido de prueba</Text>
+            <Text style={s.seedText}>Sembrar 5 partidos de prueba</Text>
           </Pressable>
         )}
         </Animated.View>
