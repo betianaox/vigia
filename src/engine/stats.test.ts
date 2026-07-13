@@ -130,6 +130,13 @@ describe('estadisticas de saque', () => {
     expect(a1.secondServePointsWon).toBe(0);
   });
 
+  it('la doble falta es un punto: cuenta en el total', () => {
+    // Parece obvio y no lo era: el resumen del historial contaba "winner, error o ace" y se
+    // olvidaba de la doble falta, asi que mostraba un punto de menos por cada una.
+    const s = computeStats(c, [{ type: 'FALTA' }, { type: 'FALTA' }]);
+    expect(s.totalPoints).toBe(1);
+  });
+
   it('la doble falta se le cuenta al sacador y el punto va al rival', () => {
     const s = computeStats(c, [{ type: 'FALTA' }, { type: 'FALTA' }]);
     expect(s.players.a1!.doubleFaults).toBe(1);

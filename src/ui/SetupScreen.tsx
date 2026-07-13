@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { seedMatch } from '../dev/seed';
 import { reduce } from '../engine';
 import type { Formation, MatchConfig, Player, TeamId } from '../engine';
 import { type SavedMatch } from '../store/matches';
@@ -532,6 +533,23 @@ export function SetupScreen({
             <Text style={s.historyText}>Historial</Text>
           </Pressable>
         </View>
+
+        {/* Siembra un partido entero, jugado por el motor, para poder probar las estadisticas
+            sin cargar cien puntos a mano. `__DEV__` es false en el build de produccion, asi
+            que este boton no existe alli — ni el codigo que cuelga de el. */}
+        {__DEV__ && (
+          <Pressable
+            style={({ pressed: pr }) => [s.seed, pr && pressed]}
+            android_ripple={ripple}
+            onPress={() => {
+              tick();
+              void seedMatch({ seed: Math.floor(Math.random() * 10000) }).then(() => onHistory());
+            }}
+          >
+            <MaterialIcons name="science" size={16} color={colors.textFaint} />
+            <Text style={s.seedText}>Sembrar partido de prueba</Text>
+          </Pressable>
+        )}
         </Animated.View>
       </ScrollView>
     </SafeAreaView>
@@ -750,4 +768,14 @@ const s = StyleSheet.create({
   /** Sin el formulario, el Historial es lo unico que queda: se lleva todo el ancho. */
   historyWide: { flex: 1 },
   historyText: { color: colors.textDim, fontSize: 14, fontWeight: '800' },
+
+  /** Solo en desarrollo. Apagado a proposito: es una herramienta, no una funcion de la app. */
+  seed: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space.sm,
+    height: 40,
+  },
+  seedText: { color: colors.textFaint, fontSize: 12, fontWeight: '700' },
 });

@@ -1,8 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Directory, File, Paths } from 'expo-file-system';
 
-import { reduce } from '../engine';
-import type { MatchConfig, MatchEvent, PlayerId, TeamId } from '../engine';
+import { summarize, type MatchSummary, type SavedMatch } from './summary';
+
+// Lo que se deriva del log es puro y vive en `summary.ts`, sin tocar el disco: asi se puede
+// probar en un segundo. Se reexporta para que nadie tenga que saber que son dos archivos.
+export { matchDuration, summarize } from './summary';
+export type { MatchSummary, SavedMatch } from './summary';
 
 /**
  * Los partidos. UN ARCHIVO POR PARTIDO, en el disco de la app.
@@ -36,82 +40,11 @@ const DIR = 'matches';
 const KEY_INDEX = 'vigia.matches.index.v1';
 const KEY_CURRENT = 'vigia.matches.current.v1';
 
-/** El partido entero, tal como se guarda. El log de eventos es la fuente de verdad. */
-export interface SavedMatch {
-  id: string;
-  config: MatchConfig;
-  events: MatchEvent[];
-  startedAt: number;
-  updatedAt: number;
-}
-
-/**
- * Lo justo para dibujar la lista del historial sin abrir un solo archivo. Se recalcula al
- * guardar, no al listar: la lista tiene que ser instantanea aunque haya 500 partidos.
- */
-export interface MatchSummary {
-  id: string;
-  startedAt: number;
-  updatedAt: number;
-  finished: boolean;
-  /** "Ana Ruiz / Aldo Vega", ya armado. */
-  teams: Record<TeamId, string>;
-  /** "6-4 7-5", o el parcial si quedo a medias. */
-  score: string;
-  winner: TeamId | null;
-  points: number;
-  /**
-   * Los cuatro que jugaron, POR ID. El filtro por jugador del historial se hace con esto y no
-   * con el nombre: dos personas se pueden llamar igual, y alguien se puede renombrar. El id es
-   * la identidad estable que se construyo justamente para esto.
-   */
-  playerIds: PlayerId[];
-}
-
 export const newMatchId = (): string =>
   `m_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 
 const dir = (): Directory => new Directory(Paths.document, DIR);
 const fileFor = (id: string): File => new File(dir(), `${id}.json`);
-
-/** El resultado en texto, del partido terminado o de lo que se lleve jugado. */
-const scoreText = (config: MatchConfig, events: MatchEvent[]): string => {
-  const s = reduce(config, events);
-  const sets = s.completedSets.map((set) => `${set.games.A}-${set.games.B}`);
-  if (!s.finished) {
-    const current = `${s.games.A}-${s.games.B}`;
-    // Un partido recien empezado no muestra "0-0": muestra nada.
-    if (sets.length > 0 || s.games.A + s.games.B > 0) sets.push(current);
-  }
-  return sets.join(' ');
-};
-
-export const summarize = (m: SavedMatch): MatchSummary => {
-  const s = reduce(m.config, m.events);
-  const names = (t: TeamId): string =>
-    [m.config.teams[t].drive, m.config.teams[t].reves]
-      .map((p) => m.config.players[p]!.name)
-      .join(' / ');
-
-  return {
-    id: m.id,
-    startedAt: m.startedAt,
-    updatedAt: m.updatedAt,
-    finished: s.finished,
-    teams: { A: names('A'), B: names('B') },
-    score: scoreText(m.config, m.events),
-    winner: s.winner,
-    points: m.events.filter((e) => 'player' in e || e.type === 'ACE').length,
-    playerIds: (['A', 'B'] as TeamId[]).flatMap((t) => [
-      m.config.teams[t].drive,
-      m.config.teams[t].reves,
-    ]),
-  };
-};
-
-/** Cuanto duro, en milisegundos. Sale de la hora del primer y del ultimo evento. */
-export const matchDuration = (m: Pick<SavedMatch, 'startedAt' | 'updatedAt'>): number =>
-  Math.max(0, m.updatedAt - m.startedAt);
 
 /**
  * Guarda el partido y actualiza el indice. Se llama en CADA evento.
