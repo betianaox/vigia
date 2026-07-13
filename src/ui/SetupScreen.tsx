@@ -366,9 +366,15 @@ export function SetupScreen({
           <>
         {(['A', 'B'] as TeamId[]).map((team) => (
           <View key={team} style={s.block}>
-            <Text style={[s.blockTitle, { color: teamColor(team) }]}>
-              {team === 'A' ? 'EQUIPO 1' : 'EQUIPO 2'}
-            </Text>
+            {/* El titulo solo no anclaba nada: dos palabras chicas flotando arriba de dos campos.
+                La linea del color del equipo, corriendo hasta el borde, lo convierte en un
+                encabezado de verdad — y dice donde empieza cada equipo sin que haya que leerlo. */}
+            <View style={s.blockHead}>
+              <Text style={[s.blockTitle, { color: teamColor(team) }]}>
+                {team === 'A' ? 'EQUIPO 1' : 'EQUIPO 2'}
+              </Text>
+              <View style={[s.blockRule, { backgroundColor: alpha(teamColor(team), 0.5) }]} />
+            </View>
 
             {/* El campo se resuelve solo: escribis y abajo aparecen los jugadores guardados que
                 coinciden. Abrir un modal a pantalla completa para llenar UN campo de texto es
@@ -741,7 +747,10 @@ const s = StyleSheet.create({
   resumeBtnTextDim: { color: colors.textDim, fontSize: 14, fontWeight: '800' },
 
   block: { gap: space.sm },
-  blockTitle: { fontSize: 11, fontWeight: '900', letterSpacing: 1.5, marginBottom: 2 },
+  blockHead: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginBottom: 2 },
+  blockTitle: { fontSize: 11, fontWeight: '900', letterSpacing: 1.5 },
+  /** Corre desde el titulo hasta el borde. Al 50%: marca la seccion, no la grita. */
+  blockRule: { flex: 1, height: 1, borderRadius: radius.pill },
 
   /** La etiqueta del lugar, y al lado el campo (que se dibuja solo, en PlayerField). */
   slotRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },
