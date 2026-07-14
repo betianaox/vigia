@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import type { ShotTally } from '../../engine/stats';
 import type { Stroke } from '../../engine';
+import { L } from '../../i18n';
 import { STROKE_LABELS } from '../shots';
 import { alpha, colors, radius, space } from '../theme';
 
@@ -52,7 +53,7 @@ export function ShotStack({
     .sort((a, b) => b[1] - a[1]);
 
   if (ranked.length === 0 || scale <= 0) {
-    return <Text style={s.empty}>Sin golpes cargados en esta categoría.</Text>;
+    return <Text style={s.empty}>{L.stats.noShotsCategory}</Text>;
   }
 
   const top = ranked.slice(0, MAX_SHOTS).map(([shot]) => shot);
@@ -122,7 +123,7 @@ export function ShotStack({
         {hasOthers && (
           <View style={s.key}>
             <View style={[s.swatch, { backgroundColor: shade(segments - 1, segments) }]} />
-            <Text style={s.keyText}>Otros</Text>
+            <Text style={s.keyText}>{L.stats.otherShots}</Text>
           </View>
         )}
       </View>

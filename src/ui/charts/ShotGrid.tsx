@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import type { MatchConfig, PlayerId, Stroke, TeamId } from '../../engine';
 import type { MatchStats, PlayerStats } from '../../engine/stats';
+import { L } from '../../i18n';
 import { STROKE_LABELS } from '../shots';
 import { colors, space } from '../theme';
 
@@ -99,9 +100,9 @@ export function ShotGrid({
           como corresponde a un grafico. Si el que la recibe ya vio la app, no lee nada de esto. */}
       <View style={s.legend}>
         {[
-          ['Winners', colors.winnerChart],
-          ['E. forzados', colors.errorForcedChart],
-          ['E. no forzados', colors.errorUnforcedChart],
+          [L.stats.winners, colors.winnerChart],
+          [L.stats.forcedShort, colors.errorForcedChart],
+          [L.stats.unforcedLegend, colors.errorUnforcedChart],
         ].map(([label, color]) => (
           <View key={label} style={s.legendItem}>
             <View style={[s.swatch, { backgroundColor: color }]} />

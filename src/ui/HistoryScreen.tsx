@@ -12,6 +12,7 @@ import {
   type MatchSummary,
   type SavedMatch,
 } from '../store/matches';
+import { L, LOCALE } from '../i18n';
 import { normalize } from '../store/store';
 import { Brand } from './Brand';
 import { Confirm } from './Confirm';
@@ -26,10 +27,10 @@ const tick = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
  * saben si fue "esta semana" o "este año".
  */
 const PERIODS = [
-  { value: 'all', label: 'Todos', days: 0 },
-  { value: 'year', label: 'Este año', days: 365 },
-  { value: '30d', label: '30 días', days: 30 },
-  { value: '7d', label: '7 días', days: 7 },
+  { value: 'all', label: L.history.periods.all, days: 0 },
+  { value: 'year', label: L.history.periods.year, days: 365 },
+  { value: '30d', label: L.history.periods['30d'], days: 30 },
+  { value: '7d', label: L.history.periods['7d'], days: 7 },
 ] as const;
 
 type Period = (typeof PERIODS)[number]['value'];
@@ -42,12 +43,12 @@ const formatDate = (t: number): string => {
   const now = new Date();
   const opts: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', month: 'short' };
   if (d.getFullYear() !== now.getFullYear()) opts.year = 'numeric';
-  return d.toLocaleDateString('es', opts);
+  return d.toLocaleDateString(LOCALE, opts);
 };
 
 /** "20:30". La hora a la que se empezo, que es como la gente se acuerda de un partido. */
 const formatTime = (t: number): string =>
-  new Date(t).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', hour12: false });
+  new Date(t).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit', hour12: false });
 
 const formatDuration = (ms: number): string => {
   const min = Math.round(ms / 60000);
@@ -110,7 +111,7 @@ export function HistoryScreen({
     const played = new Set(all.flatMap((m) => m.playerIds));
     return roster
       .filter((p) => played.has(p.id) && normalize(p.name).includes(q))
-      .sort((a, b) => a.name.localeCompare(b.name, 'es'))
+      .sort((a, b) => a.name.localeCompare(b.name, LOCALE))
       .slice(0, 6);
   }, [all, roster, query, player]);
 
@@ -155,7 +156,7 @@ export function HistoryScreen({
       {/* La ✕ cierra, y es la misma de la hoja de golpes y de las estadisticas. A la derecha:
           ahi vive el cerrar, y el logo deja de estar aplastado contra una flecha. */}
       <View style={s.head}>
-        <Brand size={26} subtitle="Historial" tint={colors.ball} />
+        <Brand size={26} subtitle={L.history.title} tint={colors.ball} />
         <Pressable
           style={({ pressed: pr }) => [s.close, pr && pressed]}
           android_ripple={{ ...ripple, borderless: true }}
@@ -174,7 +175,7 @@ export function HistoryScreen({
         <PlayerField
           value={query}
           onChangeText={setQuery}
-          placeholder="Buscar jugador"
+          placeholder={L.history.search}
           suggestions={suggestions}
           chosen={chosen ?? null}
           onPick={(p) => {
@@ -198,7 +199,7 @@ export function HistoryScreen({
           >
             <MaterialIcons name="show-chart" size={20} color={colors.ball} />
             <Text style={s.careerText} numberOfLines={1}>
-              Juego de {chosen.name.split(' ')[0]}
+              {L.history.career(chosen.name.split(' ')[0]!)}
             </Text>
             <MaterialIcons name="chevron-right" size={22} color={colors.textDim} />
           </Pressable>
@@ -240,8 +241,8 @@ export function HistoryScreen({
         ListEmptyComponent={
           <Text style={s.empty}>
             {all.length === 0
-              ? 'Todavía no hay partidos guardados. Juega uno y aparecerá aquí.'
-              : 'Ningún partido con esos filtros.'}
+              ? L.history.empty
+              : L.history.emptyFiltered}
           </Text>
         }
         renderItem={({ item }) => (
@@ -268,16 +269,16 @@ export function HistoryScreen({
           vuelve UNO. */}
       <Confirm
         visible={deleting !== null}
-        title="Borrar el partido"
+        title={L.history.deleteTitle}
         message={
           deleting
             ? `${teamText(deleting, 'A', resolve)} vs ${teamText(deleting, 'B', resolve)}\n` +
               `${formatDate(deleting.startedAt)} · ${formatTime(deleting.startedAt)}` +
               `${deleting.score ? ` · ${deleting.score}` : ''}\n\n` +
-              'Se borra para siempre, con todas sus estadísticas.'
+              L.history.deleteNote
             : undefined
         }
-        confirmLabel="Borrar"
+        confirmLabel={L.history.delete}
         destructive
         onCancel={() => setDeleting(null)}
         onConfirm={() => {
@@ -359,8 +360,8 @@ function Row({
             "el de las 8" es como los distingue la gente que estuvo ahi. */}
         <Text style={s.meta} numberOfLines={1}>
           {formatDate(m.startedAt)} · {formatTime(m.startedAt)} ·{' '}
-          {formatDuration(m.updatedAt - m.startedAt)} · {m.points} puntos
-          {m.finished ? '' : ' · sin terminar'}
+          {formatDuration(m.updatedAt - m.startedAt)} · {L.history.points(m.points)}
+          {m.finished ? '' : ` · ${L.history.unfinished}`}
         </Text>
       </View>
 

@@ -5,6 +5,7 @@ import { FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'r
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { Player, PlayerId } from '../engine';
+import { L, LOCALE } from '../i18n';
 import { loadIndex, type MatchSummary } from '../store/matches';
 import { mergePlayers, renamePlayer, type RenameError } from '../store/store';
 import { Brand } from './Brand';
@@ -13,12 +14,38 @@ import { alpha, colors, pressed, radius, ripple, space } from './theme';
 
 const tick = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
+/**
+ * Enciende los nombres adentro de una frase, buscandolos — no cortando por posicion.
+ *
+ * La frase viene del diccionario y en otro idioma cambia de orden ("Is X the same person as Y?").
+ * Una negrita atada a la posicion terminaria resaltando la palabra equivocada; buscando el nombre,
+ * cae siempre donde tiene que caer.
+ */
+const escape = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const highlight = (
+  sentence: string,
+  names: string[],
+  s: ReturnType<typeof StyleSheet.create<Record<string, object>>>,
+): React.ReactNode[] => {
+  const re = new RegExp(`(${names.map(escape).join('|')})`, 'g');
+  return sentence.split(re).map((part, i) =>
+    names.includes(part) ? (
+      <Text key={i} style={s.mergeName}>
+        {part}
+      </Text>
+    ) : (
+      part
+    ),
+  );
+};
+
 const formatDate = (t: number): string => {
   const d = new Date(t);
   const now = new Date();
   const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' };
   if (d.getFullYear() !== now.getFullYear()) opts.year = 'numeric';
-  return d.toLocaleDateString('es', opts);
+  return d.toLocaleDateString(LOCALE, opts);
 };
 
 /**
@@ -130,7 +157,7 @@ export function PlayersScreen({
   return (
     <SafeAreaView style={s.root}>
       <View style={s.head}>
-        <Brand size={26} subtitle="Jugadores" tint={colors.ball} />
+        <Brand size={26} subtitle={L.players.title} tint={colors.ball} />
         <Pressable
           style={({ pressed: pr }) => [s.close, pr && pressed]}
           android_ripple={{ ...ripple, borderless: true }}
@@ -148,7 +175,7 @@ export function PlayersScreen({
         contentContainerStyle={s.list}
         ListEmptyComponent={
           <Text style={s.empty}>
-            Todavía no jugó nadie. Carga un partido y aquí aparecerán los jugadores.
+            {L.players.empty}
           </Text>
         }
         renderItem={({ item }) => (
@@ -166,8 +193,7 @@ export function PlayersScreen({
                 {item.player.name}
               </Text>
               <Text style={s.meta} numberOfLines={1}>
-                {item.matches} {item.matches === 1 ? 'partido' : 'partidos'} · último{' '}
-                {formatDate(item.last)}
+                {L.players.matches(item.matches)} · {L.players.last(formatDate(item.last))}
               </Text>
             </View>
 
@@ -254,13 +280,13 @@ function Rename({
     >
       <View style={s.dialogBg}>
         <View style={s.dialog}>
-          <Text style={s.dialogTitle}>Renombrar</Text>
+          <Text style={s.dialogTitle}>{L.players.rename}</Text>
 
           <TextInput
             style={s.input}
             value={value}
             onChangeText={onChange}
-            placeholder="Nombre"
+            placeholder={L.players.namePlaceholder}
             placeholderTextColor={colors.textFaint}
             autoCapitalize="words"
             autoCorrect={false}
@@ -269,7 +295,7 @@ function Rename({
             onSubmitEditing={onConfirm}
           />
 
-          {error?.kind === 'vacio' && <Text style={s.error}>Escribe un nombre.</Text>}
+          {error?.kind === 'vacio' && <Text style={s.error}>{L.players.emptyName}</Text>}
 
           {/* EL CHOQUE ES UNA OFERTA, no un rechazo.
               Que el nombre ya exista es justo el momento en que se descubre el duplicado: alguien
@@ -279,13 +305,13 @@ function Rename({
               persona: alguien escribe "Ana Ruiz" sobre "Ana". Se pregunta ahi mismo. */}
           {clash && player && mergeable && (
             <View style={s.merge}>
+              {/* Los dos nombres van encendidos, y se resaltan POR COINCIDENCIA, no por posicion:
+                  en ingles o en italiano la frase cambia de orden, y una negrita atada a la
+                  posicion terminaria resaltando la palabra equivocada. */}
               <Text style={s.mergeText}>
-                Ya existe <Text style={s.mergeName}>{clash.name}</Text>. ¿Es la misma persona que{' '}
-                <Text style={s.mergeName}>{player.name}</Text>?
+                {highlight(L.players.mergeAsk(clash.name, player.name), [clash.name, player.name], s)}
               </Text>
-              <Text style={s.mergeNote}>
-                Se juntan sus dos historiales. Ningún partido se borra.
-              </Text>
+              <Text style={s.mergeNote}>{L.players.mergeNote}</Text>
             </View>
           )}
 
@@ -293,9 +319,7 @@ function Rename({
               Nadie es su propio rival ni su propio compañero. Unirlas produciria partidos donde
               alguien juega contra si mismo. No se ofrece: se dice. */}
           {clash && player && !mergeable && (
-            <Text style={s.error}>
-              Ya existe {clash.name}, y jugó partidos contra {player.name}. Elige otro nombre.
-            </Text>
+            <Text style={s.error}>{L.players.playedTogether(clash.name, player.name)}</Text>
           )}
 
           <View style={s.dialogActions}>
@@ -304,7 +328,7 @@ function Rename({
               android_ripple={ripple}
               onPress={onCancel}
             >
-              <Text style={s.dialogCancelText}>Cancelar</Text>
+              <Text style={s.dialogCancelText}>{L.players.cancel}</Text>
             </Pressable>
 
             {/* GUARDAR NO EXISTE cuando hay una union posible: el nombre choca, asi que guardar
@@ -318,7 +342,7 @@ function Rename({
                 onPress={() => onMerge(clash)}
               >
                 <MaterialIcons name="merge" size={18} color={colors.text} />
-                <Text style={s.dialogOkText}>Unir</Text>
+                <Text style={s.dialogOkText}>{L.players.merge}</Text>
               </Pressable>
             ) : (
               <Pressable
@@ -326,7 +350,7 @@ function Rename({
                 android_ripple={ripple}
                 onPress={onConfirm}
               >
-                <Text style={s.dialogOkText}>Guardar</Text>
+                <Text style={s.dialogOkText}>{L.players.save}</Text>
               </Pressable>
             )}
           </View>

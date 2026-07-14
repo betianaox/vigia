@@ -1,0 +1,241 @@
+import type { Dict } from './index';
+
+/**
+ * Italiano.
+ *
+ * El italiano del padel usa "smash" (no "schiacciata", que es lo tenistico), "pallonetto" para el
+ * globo y "smorzata" para la dejada — verificado en glosarios italianos. Bandeja, vibora y
+ * chiquita van en castellano: asi las enseña un profesor en Milan.
+ */
+export const it: Dict = {
+  shots: {
+    remate: 'Smash',
+    bandeja: 'Bandeja',
+    volea: 'Volée',
+    chiquita: 'Chiquita',
+    salida_de_pared: 'Salida de pared',
+    fondo: 'Fondo',
+    globo: 'Pallonetto',
+    dejada: 'Smorzata',
+    recuperacion: 'Recupero',
+  },
+
+  variants: {
+    vibora: 'Víbora',
+    gancho: 'Gancho',
+    x3: 'x3',
+    x4: 'x4',
+    traerla: 'Traerla',
+  },
+
+  sides: {
+    drive: 'Dritto',
+    reves: 'Rovescio',
+  },
+
+  positions: {
+    drive: 'Dritto',
+    reves: 'Rovescio',
+  },
+
+  teams: {
+    a: 'Squadra 1',
+    b: 'Squadra 2',
+  },
+
+  setup: {
+    newMatch: 'Nuova partita',
+    onCourt: 'Partita in corso',
+
+    resumeEyebrow: 'PARTITA IN CORSO',
+    resume: 'Continua',
+    end: 'Termina',
+
+    namePlaceholder: 'Nome',
+
+    firstServe: 'INIZIA AL SERVIZIO',
+    draw: 'Sorteggia',
+    drawing: 'Sorteggio…',
+
+    match: 'PARTITA',
+    advanced: 'Avanzate',
+    lengths: {
+      un_game: '1 game',
+      un_set: '1 set',
+      tres_sets: '3 set',
+    },
+
+    shotPrompt: 'REGISTRO DEL COLPO',
+    shotPrompts: {
+      siempre: 'Chiedi sempre',
+      opcional: 'Registro opzionale',
+    },
+    shotPromptHints: {
+      siempre: 'Il foglio dei colpi si apre a ogni punto.',
+      opcional: 'Il tocco breve registra; tenendo premuto si apre.',
+    },
+
+    gameFormat: 'SUL 40-40',
+    gameFormats: {
+      ventajas: 'Vantaggi',
+      punto_de_oro: 'Punto d’oro',
+      punto_estrella: 'Punto stella',
+    },
+
+    thirdSet: 'TERZO SET',
+    thirdSets: {
+      set_normal: 'Set normale',
+      super_tiebreak: 'Super tiebreak',
+    },
+
+    changeEnds: 'CAMBI DI CAMPO',
+    changeEndsOptions: {
+      games_impares: 'Game dispari',
+      fin_de_set: 'Fine set',
+      nunca: 'Mai',
+    },
+
+    formation: (team: string) => `${team} · AL SERVIZIO`,
+    formations: {
+      australiana: 'Mantiene il lato',
+      cambio: 'Cambia lato',
+    },
+
+    remembered: 'L’app ricorda tutto questo per la prossima partita.',
+    start: 'Inizia',
+
+    history: 'Storico',
+    players: 'Giocatori',
+  },
+
+  court: {
+    winner: 'Winner',
+    forced: 'Forzato',
+    unforced: 'Non forzato',
+    winnerShort: 'W',
+    forcedShort: 'EF',
+    unforcedShort: 'ENF',
+
+    fault: 'FALLO',
+    double: 'DOPPIO',
+    ace: 'ACE',
+    let: 'LET',
+    firstServe: '1° SERVIZIO',
+    secondServe: '2° SERVIZIO',
+    returning: 'RISPONDE',
+
+    goldenPoint: 'PUNTO D’ORO',
+    goldenPointChoose: 'PUNTO D’ORO — SCEGLI CHI RISPONDE',
+    boxRight: 'Destra',
+    boxLeft: 'Sinistra',
+
+    finished: 'Partita finita',
+    home: 'Inizio',
+    stats: 'Stats',
+    undo: 'Annulla',
+  },
+
+  history: {
+    title: 'Storico',
+    search: 'Cerca giocatore',
+    periods: {
+      all: 'Tutte',
+      year: "Quest'anno",
+      '30d': '30 giorni',
+      '7d': '7 giorni',
+    },
+    career: (name: string) => `Il gioco di ${name}`,
+
+    empty: 'Non ci sono ancora partite salvate. Giocane una e apparirà qui.',
+    emptyFiltered: 'Nessuna partita con questi filtri.',
+
+    points: (n: number) => `${n} punti`,
+    unfinished: 'non finita',
+
+    deleteTitle: 'Elimina la partita',
+    deleteNote: 'Sparisce per sempre, con tutte le sue statistiche.',
+    delete: 'Elimina',
+  },
+
+  players: {
+    title: 'Giocatori',
+    empty: 'Non ha ancora giocato nessuno. Registra una partita e appariranno qui.',
+    matches: (n: number) => (n === 1 ? '1 partita' : `${n} partite`),
+    last: (date: string) => `ultima ${date}`,
+
+    rename: 'Rinomina',
+    namePlaceholder: 'Nome',
+    save: 'Salva',
+    cancel: 'Annulla',
+
+    emptyName: 'Scrivi un nome.',
+
+    mergeAsk: (existing: string, current: string) =>
+      `${existing} esiste già. È la stessa persona di ${current}?`,
+    mergeNote: 'I due storici diventano uno. Nessuna partita viene eliminata.',
+    merge: 'Unisci',
+
+    playedTogether: (existing: string, current: string) =>
+      `${existing} esiste già e ha giocato contro ${current}. Scegli un altro nome.`,
+  },
+
+  stats: {
+    title: 'Statistiche',
+    empty: 'Non si è ancora giocato nessun punto.',
+
+    winners: 'Winner',
+    forcedErrors: 'Errori forzati',
+    unforcedErrors: 'Errori non forzati',
+    forcedShort: 'E. forzati',
+    unforcedShort: 'E. non forz.',
+    unforcedLegend: 'E. non forzati',
+
+    match: 'Partita',
+    playerByPlayer: 'Giocatore per giocatore',
+    shots: 'Colpi',
+    detail: 'Dettaglio',
+    myGame: 'Il suo gioco',
+    evolution: 'Evoluzione',
+    evolutionSub: 'una partita, una barra',
+    byShot: 'per colpo, partita per partita',
+
+    pointsWon: 'Punti vinti',
+    winnersPerError: 'Winner per errore',
+    breakPoints: 'Break point',
+    points: (n: number) => `${n} punti`,
+    pointsPlayed: (n: number) => `${n} punti giocati`,
+
+    serving: 'AL SERVIZIO',
+    returning: 'IN RISPOSTA',
+    firstServe: '1° servizio',
+    firstServeIn: '1° servizio dentro',
+    wonWithFirst: 'Vince c/ 1°',
+    wonWithFirstLong: 'Vince con 1° servizio',
+    wonWithSecond: 'Vince c/ 2°',
+    aces: 'Ace',
+    doubleFaults: 'Doppi falli',
+    wonReturning: 'Vince in risposta',
+    acesConceded: 'Ace subiti',
+    doubleFaultsForced: 'Doppi provocati',
+
+    winnersOverErrors: 'W / ENF',
+
+    matches: 'Partite',
+    won: 'Vinte',
+    lost: 'Perse',
+    pointsShare: 'Punti',
+    unfinished: (n: number) => (n === 1 ? '1 non finita' : `${n} non finite`),
+    allFinished: 'tutte finite',
+    noMatches: 'Non ha ancora giocato nessuna partita.',
+
+    finished: 'Partita finita.',
+    finishedEarly: 'Partita interrotta prima della fine.',
+    share: 'Condividi',
+    shareDialog: 'Condividi la partita',
+
+    otherShots: 'Altri',
+    noShots: 'Nessun colpo registrato.',
+    noShotsCategory: 'Nessun colpo registrato in questa categoria.',
+    oneMatch: 'Con una sola partita non c’è evoluzione da mostrare. Giocane un’altra.',
+  },
+};

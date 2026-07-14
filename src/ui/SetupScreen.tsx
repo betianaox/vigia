@@ -28,6 +28,7 @@ import {
   savePrefs,
 } from '../store/store';
 import type { Prefs } from '../store/store';
+import { L } from '../i18n';
 import { Brand } from './Brand';
 import { PlayerField } from './PlayerField';
 import { useRoster } from './roster';
@@ -40,43 +41,46 @@ const thud = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 /** Los cuatro lugares de la cancha. El orden importa: es el que se muestra. */
 type Slot = 'a1' | 'a2' | 'b1' | 'b2';
 const SLOTS: Array<{ slot: Slot; team: TeamId; label: string }> = [
-  { slot: 'a1', team: 'A', label: 'Drive' },
-  { slot: 'a2', team: 'A', label: 'Revés' },
-  { slot: 'b1', team: 'B', label: 'Drive' },
-  { slot: 'b2', team: 'B', label: 'Revés' },
+  { slot: 'a1', team: 'A', label: L.positions.drive },
+  { slot: 'a2', team: 'A', label: L.positions.reves },
+  { slot: 'b1', team: 'B', label: L.positions.drive },
+  { slot: 'b2', team: 'B', label: L.positions.reves },
 ];
+
+/** El nombre del equipo, que se usa en media pantalla. */
+const teamName = (t: TeamId): string => (t === 'A' ? L.teams.a : L.teams.b);
 
 /**
  * Las opciones de formato. Los textos cortos son a proposito: entran en un segmento y no hay
  * que leer un parrafo para elegir. Lo largo va en la ayuda de abajo.
  */
 const LENGTHS = [
-  { value: 'un_game', label: '1 game' },
-  { value: 'un_set', label: '1 set' },
-  { value: 'tres_sets', label: '3 sets' },
+  { value: 'un_game', label: L.setup.lengths.un_game },
+  { value: 'un_set', label: L.setup.lengths.un_set },
+  { value: 'tres_sets', label: L.setup.lengths.tres_sets },
 ] as const;
 
 const FORMATS = [
-  { value: 'ventajas', label: 'Ventajas' },
-  { value: 'punto_de_oro', label: 'Punto de oro' },
-  { value: 'punto_estrella', label: 'Punto estrella' },
+  { value: 'ventajas', label: L.setup.gameFormats.ventajas },
+  { value: 'punto_de_oro', label: L.setup.gameFormats.punto_de_oro },
+  { value: 'punto_estrella', label: L.setup.gameFormats.punto_estrella },
 ] as const;
 
 const THIRD_SETS = [
-  { value: 'set_normal', label: 'Set normal' },
-  { value: 'super_tiebreak', label: 'Súper tiebreak' },
+  { value: 'set_normal', label: L.setup.thirdSets.set_normal },
+  { value: 'super_tiebreak', label: L.setup.thirdSets.super_tiebreak },
 ] as const;
 
 const CHANGE_ENDS = [
-  { value: 'games_impares', label: 'Games impares' },
-  { value: 'fin_de_set', label: 'Fin de set' },
-  { value: 'nunca', label: 'Nunca' },
+  { value: 'games_impares', label: L.setup.changeEndsOptions.games_impares },
+  { value: 'fin_de_set', label: L.setup.changeEndsOptions.fin_de_set },
+  { value: 'nunca', label: L.setup.changeEndsOptions.nunca },
 ] as const;
 
 /** Las dos maneras de cargar un golpe. La primera es el default, y es la que enseña. */
 const SHOT_PROMPTS = [
-  { value: 'siempre', label: 'Preguntar siempre' },
-  { value: 'opcional', label: 'Registro opcional' },
+  { value: 'siempre', label: L.setup.shotPrompts.siempre },
+  { value: 'opcional', label: L.setup.shotPrompts.opcional },
 ] as const;
 
 /**
@@ -92,8 +96,8 @@ const SHOT_PROMPTS = [
  * jugados no se tocan. Para esto existe la separacion entre la etiqueta y el dato.
  */
 const FORMATIONS = [
-  { value: 'australiana', label: 'Mantiene el lado' },
-  { value: 'cambio', label: 'Cambia de lado' },
+  { value: 'australiana', label: L.setup.formations.australiana },
+  { value: 'cambio', label: L.setup.formations.cambio },
 ] as const;
 
 export function SetupScreen({
@@ -319,7 +323,10 @@ export function SetupScreen({
        */}
       <ScrollView contentContainerStyle={s.page} keyboardShouldPersistTaps="handled">
         <View style={s.head}>
-          <Brand subtitle={onCourt ? 'Partido en curso' : 'Partido nuevo'} tint={colors.ball} />
+          <Brand
+            subtitle={onCourt ? L.setup.onCourt : L.setup.newMatch}
+            tint={colors.ball}
+          />
         </View>
 
         <Animated.View
@@ -342,7 +349,7 @@ export function SetupScreen({
           <View style={s.resume}>
             {/* Arriba de todo, chico y apagado: dice QUE es esta tarjeta, y despues se calla.
                 No compite con lo unico que importa mirar, que es el tanteo. */}
-            <Text style={s.resumeEyebrow}>PARTIDO EN CURSO</Text>
+            <Text style={s.resumeEyebrow}>{L.setup.resumeEyebrow}</Text>
 
             {/* El MISMO tanteador de la cancha, con el estado tal cual quedo: los nombres
                 enteros, la pelotita en quien tenia el saque, el punto en vivo. Quien vuelve
@@ -361,7 +368,7 @@ export function SetupScreen({
                 }}
               >
                 <MaterialIcons name="play-arrow" size={22} color={colors.text} />
-                <Text style={s.resumeBtnText}>Seguir</Text>
+                <Text style={s.resumeBtnText}>{L.setup.resume}</Text>
               </Pressable>
 
               {/* SIN CONFIRMACION. Esta tarjeta YA ES la pregunta: dice que hay un partido a
@@ -385,7 +392,7 @@ export function SetupScreen({
                     "Seguir", un ■ no hay que explicarlo — y lo que se detiene es, literalmente,
                     algo que esta EN CURSO. La banderita no significaba nada. */}
                 <MaterialIcons name="stop" size={22} color={colors.textDim} />
-                <Text style={s.resumeBtnTextDim}>Terminar</Text>
+                <Text style={s.resumeBtnTextDim}>{L.setup.end}</Text>
               </Pressable>
             </View>
           </View>
@@ -398,7 +405,7 @@ export function SetupScreen({
                 encabezado de verdad — y dice donde empieza cada equipo sin que haya que leerlo. */}
             <View style={s.blockHead}>
               <Text style={[s.blockTitle, { color: teamColor(team) }]}>
-                {team === 'A' ? 'EQUIPO 1' : 'EQUIPO 2'}
+                {teamName(team).toUpperCase()}
               </Text>
               <View style={[s.blockRule, { backgroundColor: alpha(teamColor(team), 0.5) }]} />
             </View>
@@ -420,7 +427,7 @@ export function SetupScreen({
                 <PlayerField
                   value={names[slot]}
                   onChangeText={(v) => setNames((n) => ({ ...n, [slot]: v }))}
-                  placeholder="Nombre"
+                  placeholder={L.setup.namePlaceholder}
                   suggestions={focused === slot ? suggest(slot) : []}
                   onPick={(p) => {
                     tick();
@@ -452,10 +459,10 @@ export function SetupScreen({
         ))}
 
         <Segmented
-          title="EMPIEZA SACANDO"
+          title={L.setup.firstServe}
           options={[
-            { value: 'A', label: 'Equipo 1' },
-            { value: 'B', label: 'Equipo 2' },
+            { value: 'A', label: L.teams.a },
+            { value: 'B', label: L.teams.b },
           ]}
           value={firstServingTeam}
           onChange={(v) => setFirstServingTeam(v as TeamId)}
@@ -467,7 +474,7 @@ export function SetupScreen({
           right={
             <HeadChip
               icon="casino"
-              label={drawing ? 'Sorteando…' : 'Sortear'}
+              label={drawing ? L.setup.drawing : L.setup.draw}
               on={drawing}
               disabled={drawing}
               onPress={drawServe}
@@ -484,7 +491,7 @@ export function SetupScreen({
             configura lo que tenes delante. La costura se notaba por mas que se pintara
             distinto. */}
         <Segmented
-          title="PARTIDO"
+          title={L.setup.match}
           options={LENGTHS}
           value={prefs.length}
           onChange={(v) => setPrefs((x) => ({ ...x, length: v as Prefs['length'] }))}
@@ -494,7 +501,7 @@ export function SetupScreen({
                vez eran uno de mas — el estado ya lo cuenta el panel que esta ahi abajo. */
             <HeadChip
               icon={advanced ? 'expand-less' : 'tune'}
-              label="Avanzadas"
+              label={L.setup.advanced}
               on={advanced}
               onPress={() => {
                 tick();
@@ -521,32 +528,29 @@ export function SetupScreen({
              * quiere que le pregunten lo apaga una vez y no lo ve nunca mas.
              */}
             <Segmented
-              title="REGISTRO DE GOLPE"
+              title={L.setup.shotPrompt}
               options={SHOT_PROMPTS}
               value={prefs.shotPrompt}
               onChange={(v) => setPrefs((x) => ({ ...x, shotPrompt: v as Prefs['shotPrompt'] }))}
-              hints={[
-                'La hoja de golpes se abre en cada punto.',
-                'El toque corto registra, sostenido abre la hoja.',
-              ]}
+              hints={[L.setup.shotPromptHints.siempre, L.setup.shotPromptHints.opcional]}
             />
 
             <Segmented
-              title="AL 40-40"
+              title={L.setup.gameFormat}
               options={FORMATS}
               value={prefs.gameFormat}
               onChange={(v) => setPrefs((x) => ({ ...x, gameFormat: v as Prefs['gameFormat'] }))}
             />
             {prefs.length === 'tres_sets' && (
               <Segmented
-                title="TERCER SET"
+                title={L.setup.thirdSet}
                 options={THIRD_SETS}
                 value={prefs.thirdSet}
                 onChange={(v) => setPrefs((x) => ({ ...x, thirdSet: v as Prefs['thirdSet'] }))}
               />
             )}
             <Segmented
-              title="CAMBIOS DE LADO"
+              title={L.setup.changeEnds}
               options={CHANGE_ENDS}
               value={prefs.changeEnds}
               onChange={(v) => setPrefs((x) => ({ ...x, changeEnds: v as Prefs['changeEnds'] }))}
@@ -558,14 +562,14 @@ export function SetupScreen({
             {(['A', 'B'] as TeamId[]).map((team) => (
               <Segmented
                 key={team}
-                title={`${team === 'A' ? 'EQUIPO 1' : 'EQUIPO 2'} · CUANDO SACA`}
+                title={L.setup.formation(teamName(team).toUpperCase())}
                 options={FORMATIONS}
                 value={formations[team]}
                 onChange={(v) => setFormations((f) => ({ ...f, [team]: v as Formation }))}
               />
             ))}
 
-            <Text style={s.hint}>La app recuerda esto para el próximo partido.</Text>
+            <Text style={s.hint}>{L.setup.remembered}</Text>
           </View>
         )}
 
@@ -590,7 +594,7 @@ export function SetupScreen({
               size={26}
               color={ready ? colors.text : colors.textFaint}
             />
-            <Text style={[s.startText, !ready && s.startTextOff]}>Empezar</Text>
+            <Text style={[s.startText, !ready && s.startTextOff]}>{L.setup.start}</Text>
           </Pressable>
         )}
 
@@ -611,7 +615,7 @@ export function SetupScreen({
             }}
           >
             <MaterialIcons name="history" size={22} color={colors.textDim} />
-            <Text style={s.doorText}>Historial</Text>
+            <Text style={s.doorText}>{L.setup.history}</Text>
           </Pressable>
 
           {/* El acumulado de cada persona es lo que hace que alguien vuelva a abrir la app en
@@ -628,7 +632,7 @@ export function SetupScreen({
             {/* Personas, no un grafico: lo que hay del otro lado son las personas. El grafico
                 vive adentro. */}
             <MaterialIcons name="groups" size={22} color={colors.textDim} />
-            <Text style={s.doorText}>Jugadores</Text>
+            <Text style={s.doorText}>{L.setup.players}</Text>
           </Pressable>
         </View>
 

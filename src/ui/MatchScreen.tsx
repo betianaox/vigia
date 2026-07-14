@@ -14,8 +14,10 @@ import type {
   Position,
   Shot,
   Side,
+  Stroke,
   TeamId,
 } from '../engine';
+import { L } from '../i18n';
 import { DEFAULT_PREFS, loadPrefs, type ShotPrompt } from '../store/store';
 import { CHAR, fitWidth, TOUCH_MIN } from './layout';
 import { useMetrics, type Metrics } from './metrics';
@@ -59,7 +61,7 @@ const RIGHT: Side = 'drive';
  * Sirve recien cuando la persona se acostumbro. Al principio no molesta; despues, ahorra el
  * unico recurso que no sobra entre dos puntos, que es la vista.
  */
-const ANCHOR: Stroke = 'salida_de_pared';
+const ANCHOR: Stroke = 'globo';
 
 /**
  * La otra ancla, abajo. Con una sola, la hoja quedaba desbalanceada hacia el medio.
@@ -80,9 +82,19 @@ const ANCHOR_BAJO: Stroke = 'dejada';
  * en la mitad de ancho.
  */
 const RALLY: Array<{ type: RallyAction; label: string; desc: string; color: string }> = [
-  { type: 'WINNER', label: 'W', desc: 'Winner', color: colors.winner },
-  { type: 'ERROR_FORZADO', label: 'EF', desc: 'Forzado', color: colors.errorForced },
-  { type: 'ERROR_NO_FORZADO', label: 'ENF', desc: 'No forzado', color: colors.errorUnforced },
+  { type: 'WINNER', label: L.court.winnerShort, desc: L.court.winner, color: colors.winner },
+  {
+    type: 'ERROR_FORZADO',
+    label: L.court.forcedShort,
+    desc: L.court.forced,
+    color: colors.errorForced,
+  },
+  {
+    type: 'ERROR_NO_FORZADO',
+    label: L.court.unforcedShort,
+    desc: L.court.unforced,
+    color: colors.errorUnforced,
+  },
 ];
 
 /** Nombre y apellido -> "AR". Un solo nombre -> las dos primeras letras, para no colisionar. */
@@ -257,7 +269,7 @@ export function MatchScreen({
       {state.isGoldenPoint && (
         <View style={s.goldenBar}>
           <Text style={s.goldenText}>
-            {state.awaitingBoxChoice ? 'PUNTO DE ORO — ELIGE EL QUE RESTA' : 'PUNTO DE ORO'}
+            {state.awaitingBoxChoice ? L.court.goldenPointChoose : L.court.goldenPoint}
           </Text>
           {state.awaitingBoxChoice && (
             <View style={s.row}>
@@ -271,7 +283,9 @@ export function MatchScreen({
                     push({ type: 'ELECCION_CUADRO', box: b });
                   }}
                 >
-                  <Text style={s.goldenBtnText}>{b === 'derecha' ? 'Derecha' : 'Izquierda'}</Text>
+                  <Text style={s.goldenBtnText}>
+                    {b === 'derecha' ? L.court.boxRight : L.court.boxLeft}
+                  </Text>
                 </Pressable>
               ))}
             </View>
@@ -349,7 +363,7 @@ export function MatchScreen({
               color={colors.trophy}
             />
 
-            <Text style={s.finishedTitle}>Partido terminado</Text>
+            <Text style={s.finishedTitle}>{L.court.finished}</Text>
 
             <Text
               style={[s.finishedWinners, { color: teamColor(state.winner!) }]}
@@ -375,7 +389,7 @@ export function MatchScreen({
                 disabled={!onHome}
               >
                 <MaterialIcons name="home" size={m.card.avatarMax * 0.55} color={colors.text} />
-                <Text style={s.finishedBtnText}>Inicio</Text>
+                <Text style={s.finishedBtnText}>{L.court.home}</Text>
               </Pressable>
 
               <Pressable
@@ -391,7 +405,7 @@ export function MatchScreen({
                   size={m.card.avatarMax * 0.55}
                   color={colors.text}
                 />
-                <Text style={s.finishedBtnText}>Stats</Text>
+                <Text style={s.finishedBtnText}>{L.court.stats}</Text>
               </Pressable>
             </View>
           </View>
@@ -416,7 +430,7 @@ export function MatchScreen({
           disabled={events.length === 0}
         >
           <MaterialIcons name="undo" size={m.bottom.icon} color={colors.text} />
-          <Text style={s.utilText}>Deshacer</Text>
+          <Text style={s.utilText}>{L.court.undo}</Text>
         </Pressable>
         {/* Solo icono: la etiqueta no explicaba nada (¿"dar vuelta" que?) y ocupaba lugar.
             Da vuelta la vista 180 grados para que coincida con lo que ve el que mira. */}
@@ -534,9 +548,9 @@ function PlayerCard(props: {
         <View style={s.row}>
           {/* En 2do saque dice DOBLE, no "doble falta": una sola palabra, una sola linea,
               y la pildora de abajo ya dice 2DO SAQUE. */}
-          {serveBtn(second ? 'DOBLE' : 'FALTA', colors.falta, props.onFalta, true)}
-          {serveBtn('ACE', colors.ace, props.onAce)}
-          {serveBtn('LET', colors.let, props.onLet)}
+          {serveBtn(second ? L.court.double : L.court.fault, colors.falta, props.onFalta, true)}
+          {serveBtn(L.court.ace, colors.ace, props.onAce)}
+          {serveBtn(L.court.let, colors.let, props.onLet)}
         </View>
       ) : (
         <View style={s.serveRowEmpty} />
@@ -588,7 +602,7 @@ function PlayerCard(props: {
               ]}
             >
               <Text style={[s.pillText, second && { color: colors.onLight }]}>
-                {second ? '2DO SAQUE' : '1ER SAQUE'}
+                {second ? L.court.secondServe : L.court.firstServe}
               </Text>
             </Animated.View>
 
@@ -619,7 +633,7 @@ function PlayerCard(props: {
            * compiten, y la del que saca es la que tiene que ganar. La pildora alcanza.
            */
           <View style={[s.pill, s.pillCool]}>
-            <Text style={s.pillText}>RESTA</Text>
+            <Text style={s.pillText}>{L.court.returning}</Text>
           </View>
         ) : (
           <View style={s.pillEmpty} />

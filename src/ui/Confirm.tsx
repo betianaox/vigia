@@ -1,5 +1,6 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { L } from '../i18n';
 import { alpha, colors, pressed, radius, ripple, space } from './theme';
 
 /**
@@ -16,7 +17,7 @@ export function Confirm({
   visible,
   title,
   message,
-  cancelLabel = 'Cancelar',
+  cancelLabel = L.players.cancel,
   confirmLabel,
   secondaryLabel,
   destructive,

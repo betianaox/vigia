@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { computeStats, pct, teamShotLines, shotLines } from '../engine/stats';
 import type { MatchStats, PlayerStats } from '../engine/stats';
 import type { MatchConfig, MatchEvent, MatchState, PlayerId, TeamId } from '../engine';
+import { L } from '../i18n';
 import { Brand } from './Brand';
 import { HeadToHead } from './charts/HeadToHead';
 import { playerRows } from './charts/playerRows';
@@ -85,14 +86,14 @@ const globalRows = (stats: MatchStats): CompareRow[] => {
 
   return [
     {
-      label: 'Puntos ganados',
+      label: L.stats.pointsWon,
       a: `${a.pointsWon}`,
       b: `${b.pointsWon}`,
       aValue: a.pointsWon,
       bValue: b.pointsWon,
     },
     {
-      label: 'Winners',
+      label: L.stats.winners,
       a: `${a.winners}`,
       b: `${b.winners}`,
       aValue: a.winners,
@@ -100,7 +101,7 @@ const globalRows = (stats: MatchStats): CompareRow[] => {
     },
     {
       // Aca gana el que MENOS tiene. Sin esto, la barra premiaria al que mas se equivoco.
-      label: 'Errores no forzados',
+      label: L.stats.unforcedErrors,
       a: `${a.unforcedErrors}`,
       b: `${b.unforcedErrors}`,
       aValue: a.unforcedErrors,
@@ -108,7 +109,7 @@ const globalRows = (stats: MatchStats): CompareRow[] => {
       lowerIsBetter: true,
     },
     {
-      label: 'Winners por error',
+      label: L.stats.winnersPerError,
       a: ra.text,
       b: rb.text,
       aValue: ra.value,
@@ -120,7 +121,7 @@ const globalRows = (stats: MatchStats): CompareRow[] => {
        * DENOMINADOR se entiende sola — 9 de los 17 break points que tuvo. Y es la palabra que
        * se dice en la tele, asi que no hay nada que traducir.
        */
-      label: 'Break points',
+      label: L.stats.breakPoints,
       a: `${a.breakPointsConverted}/${a.breakPointsPlayed}`,
       b: `${b.breakPointsConverted}/${b.breakPointsPlayed}`,
       aValue: a.breakPointsConverted,
@@ -178,7 +179,7 @@ export function StatsScreen({
     if (sharing) return; // dos toques no son dos tarjetas
     setSharing(true);
     try {
-      await shareCard(card, 'Compartir el partido');
+      await shareCard(card, L.stats.shareDialog);
     } finally {
       setSharing(false);
     }
@@ -195,7 +196,7 @@ export function StatsScreen({
           significado —cerra esto y volve a lo que estabas—. Va a la derecha, que es donde
           vive el cerrar, y de paso el logo respira a la izquierda. */}
       <View style={s.head}>
-        <Brand size={26} subtitle="Estadísticas" tint={colors.ball} />
+        <Brand size={26} subtitle={L.stats.title} tint={colors.ball} />
         <Pressable
           style={({ pressed: p }) => [s.close, p && pressed]}
           android_ripple={{ ...ripple, borderless: true }}
@@ -214,7 +215,7 @@ export function StatsScreen({
           una cosa y empieza la otra. */}
       <ScrollView style={s.scroll} contentContainerStyle={s.list}>
         {stats.totalPoints === 0 ? (
-          <Text style={s.empty}>Todavía no se jugó ningún punto.</Text>
+          <Text style={s.empty}>{L.stats.empty}</Text>
         ) : (
           <>
             {/* LA VISTA GLOBAL. Lo que se lee en tres segundos, sin leer un solo numero: la
@@ -223,11 +224,14 @@ export function StatsScreen({
 
                 Sin nombres a proposito: aca se comparan las PAREJAS. Cual de los dos tiro los
                 errores es la pregunta siguiente, y baja al detalle. */}
-            <Section title="Partido" subtitle={`${duration(events)} · ${stats.totalPoints} puntos`}>
+            <Section
+              title={L.stats.match}
+              subtitle={`${duration(events)} · ${L.stats.points(stats.totalPoints)}`}
+            >
               <TeamCompare rows={globalRows(stats)} />
             </Section>
 
-            <Section title="Jugador por jugador">
+            <Section title={L.stats.playerByPlayer}>
               <HeadToHead
                 rows={playerRows(stats, config, true)}
                 playersA={playerNames(config, 'A', nameOf)}
@@ -241,7 +245,7 @@ export function StatsScreen({
               (['A', 'B'] as TeamId[]).map((t) => (
                 <Section
                   key={t}
-                  title="Golpes"
+                  title={L.stats.shots}
                   accent={teamColor(t)}
                   subtitle={teamNames(config, t, nameOf)}
                 >
@@ -251,14 +255,14 @@ export function StatsScreen({
 
             {/* Una tarjeta POR PERSONA. Los cuatro estaban adentro de una sola caja, y eso era
                 un muro de numeros donde no se veia donde terminaba uno y empezaba el otro. */}
-            <Section title="Detalle" bare>
+            <Section title={L.stats.detail} bare>
               {(['A', 'B'] as TeamId[]).flatMap((t) =>
                 ([config.teams[t].drive, config.teams[t].reves] as const).map((id, i) => (
                   <PlayerCard
                     key={id}
                     p={stats.players[id]!}
                     names={firstNames}
-                    side={i === 0 ? 'Drive' : 'Revés'}
+                    side={i === 0 ? L.positions.drive : L.positions.reves}
                   />
                 )),
               )}
@@ -271,8 +275,8 @@ export function StatsScreen({
         {over ? (
           <Text style={s.overNote}>
             {finishedEarly && !state.finished
-              ? 'Partido terminado antes de tiempo.'
-              : 'Partido terminado.'}
+              ? L.stats.finishedEarly
+              : L.stats.finished}
           </Text>
         ) : null}
 
@@ -289,7 +293,7 @@ export function StatsScreen({
           {/* El de Android, no el de iOS: la cajita con la flecha hacia arriba es un simbolo de
               otra plataforma, y aca nadie lo aprendio. Este es el que ya vieron mil veces. */}
           <MaterialIcons name="share" size={20} color={colors.text} />
-          <Text style={s.btnGhostText}>Compartir</Text>
+          <Text style={s.btnGhostText}>{L.stats.share}</Text>
         </Pressable>
       </View>
 
@@ -391,29 +395,29 @@ function PlayerCard({
 
         <View style={s.ratioBox}>
           <Text style={[s.ratioValue, { color: wOverEColor(p) }]}>{wOverE(p)}</Text>
-          <Text style={s.ratioLabel}>W / ENF</Text>
+          <Text style={s.ratioLabel}>{L.stats.winnersOverErrors}</Text>
         </View>
       </View>
 
       <View style={s.grid}>
-        <Stat label="Winners" value={`${p.winners}`} />
-        <Stat label="E. forzados" value={`${p.forcedErrors}`} />
-        <Stat label="E. no forz." value={`${p.unforcedErrors}`} />
+        <Stat label={L.stats.winners} value={`${p.winners}`} />
+        <Stat label={L.stats.forcedShort} value={`${p.forcedErrors}`} />
+        <Stat label={L.stats.unforcedShort} value={`${p.unforcedErrors}`} />
       </View>
 
       <View style={s.divider} />
-      <Text style={s.blockLabel}>SACANDO</Text>
+      <Text style={s.blockLabel}>{L.stats.serving}</Text>
 
       <View style={s.grid}>
-        <Stat label="1er saque" value={num(first, '%')} sub={`${p.firstServesIn}/${p.servePointsPlayed}`} />
-        <Stat label="Gana c/ 1ro" value={num(won1, '%')} sub={`${p.firstServePointsWon}/${p.firstServesIn}`} />
-        <Stat label="Gana c/ 2do" value={num(won2, '%')} sub={`${p.secondServePointsWon}/${p.secondServePointsPlayed}`} />
+        <Stat label={L.stats.firstServe} value={num(first, '%')} sub={`${p.firstServesIn}/${p.servePointsPlayed}`} />
+        <Stat label={L.stats.wonWithFirst} value={num(won1, '%')} sub={`${p.firstServePointsWon}/${p.firstServesIn}`} />
+        <Stat label={L.stats.wonWithSecond} value={num(won2, '%')} sub={`${p.secondServePointsWon}/${p.secondServePointsPlayed}`} />
       </View>
 
       <View style={s.grid}>
-        <Stat label="Aces" value={`${p.aces}`} sub={duels(p.acesAgainst, names)} />
+        <Stat label={L.stats.aces} value={`${p.aces}`} sub={duels(p.acesAgainst, names)} />
         <Stat
-          label="Dobles faltas"
+          label={L.stats.doubleFaults}
           value={`${p.doubleFaults}`}
           sub={duels(p.doubleFaultsAgainst, names)}
         />
@@ -427,16 +431,16 @@ function PlayerCard({
           media cancha se jugaba del otro lado. "Provoco 4 dobles faltas" no es una curiosidad:
           es lo que hace el resto de alguien al que le tenes miedo. */}
       <View style={s.divider} />
-      <Text style={s.blockLabel}>RESTANDO</Text>
+      <Text style={s.blockLabel}>{L.stats.returning}</Text>
 
       <View style={s.grid}>
         <Stat
-          label="Gana restando"
+          label={L.stats.wonReturning}
           value={num(returning, '%')}
           sub={`${p.returnPointsWon}/${p.returnPointsPlayed}`}
         />
-        <Stat label="Aces recibidos" value={`${p.acesConceded}`} />
-        <Stat label="Dobles provocadas" value={`${p.doubleFaultsForced}`} />
+        <Stat label={L.stats.acesConceded} value={`${p.acesConceded}`} />
+        <Stat label={L.stats.doubleFaultsForced} value={`${p.doubleFaultsForced}`} />
       </View>
 
       {shotLines(p).length > 0 && (

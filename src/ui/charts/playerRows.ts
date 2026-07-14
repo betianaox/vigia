@@ -1,10 +1,24 @@
 import type { MatchConfig, PlayerId, TeamId } from '../../engine';
 import { pct, type MatchStats, type PlayerStats } from '../../engine/stats';
+import { L } from '../../i18n';
 import { colors } from '../theme';
 import type { Cell, Row } from './HeadToHead';
 
 const num = (n: number | null, suffix = ''): string =>
   n === null ? '—' : `${Math.round(n)}${suffix}`;
+
+/**
+ * Parte la etiqueta en dos renglones, por el ultimo espacio.
+ *
+ * Todas las filas tienen que medir lo mismo para que la grilla se lea pareja, y antes el corte
+ * venia escrito a mano en el texto ("Errores\nno forzados"). Un salto de linea adentro de una
+ * traduccion es una trampa: en ingles la frase tiene otro largo y otro quiebre, y el traductor no
+ * tiene por que saber donde poner el `\n`. Que lo calcule el codigo.
+ */
+const wrap = (label: string): string => {
+  const cut = label.lastIndexOf(' ');
+  return cut === -1 ? label : `${label.slice(0, cut)}\n${label.slice(cut + 1)}`;
+};
 
 /**
  * Las filas de la comparativa, POR JUGADOR. Un entrenador no corrige a un equipo: la suma por
@@ -74,11 +88,11 @@ export const playerRows = (
    * Los porcentajes de saque no salen de ningun boton y ahi mas SI es mejor: color de equipo.
    */
   const rows: Row[] = [
-    count('Winners', (p) => p.winners, colors.winnerChart),
-    count('Errores\nno forzados', (p) => p.unforcedErrors, colors.errorUnforcedChart),
-    count('Errores\nforzados', (p) => p.forcedErrors, colors.errorForcedChart),
-    count('Aces', (p) => p.aces, colors.ace),
-    count('Dobles\nfaltas', (p) => p.doubleFaults, colors.worse),
+    count(L.stats.winners, (p) => p.winners, colors.winnerChart),
+    count(wrap(L.stats.unforcedErrors), (p) => p.unforcedErrors, colors.errorUnforcedChart),
+    count(wrap(L.stats.forcedErrors), (p) => p.forcedErrors, colors.errorForcedChart),
+    count(L.stats.aces, (p) => p.aces, colors.ace),
+    count(wrap(L.stats.doubleFaults), (p) => p.doubleFaults, colors.worse),
   ];
 
   if (!serveDetail) return rows;
@@ -86,17 +100,17 @@ export const playerRows = (
   return [
     ...rows,
     percent(
-      '1er saque\nadentro',
+      wrap(L.stats.firstServeIn),
       (p) => p.firstServesIn,
       (p) => p.servePointsPlayed,
     ),
     percent(
-      'Gana con\n1er saque',
+      wrap(L.stats.wonWithFirstLong),
       (p) => p.firstServePointsWon,
       (p) => p.firstServesIn,
     ),
     percent(
-      'Gana con\n2do saque',
+      wrap(L.stats.wonWithSecond),
       (p) => p.secondServePointsWon,
       (p) => p.secondServePointsPlayed,
     ),

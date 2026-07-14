@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { ShotLine } from '../../engine/stats';
+import { L } from '../../i18n';
 import { STROKE_LABELS } from '../shots';
 import { colors, radius, space } from '../theme';
 
@@ -17,9 +18,7 @@ const GAP = 2; // el separador es un hueco del color de la superficie, no un bor
 export function ShotBars({ lines }: { lines: ShotLine[] }) {
   if (lines.length === 0) {
     return (
-      <Text style={s.empty}>
-        Sin golpes cargados. Mantené apretada una acción para elegir el golpe.
-      </Text>
+      <Text style={s.empty}>{L.stats.noShots}</Text>
     );
   }
   const max = Math.max(...lines.map((l) => l.total), 1);
@@ -30,9 +29,9 @@ export function ShotBars({ lines }: { lines: ShotLine[] }) {
         {/* Los colores de GRAFICO, no los de los botones: mismo significado, medio tono de voz.
             Con treinta barras a la vez, el semaforo saturado cansa la vista en diez segundos. */}
         {[
-          ['Winners', colors.winnerChart],
-          ['E. forzados', colors.errorForcedChart],
-          ['E. no forzados', colors.errorUnforcedChart],
+          [L.stats.winners, colors.winnerChart],
+          [L.stats.forcedShort, colors.errorForcedChart],
+          [L.stats.unforcedLegend, colors.errorUnforcedChart],
         ].map(([label, color]) => (
           <View key={label} style={s.legendItem}>
             <View style={[s.swatch, { backgroundColor: color }]} />

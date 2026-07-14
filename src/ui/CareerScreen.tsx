@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { CareerPoint, CareerStats } from '../engine/career';
 import { pct } from '../engine/stats';
+import { L } from '../i18n';
 import { Brand } from './Brand';
 import { useRoster } from './roster';
 import { ShotStack } from './charts/ShotStack';
@@ -46,7 +47,7 @@ const num = (n: number | null, suffix = ''): string =>
 const METRICS = [
   {
     key: 'ratio',
-    label: 'Winners por error',
+    label: L.stats.winnersPerError,
     color: colors.ballChart,
     of: (p: CareerPoint) =>
       p.stats.unforcedErrors === 0
@@ -64,7 +65,7 @@ const METRICS = [
   },
   {
     key: 'primero',
-    label: '1er saque adentro',
+    label: L.stats.firstServeIn,
     color: colors.aceChart,
     of: (p: CareerPoint) => pct(p.stats.firstServesIn, p.stats.servePointsPlayed),
     total: (c: CareerStats) => pct(c.totals.firstServesIn, c.totals.servePointsPlayed),
@@ -72,7 +73,7 @@ const METRICS = [
   },
   {
     key: 'gana1',
-    label: 'Gana con 1er saque',
+    label: L.stats.wonWithFirstLong,
     color: colors.ballChart,
     of: (p: CareerPoint) => pct(p.stats.firstServePointsWon, p.stats.firstServesIn),
     total: (c: CareerStats) => pct(c.totals.firstServePointsWon, c.totals.firstServesIn),
@@ -80,7 +81,7 @@ const METRICS = [
   },
   {
     key: 'resto',
-    label: 'Gana restando',
+    label: L.stats.wonReturning,
     color: colors.aceChart,
     of: (p: CareerPoint) => pct(p.stats.returnPointsWon, p.stats.returnPointsPlayed),
     total: (c: CareerStats) => pct(c.totals.returnPointsWon, c.totals.returnPointsPlayed),
@@ -88,7 +89,7 @@ const METRICS = [
   },
   {
     key: 'enf',
-    label: 'Errores no forzados',
+    label: L.stats.unforcedErrors,
     color: colors.worse,
     of: (p: CareerPoint) => p.stats.unforcedErrors,
     total: (c: CareerStats) =>
@@ -163,7 +164,7 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
 
       <ScrollView style={s.scroll} contentContainerStyle={s.list}>
         {stats.matches === 0 ? (
-          <Text style={s.empty}>Todavía no jugó ningún partido.</Text>
+          <Text style={s.empty}>{L.stats.noMatches}</Text>
         ) : (
           <>
             {/* EL RETRATO. Quien sos, de un vistazo.
@@ -177,14 +178,14 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
             <View style={s.portrait}>
               <Big
                 value={`${stats.matches}`}
-                label="Partidos"
+                label={L.stats.matches}
                 sub={
-                  stats.undecided > 0 ? `${stats.undecided} sin terminar` : 'todos terminados'
+                  stats.undecided > 0 ? L.stats.unfinished(stats.undecided) : L.stats.allFinished
                 }
               />
-              <Big value={`${stats.won}`} label="Ganados" />
-              <Big value={`${stats.lost}`} label="Perdidos" />
-              <Big value={num(share, '%')} label="Puntos" />
+              <Big value={`${stats.won}`} label={L.stats.won} />
+              <Big value={`${stats.lost}`} label={L.stats.lost} />
+              <Big value={num(share, '%')} label={L.stats.pointsShare} />
 
               {/* Los dos crudos y el color, igual que en la tarjeta de cada jugador. El ratio
                   (1.3) tiene un umbral invisible —hay que saber que el corte esta en 1.0— y el
@@ -194,7 +195,7 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
                   algo, y dos verdes con dos significados es peor que un color feo. */}
               <Big
                 value={`${stats.totals.winners}/${stats.totals.unforcedErrors}`}
-                label="W / ENF"
+                label={L.stats.winnersOverErrors}
                 accent={
                   stats.totals.winners === stats.totals.unforcedErrors
                     ? colors.text
@@ -206,7 +207,7 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
             </View>
 
             {/* LA PELICULA. El acumulado deja de moverse a los treinta partidos; esto no. */}
-            <Section title="Evolución" subtitle="un partido, una barra">
+            <Section title={L.stats.evolution} subtitle={L.stats.evolutionSub}>
               <View style={s.chips}>
                 {METRICS.map((x) => (
                   <Pressable
@@ -245,31 +246,31 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
               />
             </Section>
 
-            <Section title="Su juego" subtitle={`${stats.totalPoints} puntos jugados`}>
+            <Section title={L.stats.myGame} subtitle={L.stats.pointsPlayed(stats.totalPoints)}>
               <View style={s.grid}>
-                <Stat label="Winners" value={`${stats.totals.winners}`} />
-                <Stat label="E. forzados" value={`${stats.totals.forcedErrors}`} />
-                <Stat label="E. no forz." value={`${stats.totals.unforcedErrors}`} />
+                <Stat label={L.stats.winners} value={`${stats.totals.winners}`} />
+                <Stat label={L.stats.forcedShort} value={`${stats.totals.forcedErrors}`} />
+                <Stat label={L.stats.unforcedShort} value={`${stats.totals.unforcedErrors}`} />
               </View>
 
               <View style={s.divider} />
-              <Text style={s.blockLabel}>SACANDO</Text>
+              <Text style={s.blockLabel}>{L.stats.serving}</Text>
 
               <View style={s.grid}>
                 <Stat
-                  label="1er saque"
+                  label={L.stats.firstServe}
                   value={num(first, '%')}
                   sub={`${stats.totals.firstServesIn}/${stats.totals.servePointsPlayed}`}
                 />
                 <Stat
-                  label="Gana c/ 1ro"
+                  label={L.stats.wonWithFirst}
                   value={num(
                     pct(stats.totals.firstServePointsWon, stats.totals.firstServesIn),
                     '%',
                   )}
                 />
                 <Stat
-                  label="Gana c/ 2do"
+                  label={L.stats.wonWithSecond}
                   value={num(
                     pct(stats.totals.secondServePointsWon, stats.totals.secondServePointsPlayed),
                     '%',
@@ -278,24 +279,24 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
               </View>
 
               <View style={s.grid}>
-                <Stat label="Aces" value={`${stats.totals.aces}`} />
-                <Stat label="Dobles faltas" value={`${stats.totals.doubleFaults}`} />
+                <Stat label={L.stats.aces} value={`${stats.totals.aces}`} />
+                <Stat label={L.stats.doubleFaults} value={`${stats.totals.doubleFaults}`} />
                 <View style={s.statCell} />
               </View>
 
               <View style={s.divider} />
-              <Text style={s.blockLabel}>RESTANDO</Text>
+              <Text style={s.blockLabel}>{L.stats.returning}</Text>
 
               <View style={s.grid}>
                 <Stat
-                  label="Gana restando"
+                  label={L.stats.wonReturning}
                   value={num(
                     pct(stats.totals.returnPointsWon, stats.totals.returnPointsPlayed),
                     '%',
                   )}
                 />
-                <Stat label="Aces recibidos" value={`${stats.totals.acesConceded}`} />
-                <Stat label="Dobles provocadas" value={`${stats.totals.doubleFaultsForced}`} />
+                <Stat label={L.stats.acesConceded} value={`${stats.totals.acesConceded}`} />
+                <Stat label={L.stats.doubleFaultsForced} value={`${stats.totals.doubleFaultsForced}`} />
               </View>
             </Section>
 
@@ -308,7 +309,7 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
                 altos y no se podrian comparar — que es la unica pregunta que importa. */}
             {shots.scale > 0 && (
               <>
-                <Section title="Winners" subtitle="por golpe, partido a partido">
+                <Section title={L.stats.winners} subtitle={L.stats.byShot}>
                   <ShotStack
                     columns={shots.winners}
                     color={colors.winnerChart}
@@ -316,7 +317,7 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
                   />
                 </Section>
 
-                <Section title="Errores forzados" subtitle="por golpe, partido a partido">
+                <Section title={L.stats.forcedErrors} subtitle={L.stats.byShot}>
                   <ShotStack
                     columns={shots.forced}
                     color={colors.errorForcedChart}
@@ -324,7 +325,7 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
                   />
                 </Section>
 
-                <Section title="Errores no forzados" subtitle="por golpe, partido a partido">
+                <Section title={L.stats.unforcedErrors} subtitle={L.stats.byShot}>
                   <ShotStack
                     columns={shots.unforced}
                     color={colors.errorUnforcedChart}

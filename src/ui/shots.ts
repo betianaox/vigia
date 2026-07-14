@@ -1,64 +1,47 @@
 import type { Side, Stroke, Variant } from '../engine';
+import { L } from '../i18n';
 
 /**
- * Los nombres de los golpes no se traducen en ningun idioma: van en castellano siempre.
- * En ingles tambien les dicen bandeja, vibora y chiquita.
+ * EL LABEL ESTA SEPARADO DE LA CLAVE, y eso es lo que hace barato equivocarse.
  *
- * Y por eso mismo esta tabla existe: el LABEL esta separado de la CLAVE. Renombrar un golpe
- * es cambiar un texto de aca — no toca datos, ni eventos, ni estadisticas, ni partidos ya
- * cargados. Es lo que hace barato reevaluar la jerga con una entrenadora despues del primer
- * test de verdad.
+ * Renombrar un golpe —o traducirlo mal— es cambiar un texto del diccionario: no toca datos, ni
+ * eventos, ni estadisticas, ni partidos ya cargados. Un partido cargado con un `x3` sigue
+ * diciendo x3 aunque el boton ya no exista.
+ *
+ * Que golpe se traduce y cual no, y por que, esta en `i18n/es.ts`.
  */
-export const STROKE_LABELS: Record<Stroke, string> = {
-  recuperacion: 'Recuperación',
-  fondo: 'Fondo',
-  salida_de_pared: 'Salida de pared',
-  globo: 'Globo',
-  chiquita: 'Chiquita',
-  dejada: 'Dejada',
-  volea: 'Volea',
-  bandeja: 'Bandeja',
-  remate: 'Remate',
-};
+export const STROKE_LABELS: Record<Stroke, string> = L.shots;
 
 /**
- * EL LADO DEL GOLPE NO ES EL LADO DEL JUGADOR, y hasta hoy los dos decian "D".
+ * EL LADO DEL GOLPE NO ES EL LADO DEL JUGADOR, y hasta hace poco los dos decian "D".
  *
  * "Drive" en esta app habla de la PERSONA: de que lado de la cancha juega (la marca de agua D/R
  * de cada tarjeta). El lado del GOLPE es otra cosa: con que mano-cara le pego a esta pelota. Con
  * la misma letra para las dos, un "D" queria decir dos cosas distintas en la misma pantalla.
  *
- * Y de paso: en España a la derecha le dicen DERECHA. "Drive" es jerga nuestra. Si la app va a
- * cruzar el charco, el golpe se llama como se llama alla — que ademas es como se llama en todos
- * lados menos aca.
+ * Y de paso: en España a la derecha le dicen DERECHA. "Drive" es jerga nuestra.
  *
  * La CLAVE sigue siendo `drive`: no se migra ni un partido. Cambia el cartel, no el dato.
  */
-export const SIDE_LABELS: Record<Side, string> = {
-  drive: 'Derecha',
-  reves: 'Revés',
-};
+export const SIDE_LABELS: Record<Side, string> = L.sides;
 
-export const VARIANT_LABELS: Record<Variant, string> = {
-  vibora: 'Víbora',
-  gancho: 'Gancho',
-  x3: 'x3',
-  x4: 'x4',
-  traerla: 'Traerla',
-};
+export const VARIANT_LABELS: Record<Variant, string> = L.variants;
 
 /**
  * Los golpes que se juegan de derecha o de reves. En la hoja son un teclado: el nombre una vez,
  * y dos teclas al lado.
  *
- * EL ORDEN VA DE LA RED HACIA EL FONDO, y no es decorativo: arriba de la lista estan el remate y
- * la bandeja, que se juegan en la red. La volea sigue: queda pegada a ellos y la transicion es
- * continua. Despues la chiquita, la salida de pared, el fondo, y al final el globo — que es lo
- * que se juega desde mas atras.
+ * EL ORDEN VA DE LA RED HACIA LA PARED, y no es decorativo: es un corte de la cancha.
+ *
+ * Arriba, el remate y la bandeja (la red). Sigue la volea, que queda pegada a ellos. Despues la
+ * chiquita y el globo, que son con lo que se INTENTA SUBIR — no son golpes de fondo, son la
+ * jugada para ganar la red. Y al final, el fondo y la salida de pared: la salida de pared es lo
+ * ultimo de todo, porque cuando la pelota ya paso por el vidrio estas contra la pared, y no hay
+ * nada mas atras que eso.
  *
  * Iba al reves (fondo arriba, volea abajo) porque los golpes de red vivian ABAJO de la hoja. Al
  * subirlos, la progresion tenia que darse vuelta con ellos: el orden espeja la cancha, y la
- * cancha no cambio — cambio donde la miramos desde.
+ * cancha no cambio — cambio desde donde la miramos.
  *
  * De ahi que no haga falta ningun encabezado que diga "en la red" ni "de fondo": el gradiente ya
  * lo dice, y un titulo que anuncia algo que se ve es ruido.
@@ -66,9 +49,9 @@ export const VARIANT_LABELS: Record<Variant, string> = {
 export const STROKES_CON_LADO: Stroke[] = [
   'volea',
   'chiquita',
-  'salida_de_pared',
-  'fondo',
   'globo',
+  'fondo',
+  'salida_de_pared',
 ];
 
 /**

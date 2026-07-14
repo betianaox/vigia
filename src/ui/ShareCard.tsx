@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import type { MatchConfig, MatchEvent, MatchState, PlayerId, TeamId } from '../engine';
 import { computeStats } from '../engine/stats';
+import { L, LOCALE } from '../i18n';
 import { Brand } from './Brand';
 import { HeadToHead } from './charts/HeadToHead';
 import { playerRows } from './charts/playerRows';
@@ -23,7 +24,7 @@ const playedOn = (events: MatchEvent[]): string => {
   const stamps = events.map((e) => e.t).filter((t): t is number => typeof t === 'number');
   if (stamps.length === 0) return '';
   const d = new Date(Math.min(...stamps));
-  return d.toLocaleDateString('es', { weekday: 'short', day: 'numeric', month: 'short' });
+  return d.toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short' });
 };
 
 const duration = (events: MatchEvent[]): string => {
@@ -65,7 +66,7 @@ export function ShareCard({
   const bp = (t: TeamId): string =>
     `${stats.teams[t].breakPointsConverted}/${stats.teams[t].breakPointsPlayed}`;
 
-  const meta = [duration(events), `${stats.totalPoints} puntos`].filter(Boolean).join(' · ');
+  const meta = [duration(events), L.stats.points(stats.totalPoints)].filter(Boolean).join(' · ');
 
   return (
     <View style={s.card}>
@@ -87,7 +88,7 @@ export function ShareCard({
           cuenta la mitad del partido que el resultado no cuenta. */}
       <View style={s.team}>
         <Text style={[s.teamValue, { color: colors.teamAFill }]}>{bp('A')}</Text>
-        <Text style={s.teamLabel}>BREAK POINTS</Text>
+        <Text style={s.teamLabel}>{L.stats.breakPoints.toUpperCase()}</Text>
         <Text style={[s.teamValue, s.teamValueRight, { color: colors.teamBFill }]}>{bp('B')}</Text>
       </View>
 
@@ -119,7 +120,7 @@ export function ShareCard({
           app es impredecible. Que dos tarjetas cualesquiera se puedan poner una al lado de la
           otra vale mas que llenar un hueco. */}
       <View style={s.block}>
-        <Text style={s.blockLabel}>GOLPES</Text>
+        <Text style={s.blockLabel}>{L.stats.shots.toUpperCase()}</Text>
         <ShotGrid
           rows={shotGrid(stats, config)}
           names={

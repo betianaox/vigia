@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import { L } from '../../i18n';
 import { alpha, colors, radius, space } from '../theme';
 
 export interface TrendPoint {
@@ -39,7 +40,7 @@ export function Trend({
   if (values.length < 2) {
     return (
       <Text style={s.empty}>
-        Con un solo partido no hay evolución que mostrar. Juega otro y esto se llena.
+        {L.stats.oneMatch}
       </Text>
     );
   }
