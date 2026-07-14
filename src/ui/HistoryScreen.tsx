@@ -28,13 +28,32 @@ const tick = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
  */
 const periods = () =>
   [
-    { value: 'all', label: L.history.periods.all, days: 0 },
-    { value: 'year', label: L.history.periods.year, days: 365 },
+    { value: '6m', label: L.history.periods['6m'], days: 183 },
     { value: '30d', label: L.history.periods['30d'], days: 30 },
     { value: '7d', label: L.history.periods['7d'], days: 7 },
   ] as const;
 
 type Period = ReturnType<typeof periods>[number]['value'];
+
+/**
+ * El otro filtro: si el partido esta completo o quedo a medias.
+ *
+ * Va en SU PROPIA FILA y no mezclado con los periodos, porque son dos preguntas distintas —cuando
+ * jugue, y cuales estan completos— y se COMBINAN: "los partidos de Bea, de los ultimos 7 dias,
+ * finalizados" es una sola pregunta con tres partes. Mezclados en una fila, elegir "Finalizados"
+ * apagaria "7 dias", que no tiene nada que ver.
+ *
+ * Y sirve para las dos direcciones: esconder los partidos a medias —cuyas estadisticas estan
+ * incompletas y ensucian cualquier lectura— o encontrarlos, que es la unica forma de saber cuales
+ * quedaron colgados.
+ */
+const states = () =>
+  [
+    { value: 'finished', label: L.history.states.finished },
+    { value: 'unfinished', label: L.history.states.unfinished },
+  ] as const;
+
+type State = ReturnType<typeof states>[number]['value'];
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -86,7 +105,15 @@ export function HistoryScreen({
   const [query, setQuery] = useState('');
   /** El jugador ELEGIDO del desplegable. Es lo que fija el filtro de verdad. */
   const [player, setPlayer] = useState<PlayerId | null>(null);
-  const [period, setPeriod] = useState<Period>('all');
+  /**
+   * NULO ES "TODOS", Y POR ESO NO HAY BOTON "TODOS".
+   *
+   * Cada pastilla se apaga con su propia ✕: no elegir nada ya es no filtrar. Un boton que dice
+   * "sin filtrar" es explicar el estado en el que la pantalla ya arranca — y encima obligaba a que
+   * hubiera DOS "Todos" encendidos a la vez, uno por fila, diciendo cosas distintas.
+   */
+  const [period, setPeriod] = useState<Period | null>(null);
+  const [state, setState] = useState<State | null>(null);
   /** El partido que se esta por borrar. Borrar SI se pregunta: el archivo se va y no vuelve. */
   const [deleting, setDeleting] = useState<MatchSummary | null>(null);
 
@@ -116,12 +143,20 @@ export function HistoryScreen({
       .slice(0, 6);
   }, [all, roster, query, player]);
 
+  /**
+   * LOS TRES FILTROS SE SUMAN, no se pisan: quien, cuando, y en que estado quedo.
+   *
+   * "Los partidos de Bea, de los ultimos 7 dias, terminados" es una sola pregunta con tres partes,
+   * y tiene que poder hacerse. Por eso cada uno vive en su propio control y todos se aplican a la
+   * vez — un filtro que apaga a otro no es un filtro, es un menu.
+   */
   const matches = useMemo(() => {
-    const days = periods().find((p) => p.value === period)!.days;
+    const days = periods().find((p) => p.value === period)?.days ?? 0;
     const since = days === 0 ? 0 : Date.now() - days * DAY;
     const q = normalize(query);
     return all
       .filter((m) => m.startedAt >= since)
+      .filter((m) => !state || (state === 'finished' ? m.finished : !m.finished))
       .filter((m) => {
         // `canon` resuelve las uniones: un partido viejo puede tener guardado el id de antes.
         if (player) return m.playerIds.some((id) => canon(id) === player);
@@ -131,7 +166,7 @@ export function HistoryScreen({
           !q || normalize(`${teamText(m, 'A', resolve)} ${teamText(m, 'B', resolve)}`).includes(q)
         );
       });
-  }, [all, period, query, player, resolve, canon]);
+  }, [all, period, state, query, player, resolve, canon]);
 
   const chosen = roster.find((p) => p.id === player);
 
@@ -198,36 +233,56 @@ export function HistoryScreen({
               onCareer(chosen);
             }}
           >
-            <MaterialIcons name="show-chart" size={20} color={colors.ball} />
+            {/**
+             * LA MISMA ANATOMIA QUE UNA FILA DE LA LISTA DE JUGADORES, porque lleva EXACTAMENTE al
+             * mismo lugar: la persona adelante, y el grafico atras diciendo a donde va.
+             *
+             * Tenia un chevron ("vas a ir a algun lado") y encima un grafico DISTINTO —de linea, no
+             * de barras— para el mismo destino. Dos dibujos para una sola cosa hacen dudar de si son
+             * la misma cosa.
+             */}
+            <MaterialIcons name="person" size={22} color={colors.textDim} />
             <Text style={s.careerText} numberOfLines={1}>
               {L.history.career(chosen.name.split(' ')[0]!)}
             </Text>
-            <MaterialIcons name="chevron-right" size={22} color={colors.textDim} />
+            <MaterialIcons name="bar-chart" size={24} color={colors.textDim} />
           </Pressable>
         )}
 
+        {/**
+         * CADA PASTILLA SE APAGA SOLA, CON SU ✕. Por eso no hay ninguna que diga "Todos".
+         *
+         * La ✕ no es un boton aparte: la pastilla entera alterna. Prendida, muestra la ✕ —que es lo
+         * que cuenta que se puede soltar— y al tocarla se suelta. Un segundo objetivo tactil de 12
+         * px adentro de otro es una trampa para el pulgar.
+         */}
         <View style={s.periods}>
           {periods().map((p) => (
-            <Pressable
+            <Chip
               key={p.value}
-              style={({ pressed: pr }) => [
-                s.chip,
-                period === p.value && s.chipOn,
-                pr && pressed,
-              ]}
-              android_ripple={ripple}
+              label={p.label}
+              on={period === p.value}
               onPress={() => {
                 tick();
-                setPeriod(p.value);
+                setPeriod((cur) => (cur === p.value ? null : p.value));
               }}
-            >
-              <Text
-                style={[s.chipText, period === p.value && s.chipTextOn]}
-                numberOfLines={1}
-              >
-                {p.label}
-              </Text>
-            </Pressable>
+            />
+          ))}
+        </View>
+
+        {/* La segunda fila: el estado. Se COMBINA con las otras dos — "los partidos de Bea, de los
+            ultimos 7 dias, finalizados" es una sola pregunta con tres partes. */}
+        <View style={s.periods}>
+          {states().map((x) => (
+            <Chip
+              key={x.value}
+              label={x.label}
+              on={state === x.value}
+              onPress={() => {
+                tick();
+                setState((cur) => (cur === x.value ? null : x.value));
+              }}
+            />
           ))}
         </View>
       </View>
@@ -289,6 +344,32 @@ export function HistoryScreen({
         }}
       />
     </SafeAreaView>
+  );
+}
+
+/**
+ * UNA PASTILLA DE FILTRO, QUE SE PRENDE Y SE SUELTA.
+ *
+ * Prendida muestra una ✕, y ese es todo el mecanismo: la ✕ no es un boton aparte —tocar la pastilla
+ * la suelta— es el CARTEL que cuenta que se puede soltar. Un segundo objetivo tactil de doce pixeles
+ * adentro de otro es una trampa para el pulgar, y aca no hace falta ninguno.
+ *
+ * De esto sale que no exista ningun boton "Todos": no elegir nada YA ES todos. Un boton que dice
+ * "sin filtrar" explica el estado en el que la pantalla arranca — y obligaba a tener dos "Todos"
+ * encendidos a la vez, uno por fila, diciendo cosas distintas.
+ */
+function Chip({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      style={({ pressed: pr }) => [s.chip, on && s.chipOn, pr && pressed]}
+      android_ripple={ripple}
+      onPress={onPress}
+    >
+      <Text style={[s.chipText, on && s.chipTextOn]} numberOfLines={1}>
+        {label}
+      </Text>
+      {on && <MaterialIcons name="close" size={15} color={colors.text} />}
+    </Pressable>
   );
 }
 
@@ -361,19 +442,37 @@ function Row({
           {m.score || '—'}
         </Text>
 
-        {/* La hora, no solo el dia: en un club se juegan varios partidos la misma tarde, y
-            "el de las 8" es como los distingue la gente que estuvo ahi.
-
-            DOS RENGLONES, no uno. En un renglon solo, la linea entra en una pantalla ancha y en
-            una angosta se corta — y lo que se pierde es SIEMPRE lo ultimo, que es justo "sin
-            terminar": el unico dato de la fila que cambia lo que la persona va a hacer con ese
-            partido. Un dato que solo se ve en los telefonos grandes no es un dato, es una
-            loteria. */}
+        {/**
+         * CINCO DATOS, TRES JERARQUIAS. Antes eran cinco cosas del mismo gris, separadas por
+         * puntos: una tira que hay que LEER entera para encontrar la que importa.
+         *
+         * CUANDO (la fecha y la hora) va encendido: es por donde se busca un partido — y la hora y
+         * no solo el dia, porque en un club se juegan varios la misma tarde y "el de las 8" es como
+         * los distingue la gente que estuvo ahi.
+         *
+         * CUANTO (la duracion y los puntos) queda apagado: es el tamaño del partido, contexto.
+         *
+         * Y "SIN TERMINAR" SALE DE LA TIRA Y SE VUELVE UNA PASTILLA. Es lo unico de la fila que
+         * cambia lo que vas a HACER con ese partido (retomarlo), y estaba escrito ultimo, en gris,
+         * al final de una lista de numeros: el lugar donde menos se ve.
+         *
+         * La pastilla va SOLO ahi, y no en los puntos, porque una pastilla es un marcador: sirve
+         * porque resalta contra las filas que NO la tienen. Los puntos estan en todas — enmarcarlos
+         * no marcaria nada. Una pastilla en todo es una pastilla en nada.
+         */}
         <Text style={s.meta} numberOfLines={2}>
-          {formatDate(m.startedAt)} · {formatTime(m.startedAt)} ·{' '}
+          <Text style={s.metaWhen}>
+            {formatDate(m.startedAt)} · {formatTime(m.startedAt)}
+          </Text>
+          {' · '}
           {formatDuration(m.updatedAt - m.startedAt)} · {L.history.points(m.points)}
-          {m.finished ? '' : ` · ${L.history.unfinished}`}
         </Text>
+
+        {!m.finished && (
+          <View style={s.pending}>
+            <Text style={s.pendingText}>{L.history.unfinished}</Text>
+          </View>
+        )}
       </View>
 
       <View style={s.actions}>
@@ -412,7 +511,14 @@ const s = StyleSheet.create({
 
   filters: { paddingHorizontal: space.lg, gap: space.md, paddingBottom: space.md },
 
-  /** La puerta al acumulado. En el lima de la pelota: es lo que crece, y es lo que trae de vuelta. */
+  /**
+   * La puerta al acumulado. NEUTRA, y no en el lima de la marca.
+   *
+   * Estaba pintada de lima con el argumento de que es "lo que crece". Pero en esta app el lima es
+   * la MARCA —el logo, la pelotita del que saca— y no un color de accion: ninguna otra accion lo
+   * usa. Un boton del color de la marca se lee como si fuera otra clase de cosa, y no lo es: es la
+   * misma fila que la de la lista de jugadores, con el mismo destino.
+   */
   career: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -422,8 +528,8 @@ const s = StyleSheet.create({
     paddingHorizontal: space.md,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: alpha(colors.ball, 0.4),
-    backgroundColor: alpha(colors.ball, 0.08),
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
   careerText: { flex: 1, color: colors.text, fontSize: 15, fontWeight: '800' },
 
@@ -481,6 +587,45 @@ const s = StyleSheet.create({
     lineHeight: 18,
     fontWeight: '600',
     marginTop: 2,
+  },
+  /** Lo que se busca de un partido viejo: cuando fue. Encendido, contra el resto de la tira. */
+  metaWhen: { color: colors.textDim, fontWeight: '700' },
+
+  /**
+   * SIN TERMINAR. Una pastilla, pero APAGADA — y esa segunda parte importa tanto como la primera.
+   *
+   * Estuvo un rato en ambar encendido, y estaba mal: en esta pantalla un partido a medias NO SE
+   * PUEDE RETOMAR (eso vive en el inicio, y solo para el ultimo). Aca "sin terminar" no es una
+   * accion pendiente, es una ADVERTENCIA SOBRE EL DATO: las estadisticas de ese partido estan
+   * incompletas. Y una advertencia sobre el dato es una nota al margen, no una alarma.
+   *
+   * Encendida hacia lo contrario de lo que hay que hacer: los partidos INCOMPLETOS se llevaban la
+   * vista y los completos —que son los que valen, los que tienen todo cargado— quedaban como la
+   * fila apagada. La fila normal tiene que ser la del partido terminado.
+   *
+   * Por eso tampoco hay una pastilla "TERMINADO" en las otras: si todas las filas tienen pastilla,
+   * la pastilla deja de marcar algo y pasa a ser una columna mas para leer. Y encima diria lo que
+   * ya se ve — el resultado completo esta arriba, en la letra mas grande de la fila.
+   *
+   * `alignSelf: 'flex-start'`: mide lo que mide la palabra. Una pastilla que cruza la pantalla
+   * entera deja de leerse como una etiqueta.
+   */
+  pending: {
+    alignSelf: 'flex-start',
+    marginTop: 6,
+    paddingVertical: 3,
+    paddingHorizontal: space.sm,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: alpha(colors.text, 0.18),
+    backgroundColor: alpha(colors.text, 0.05),
+  },
+  pendingText: {
+    color: colors.textFaint,
+    fontSize: 11.5,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
   },
 
   /** Los dos iconos juntos, en fila. */

@@ -189,8 +189,7 @@ export const es = {
     title: 'Historial',
     search: 'Buscar jugador',
     periods: {
-      all: 'Todos',
-      year: 'Este año',
+      '6m': '6 meses',
       '30d': '30 días',
       '7d': '7 días',
     },
@@ -202,6 +201,20 @@ export const es = {
 
     points: (n: number) => `${n} puntos`,
     unfinished: 'sin terminar',
+
+    /**
+     * El segundo filtro. Son DOS preguntas distintas —cuando jugue, y cuales estan completos— y se
+     * COMBINAN: "los partidos de Bea, de los ultimos 7 dias, finalizados" es una sola pregunta con
+     * tres partes. Por eso cada filtro vive en su propio control y todos se aplican a la vez.
+     *
+     * No hay opcion "Todos" en ninguno de los dos: cada pastilla se apaga con su propia ✕, y no
+     * elegir nada YA ES todos. Un boton que dice "sin filtrar" es explicar el estado en el que
+     * arranca la pantalla.
+     */
+    states: {
+      finished: 'Finalizados',
+      unfinished: 'Sin terminar',
+    },
 
     /**
      * El cartel de borrar dice CUAL partido: la misma gente juega todas las semanas, y dos filas

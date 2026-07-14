@@ -164,8 +164,7 @@ export const en: Dict = {
     title: 'History',
     search: 'Find a player',
     periods: {
-      all: 'All',
-      year: 'This year',
+      '6m': '6 months',
       '30d': '30 days',
       '7d': '7 days',
     },
@@ -176,6 +175,11 @@ export const en: Dict = {
 
     points: (n: number) => `${n} points`,
     unfinished: 'unfinished',
+
+    states: {
+      finished: 'Finished',
+      unfinished: 'Unfinished',
+    },
 
     deleteTitle: 'Delete match',
     deleteNote: 'Gone for good, along with all its stats.',

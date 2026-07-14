@@ -143,8 +143,7 @@ export const it: Dict = {
     title: 'Storico',
     search: 'Cerca giocatore',
     periods: {
-      all: 'Tutte',
-      year: "Quest'anno",
+      '6m': '6 mesi',
       '30d': '30 giorni',
       '7d': '7 giorni',
     },
@@ -155,6 +154,11 @@ export const it: Dict = {
 
     points: (n: number) => `${n} punti`,
     unfinished: 'non finita',
+
+    states: {
+      finished: 'Finite',
+      unfinished: 'Non finite',
+    },
 
     deleteTitle: 'Elimina la partita',
     deleteNote: 'Sparisce per sempre, con tutte le sue statistiche.',

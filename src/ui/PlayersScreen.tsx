@@ -261,10 +261,25 @@ export function PlayersScreen({
               <Text style={[s.name, ghost && s.nameGhost]} numberOfLines={1}>
                 {item.player.name}
               </Text>
+              {/**
+               * EL NUMERO DE PARTIDOS, ENCENDIDO. Es EL dato del renglon: cuanto jugaste con esa
+               * persona. "Ultimo 14 jul" es contexto — dice si la seguis viendo o si es de otra
+               * epoca— y va apagado. Antes eran las dos cosas del mismo gris, separadas por un
+               * punto: dos datos iguales obligan a leer los dos para quedarse con uno.
+               *
+               * Aca no hay pastilla, y es a proposito: no hay ningun ESTADO que marcar. Una
+               * pastilla es una alarma, y no se gasta en un dato que esta en todas las filas.
+               */}
               <Text style={s.meta} numberOfLines={1}>
-                {ghost
-                  ? L.players.noMatches
-                  : `${L.players.matches(item.matches)} · ${L.players.last(formatDate(item.last))}`}
+                {ghost ? (
+                  L.players.noMatches
+                ) : (
+                  <>
+                    <Text style={s.metaCount}>{L.players.matches(item.matches)}</Text>
+                    {' · '}
+                    {L.players.last(formatDate(item.last))}
+                  </>
+                )}
               </Text>
             </View>
 
@@ -525,6 +540,8 @@ const s = StyleSheet.create({
    * persona y cuando fue la ultima vez. Ese dato estaba escrito mas chico que todo lo demas.
    */
   meta: { color: colors.textFaint, fontSize: 13, lineHeight: 18, fontWeight: '600' },
+  /** Cuanto jugaste con esa persona: el dato. Encendido contra el resto del renglon. */
+  metaCount: { color: colors.textDim, fontWeight: '700' },
 
   empty: { color: colors.textFaint, fontSize: 14.5, lineHeight: 21, padding: space.md },
 

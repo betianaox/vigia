@@ -143,8 +143,7 @@ export const pt: Dict = {
     title: 'Histórico',
     search: 'Procurar jogador',
     periods: {
-      all: 'Todos',
-      year: 'Este ano',
+      '6m': '6 meses',
       '30d': '30 dias',
       '7d': '7 dias',
     },
@@ -155,6 +154,11 @@ export const pt: Dict = {
 
     points: (n: number) => `${n} pontos`,
     unfinished: 'por terminar',
+
+    states: {
+      finished: 'Terminados',
+      unfinished: 'Por terminar',
+    },
 
     deleteTitle: 'Apagar o jogo',
     deleteNote: 'Apaga-se para sempre, com todas as suas estatísticas.',
