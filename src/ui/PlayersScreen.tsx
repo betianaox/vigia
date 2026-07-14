@@ -187,7 +187,7 @@ export function PlayersScreen({
               onOpen(item.player);
             }}
           >
-            <MaterialIcons name="person" size={22} color={colors.textDim} />
+            <MaterialIcons name="person" size={24} color={colors.textDim} />
             <View style={s.rowMain}>
               <Text style={s.name} numberOfLines={1}>
                 {item.player.name}
@@ -211,10 +211,18 @@ export function PlayersScreen({
               }}
               hitSlop={8}
             >
-              <MaterialIcons name="edit" size={20} color={colors.textFaint} />
+              <MaterialIcons name="edit" size={22} color={colors.textFaint} />
             </Pressable>
 
-            <MaterialIcons name="chevron-right" size={22} color={colors.textFaint} />
+            {/**
+             * EL GRAFICO, NO UNA FLECHA. Una flecha dice "vas a ir a algun lado"; el grafico dice A
+             * DONDE — a los numeros de esta persona, que es lo unico que hay detras de este renglon.
+             *
+             * Y es EL MISMO icono que la barra de la cancha y el del final del partido, no uno
+             * parecido: en esta app ese dibujo ya significa "estadisticas". Elegir otro grafico
+             * —una linea en vez de barras— sugeriria que lleva a otra clase de cosa, y no es cierto.
+             */}
+            <MaterialIcons name="bar-chart" size={24} color={colors.textDim} />
           </Pressable>
         )}
       />
@@ -388,10 +396,15 @@ const s = StyleSheet.create({
   },
   rowMain: { flex: 1, gap: 2 },
   /** Peso de lista, no de titulo: en una lista de nombres, un 800 hace que cada renglon grite. */
-  name: { color: colors.text, fontSize: 15, fontWeight: '600' },
-  meta: { color: colors.textFaint, fontSize: 11, fontWeight: '600' },
+  name: { color: colors.text, fontSize: 16, fontWeight: '600' },
+  /**
+   * Estaba en 11, que es tamaño de nota al pie — y no es una nota al pie: es LA UNICA razon para
+   * mirar este renglon dos veces. El nombre ya lo sabes; lo que no sabes es cuanto jugaste con esa
+   * persona y cuando fue la ultima vez. Ese dato estaba escrito mas chico que todo lo demas.
+   */
+  meta: { color: colors.textFaint, fontSize: 13, lineHeight: 18, fontWeight: '600' },
 
-  empty: { color: colors.textFaint, fontSize: 13, lineHeight: 19, padding: space.md },
+  empty: { color: colors.textFaint, fontSize: 14.5, lineHeight: 21, padding: space.md },
 
   /** Apagado y al margen: abrir el juego de la persona es lo que se hace siempre; renombrar, casi nunca. */
   edit: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
@@ -413,23 +426,25 @@ const s = StyleSheet.create({
     borderColor: alpha(colors.text, 0.14),
     backgroundColor: colors.surface,
   },
-  dialogTitle: { color: colors.text, fontSize: 18, fontWeight: '900' },
-  dialogNote: { color: colors.textDim, fontSize: 13, lineHeight: 18 },
+  dialogTitle: { color: colors.text, fontSize: 19, fontWeight: '900' },
+  dialogNote: { color: colors.textDim, fontSize: 14, lineHeight: 20 },
 
+  /** `minHeight`, no `height`: con la letra del sistema en grande el campo crece en vez de recortar. */
   input: {
-    height: 48,
+    minHeight: 48,
     marginTop: space.sm,
+    paddingVertical: space.sm,
     paddingHorizontal: space.md,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: alpha(colors.text, 0.25),
     backgroundColor: colors.surfaceAlt,
     color: colors.text,
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
   },
   /** El error vive PEGADO al campo que lo causo, no en un cartel aparte. */
-  error: { color: colors.errorUnforcedChart, fontSize: 12, lineHeight: 17, fontWeight: '600' },
+  error: { color: colors.errorUnforcedChart, fontSize: 13, lineHeight: 18, fontWeight: '600' },
 
   /**
    * La oferta de unir. NO es un cartel de error: es una pregunta con una respuesta a mano.
@@ -445,16 +460,19 @@ const s = StyleSheet.create({
     borderColor: alpha(colors.ball, 0.35),
     backgroundColor: alpha(colors.ball, 0.07),
   },
-  mergeText: { color: colors.text, fontSize: 13, lineHeight: 19 },
+  mergeText: { color: colors.text, fontSize: 14.5, lineHeight: 21 },
   mergeName: { fontWeight: '900' },
-  mergeNote: { color: colors.textDim, fontSize: 11, lineHeight: 16 },
+  mergeNote: { color: colors.textDim, fontSize: 12.5, lineHeight: 18 },
 
   dialogActions: { flexDirection: 'row', gap: space.sm, marginTop: space.md },
+  /** Alto MINIMO: con la letra grande, el boton crece y la palabra no se parte. */
   dialogBtn: {
     flex: 1,
     flexDirection: 'row',
     gap: space.sm,
-    height: 48,
+    minHeight: 48,
+    paddingVertical: space.sm,
+    paddingHorizontal: space.md,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.md,

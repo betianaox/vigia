@@ -49,14 +49,26 @@ export function Brand({
         resizeMode="contain"
       />
 
-      {/* El subtitulo cede si el logo crece: la marca manda, y el subtitulo se achica o se
-          corta antes que empujar el logo fuera de la pantalla. */}
+      {/**
+       * EL SUBTITULO YA NO SE MIDE CONTRA EL LOGO, Y ESE ERA EL BUG.
+       *
+       * Salia de una proporcion del alto del logo (30%), asi que en las pantallas que lo piden
+       * chico —jugadores, historial, estadisticas, todas con un logo de 26— el subtitulo terminaba
+       * en 7,8 px. No es que estuviera chico: es que nunca nadie eligio ese tamaño, lo heredaba.
+       *
+       * Ahora tiene el suyo, y es el mismo en todas: es el nombre de la pantalla en la que estas,
+       * y no hay razon para que diga lo mismo mas fuerte en una que en otra. Sigue cediendo antes
+       * que el logo (`flexShrink`), que es lo correcto: la marca manda.
+       *
+       * EL SUJETO ES OTRA COSA. Cuando el subtitulo es el nombre de una persona ("Ana Ruiz") no es
+       * una etiqueta sino de quien habla la pantalla entera, y ahi si crece con el logo.
+       */}
       {subtitle ? (
         <Text
           style={[
             s.subtitle,
             subject && s.subject,
-            { fontSize: Math.round(size * (subject ? 0.55 : 0.3)) },
+            subject && { fontSize: Math.round(size * 0.55) },
           ]}
           numberOfLines={1}
         >
@@ -73,8 +85,14 @@ const s = StyleSheet.create({
   subtitle: {
     flexShrink: 1,
     color: colors.textFaint,
+    fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 1.5,
+    /**
+     * El espaciado bajo de 1.5 a 1.2 para pagar la letra mas grande: en mayusculas y con el logo al
+     * lado, cada punto de espaciado cuesta casi tanto ancho como un punto de fuente, y el subtitulo
+     * mas largo ("PARTIDO EN CURSO") comparte renglon con la marca.
+     */
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
     /** El PNG deja aire abajo (la cola del halcon baja mas que la palabra): se compensa. */
     marginBottom: 2,
