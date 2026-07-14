@@ -73,6 +73,12 @@ const CHANGE_ENDS = [
   { value: 'nunca', label: 'Nunca' },
 ] as const;
 
+/** Las dos maneras de cargar un golpe. La primera es el default, y es la que enseña. */
+const SHOT_PROMPTS = [
+  { value: 'siempre', label: 'Preguntar siempre' },
+  { value: 'opcional', label: 'Registro opcional' },
+] as const;
+
 /**
  * Como se para la pareja cuando saca. Es por PAREJA, no por partido — cada equipo elige.
  * Recibiendo no cambia nada: eso esta fijo por reglamento.
@@ -505,6 +511,26 @@ export function SetupScreen({
             que las agrupa es la CAJA. */}
         {advanced && (
           <View style={s.panel}>
+            {/**
+             * PRIMERA DE TODAS, y no por orden alfabetico: es la unica opcion de la lista que le
+             * enseña algo al que no sabe. Las otras configuran el reglamento; esta le cuenta que
+             * los golpes se pueden registrar — que es el diferencial entero de la app y hasta hoy
+             * vivia detras de un gesto invisible.
+             *
+             * El default es "Preguntar siempre" a proposito (ver `DEFAULT_PREFS`): el que no
+             * quiere que le pregunten lo apaga una vez y no lo ve nunca mas.
+             */}
+            <Segmented
+              title="REGISTRO DE GOLPE"
+              options={SHOT_PROMPTS}
+              value={prefs.shotPrompt}
+              onChange={(v) => setPrefs((x) => ({ ...x, shotPrompt: v as Prefs['shotPrompt'] }))}
+              hints={[
+                'La hoja de golpes se abre en cada punto.',
+                'El toque corto registra, sostenido abre la hoja.',
+              ]}
+            />
+
             <Segmented
               title="AL 40-40"
               options={FORMATS}
@@ -686,6 +712,18 @@ function Segmented(props: {
   disabled?: boolean;
   /** Un color propio por opcion (los equipos). Sin esto, el segmento va en gris neutro. */
   colorOf?: (value: string) => string;
+  /**
+   * Que hace cada opcion, una linea por opcion, y LAS DOS SIEMPRE A LA VISTA.
+   *
+   * No solo la elegida: si para saber que hace la otra hay que tocarla, entonces para comparar
+   * hay que cambiar de modo — y quien esta aprendiendo que existen los golpes no tiene por que
+   * probar a ciegas.
+   *
+   * Va solo donde el label no alcanza, y hay un solo lugar asi: el registro de golpe, que le
+   * esta contando a alguien una funcion que no conoce. En el resto (ventajas, punto de oro, fin
+   * de set) el nombre YA lo dice todo, y explicar lo obvio es ruido.
+   */
+  hints?: readonly string[];
 }) {
   return (
     <View style={s.segBlock}>
@@ -694,14 +732,23 @@ function Segmented(props: {
         {props.right}
       </View>
       <View style={s.segRow}>
-        {props.options.map((o) => {
+        {props.options.map((o, i) => {
           const on = o.value === props.value;
           const c = props.colorOf?.(o.value);
+          const hint = props.hints?.[i];
+
+          /** Con explicacion, el boton y su linea son UNA columna: la linea no puede quedar
+              huerfana ni obligar a repetir el nombre del boton para saber de cual habla. */
+          const Wrap = hint
+            ? ({ children }: { children: ReactNode }) => <View style={s.segCol}>{children}</View>
+            : ({ children }: { children: ReactNode }) => <>{children}</>;
+
           return (
+            <Wrap key={o.value}>
             <Pressable
-              key={o.value}
               style={({ pressed: pr }) => [
                 s.seg,
+                hint && s.segInCol,
                 on && s.segOn,
                 /* Con color propio, los DOS van del color de su equipo — nunca en gris. Lo que
                    distingue al elegido es el BORDE BLANCO, que es el mismo vocabulario de la
@@ -724,6 +771,9 @@ function Segmented(props: {
                 {o.label}
               </Text>
             </Pressable>
+
+              {hint ? <Text style={s.segHint}>{hint}</Text> : null}
+            </Wrap>
           );
         })}
       </View>
@@ -823,6 +873,10 @@ const s = StyleSheet.create({
 
   segBlock: { gap: space.sm },
   segHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  /** El boton y su explicacion, en la misma columna: la linea habla del boton que tiene encima. */
+  segCol: { flex: 1, gap: 6 },
+  segInCol: { flexGrow: 0, alignSelf: 'stretch' },
+  segHint: { color: colors.textFaint, fontSize: 11, lineHeight: 14 },
   segTitle: { flex: 1, color: colors.textFaint, fontSize: 10, fontWeight: '900', letterSpacing: 1.5 },
 
   segRow: { flexDirection: 'row', gap: space.sm },

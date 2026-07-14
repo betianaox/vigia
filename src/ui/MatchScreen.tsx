@@ -16,6 +16,7 @@ import type {
   Side,
   TeamId,
 } from '../engine';
+import { DEFAULT_PREFS, loadPrefs, type ShotPrompt } from '../store/store';
 import { CHAR, fitWidth } from './layout';
 import { useMetrics, type Metrics } from './metrics';
 import { usePulse } from './pulse';
@@ -88,6 +89,16 @@ export function MatchScreen({
   const [shotFor, setShotFor] = useState<number | null>(null);
   const [rotated, setRotated] = useState(false);
 
+  /**
+   * Como quiere cargar los golpes esta persona. Se lee del disco al entrar a la cancha, no se
+   * pasa por props: es una preferencia de quien anota, no una regla del partido — un mismo
+   * partido lo puede seguir anotando otro, con otra mano y otra costumbre.
+   */
+  const [shotPrompt, setShotPrompt] = useState<ShotPrompt>(DEFAULT_PREFS.shotPrompt);
+  useEffect(() => {
+    void loadPrefs().then((p) => setShotPrompt(p.shotPrompt));
+  }, []);
+
   const state = useMemo(() => reduce(config, events), [config, events]);
 
   /**
@@ -97,15 +108,26 @@ export function MatchScreen({
    */
   const push = (e: MatchEvent) => onEvents([...events, { ...e, t: Date.now() }]);
 
-  /** Tap corto: registra el punto y listo. Un solo tap, sin seleccionar nada antes. */
+  /**
+   * Toque corto. QUE PASA DESPUES LO DECIDE LA PERSONA, no la app (§ Registro de golpe).
+   *
+   * - `siempre` (el default): el punto se registra Y se abre la hoja. El golpe deja de estar
+   *   detras de un gesto invisible: aparece solo, en el primer punto, sin que nadie lo explique.
+   * - `opcional`: el punto se registra y listo. Es el camino rapido, para el que ya sabe que el
+   *   golpe se carga sosteniendo — o para el que no lo quiere cargar.
+   *
+   * En los dos casos el PUNTO YA QUEDO REGISTRADO antes de que la hoja aparezca: no se pierde un
+   * punto por venir aca, y salir sin elegir nada no cuesta nada.
+   */
   const registerPoint = (type: RallyAction, player: PlayerId) => {
     thud();
+    if (shotPrompt === 'siempre') setShotFor(events.length);
     push({ type, player });
   };
 
   /**
-   * Long press: registra el punto IGUAL, y ademas abre el menu de golpe.
-   * Nunca se pierde un punto por intentar el gesto largo y que salga mal.
+   * Sostener: registra el punto IGUAL, y ademas abre la hoja. Funciona en los dos modos —
+   * nunca se pierde un punto por intentar el gesto largo y que salga mal.
    */
   const registerPointWithShot = (type: RallyAction, player: PlayerId) => {
     thud();

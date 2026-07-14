@@ -32,12 +32,22 @@ const KEY_PLAYERS = 'vigia.players.v1';
 const KEY_PREFS = 'vigia.prefs.v1';
 const KEY_MERGES = 'vigia.merges.v1';
 
+/**
+ * COMO SE REGISTRA EL GOLPE. Es la unica preferencia que no es una regla del partido: es de la
+ * persona que anota.
+ *
+ * - `siempre`: cada punto abre la hoja de golpes.
+ * - `opcional`: el toque corto registra el punto; el golpe se elige manteniendo apretado.
+ */
+export type ShotPrompt = 'siempre' | 'opcional';
+
 /** Lo que se acuerda del ultimo partido: el formato, no los jugadores. */
 export interface Prefs {
   gameFormat: GameFormat;
   length: MatchLength;
   thirdSet: ThirdSetFormat;
   changeEnds: ChangeEndsRule;
+  shotPrompt: ShotPrompt;
 }
 
 /** La primera vez que se abre la app. De ahi en adelante manda lo ultimo que se uso. */
@@ -47,6 +57,20 @@ export const DEFAULT_PREFS: Prefs = {
   thirdSet: 'set_normal',
   /** Como se juega de verdad en un club: se cambia de lado al terminar el set, no cada game impar. */
   changeEnds: 'fin_de_set',
+
+  /**
+   * EL DEFAULT ES EL QUE ENSEÑA.
+   *
+   * Los golpes son el diferencial entero de la app —es el dato que ningun reloj puede dar— y
+   * hasta hoy vivian detras de un long press, que es invisible. La opcion sola no alcanzaba: si
+   * el modo "preguntar siempre" fuera opt-in, lo encontraria unicamente el que ya sabe que
+   * existe, y el que no sabe —justo el que hay que enseñarle— no lo descubriria nunca.
+   *
+   * Asi que la app pregunta desde el primer punto, y el que no lo quiere lo apaga UNA vez y no
+   * lo ve nunca mas. El default enseña; la configuracion acelera. Al reves es como se pierde una
+   * funcion.
+   */
+  shotPrompt: 'siempre',
 };
 
 /**
@@ -71,7 +95,18 @@ const write = async (key: string, value: unknown): Promise<void> => {
 };
 
 export const loadPlayers = (): Promise<Player[]> => read<Player[]>(KEY_PLAYERS, []);
-export const loadPrefs = (): Promise<Prefs> => read<Prefs>(KEY_PREFS, DEFAULT_PREFS);
+/**
+ * Las preferencias guardadas se COMPLETAN con los valores por default.
+ *
+ * Sin esto, el dia que se agrega una preferencia nueva, todo el que ya venia usando la app la
+ * recibe vacia: ningun boton elegido, y la app tomando decisiones sobre un `undefined`. Le paso
+ * exactamente a `shotPrompt`. El guardado viejo no se migra ni se reescribe — se le pone arriba
+ * lo que falta, al leer.
+ */
+export const loadPrefs = async (): Promise<Prefs> => ({
+  ...DEFAULT_PREFS,
+  ...(await read<Partial<Prefs>>(KEY_PREFS, {})),
+});
 export const savePrefs = (p: Prefs): Promise<void> => write(KEY_PREFS, p);
 
 /** Ids estables y unicos: de aca cuelga todo el historial de un jugador. */

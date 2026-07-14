@@ -198,7 +198,7 @@ export function HistoryScreen({
           >
             <MaterialIcons name="show-chart" size={20} color={colors.ball} />
             <Text style={s.careerText} numberOfLines={1}>
-              El juego de {chosen.name.split(' ')[0]}
+              Juego de {chosen.name.split(' ')[0]}
             </Text>
             <MaterialIcons name="chevron-right" size={22} color={colors.textDim} />
           </Pressable>
