@@ -49,6 +49,28 @@ const LEFT: Side = 'reves';
 const RIGHT: Side = 'drive';
 
 /**
+ * EL ANCLA. Las teclas de la salida de pared van solidas, como el remate y la bandeja.
+ *
+ * No es que el golpe importe mas: es que una lista de cinco filas identicas obliga a leerlas
+ * todas. Con una fila distinta en el medio, el ojo aterriza ahi y cuenta desde ahi —una arriba,
+ * dos abajo— y encuentra sin leer. Es el punto en relieve de la F y la J del teclado: no dice
+ * nada, orienta.
+ *
+ * Sirve recien cuando la persona se acostumbro. Al principio no molesta; despues, ahorra el
+ * unico recurso que no sobra entre dos puntos, que es la vista.
+ */
+const ANCHOR: Stroke = 'salida_de_pared';
+
+/**
+ * La otra ancla, abajo. Con una sola, la hoja quedaba desbalanceada hacia el medio.
+ *
+ * Es LA DEJADA, no la recuperacion: la recuperacion casi no pasa en un partido amateur, y
+ * encima la palabra es la mas larga de la hoja — encendida, se lleva la vista sin merecerla. La
+ * dejada, ademas, cae a la izquierda, en la misma columna que el remate y la bandeja.
+ */
+const ANCHOR_BAJO: Stroke = 'dejada';
+
+/**
  * Semaforo, desde la perspectiva del jugador de la tarjeta.
  * La inicial manda (es lo que se busca de un vistazo) y la descripcion chica debajo
  * hace que se entienda solo, sin tener que explicarle nada a nadie.
@@ -757,29 +779,32 @@ function ShotSheet(props: {
             <Text style={s.keyHeadText}>{SIDE_LABELS[RIGHT].toUpperCase()}</Text>
           </View>
 
-          {STROKES_CON_LADO.map((stroke) => (
-            <View key={stroke} style={s.keyRow}>
-              <Pressable
-                style={({ pressed: p }) => [s.key, p && s.pressed]}
-                android_ripple={ripple}
-                onPress={() => pick({ stroke, side: LEFT })}
-              >
-                <View style={s.keyDot} />
-              </Pressable>
+          {STROKES_CON_LADO.map((stroke) => {
+            const anchor = stroke === ANCHOR;
+            return (
+              <View key={stroke} style={s.keyRow}>
+                <Pressable
+                  style={({ pressed: p }) => [s.key, anchor && s.keyAnchor, p && s.pressed]}
+                  android_ripple={ripple}
+                  onPress={() => pick({ stroke, side: LEFT })}
+                >
+                  <View style={[s.keyDot, anchor && s.keyDotAnchor]} />
+                </Pressable>
 
-              <Text style={s.keyName} numberOfLines={1}>
-                {STROKE_LABELS[stroke]}
-              </Text>
+                <Text style={s.keyName} numberOfLines={1}>
+                  {STROKE_LABELS[stroke]}
+                </Text>
 
-              <Pressable
-                style={({ pressed: p }) => [s.key, p && s.pressed]}
-                android_ripple={ripple}
-                onPress={() => pick({ stroke, side: RIGHT })}
-              >
-                <View style={s.keyDot} />
-              </Pressable>
-            </View>
-          ))}
+                <Pressable
+                  style={({ pressed: p }) => [s.key, anchor && s.keyAnchor, p && s.pressed]}
+                  android_ripple={ripple}
+                  onPress={() => pick({ stroke, side: RIGHT })}
+                >
+                  <View style={[s.keyDot, anchor && s.keyDotAnchor]} />
+                </Pressable>
+              </View>
+            );
+          })}
 
           {/* La dejada y la recuperacion, abajo de todo y sin lado: el lado en ellas no dice
               nada (una recuperacion es un manotazo) y no valen dos botones cada una.
@@ -788,18 +813,24 @@ function ShotSheet(props: {
               lo que dice que ahi termina un bloque y empieza otro — sin el, el ojo las lee como
               si fueran parte de la grilla. */}
           <View style={[s.sheetRow, s.sheetRowApart]}>
-            {STROKES_SIN_LADO.map((stroke) => (
-              <Pressable
-                key={stroke}
-                style={({ pressed: p }) => [s.sheetCell, p && s.pressed]}
-                android_ripple={ripple}
-                onPress={() => pick({ stroke })}
-              >
-                <Text style={s.sheetCellName} numberOfLines={1}>
-                  {STROKE_LABELS[stroke]}
-                </Text>
-              </Pressable>
-            ))}
+            {STROKES_SIN_LADO.map((stroke) => {
+              const anchor = stroke === ANCHOR_BAJO;
+              return (
+                <Pressable
+                  key={stroke}
+                  style={({ pressed: p }) => [s.sheetCell, anchor && s.keyAnchor, p && s.pressed]}
+                  android_ripple={ripple}
+                  onPress={() => pick({ stroke })}
+                >
+                  <Text
+                    style={[s.sheetCellName, anchor && s.sheetCellNameOn]}
+                    numberOfLines={1}
+                  >
+                    {STROKE_LABELS[stroke]}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
         </View>
       </View>
@@ -1072,6 +1103,7 @@ const makeStyles = (m: Metrics) => {
       fontSize: strokeFont,
       fontWeight: '700',
     },
+    sheetCellNameOn: { color: colors.text },
 
     /**
      * EL TECLADO: el nombre a la izquierda, dos teclas a la derecha.
@@ -1113,6 +1145,12 @@ const makeStyles = (m: Metrics) => {
       borderRadius: radius.pill,
       backgroundColor: colors.textDim,
     },
+    /** El ancla: las mismas teclas, con el relleno del remate y la bandeja (ver `ANCHOR`). */
+    keyAnchor: {
+      backgroundColor: alpha(colors.text, 0.14),
+      borderColor: alpha(colors.text, 0.45),
+    },
+    keyDotAnchor: { backgroundColor: colors.text },
 
     /**
      * El golpe base: solido y con contorno claro. Es el que se toca sin pensar, y el ojo
