@@ -70,12 +70,6 @@ const formatDate = (t: number): string => {
 const formatTime = (t: number): string =>
   new Date(t).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit', hour12: false });
 
-const formatDuration = (ms: number): string => {
-  const min = Math.round(ms / 60000);
-  if (min < 1) return '—';
-  if (min < 60) return `${min}m`;
-  return `${Math.floor(min / 60)}h ${min % 60}m`;
-};
 
 export function HistoryScreen({
   onBack,
@@ -443,36 +437,38 @@ function Row({
         </Text>
 
         {/**
-         * CINCO DATOS, TRES JERARQUIAS. Antes eran cinco cosas del mismo gris, separadas por
-         * puntos: una tira que hay que LEER entera para encontrar la que importa.
+         * CUATRO DATOS SEPARADOS POR PUNTOS ERAN UNA TIRA QUE HAY QUE LEER ENTERA. Se desarmo por
+         * funcion, preguntandole a cada uno para que esta:
          *
-         * CUANDO (la fecha y la hora) va encendido: es por donde se busca un partido — y la hora y
-         * no solo el dia, porque en un club se juegan varios la misma tarde y "el de las 8" es como
-         * los distingue la gente que estuvo ahi.
+         * LA FECHA Y LA HORA IDENTIFICAN al partido —"el del martes a las 8"— y son lo unico que se
+         * usa para encontrarlo. Se quedan solas en su renglon, encendidas, y por eso entran en una
+         * linea en cualquier telefono. La hora y no solo el dia: en un club se juegan varios la
+         * misma tarde, y asi los distingue la gente que estuvo ahi.
          *
-         * CUANTO (la duracion y los puntos) queda apagado: es el tamaño del partido, contexto.
+         * LOS PUNTOS dicen cuanto se cargo: si es un partido de verdad o una fila de dos puntos que
+         * conviene borrar. Pasan a una pastilla apagada — la MISMA que el conteo de la lista de
+         * jugadores. Un conteo se ve igual en toda la app.
          *
-         * Y "SIN TERMINAR" SALE DE LA TIRA Y SE VUELVE UNA PASTILLA. Es lo unico de la fila que
-         * cambia lo que vas a HACER con ese partido (retomarlo), y estaba escrito ultimo, en gris,
-         * al final de una lista de numeros: el lugar donde menos se ve.
-         *
-         * La pastilla va SOLO ahi, y no en los puntos, porque una pastilla es un marcador: sirve
-         * porque resalta contra las filas que NO la tienen. Los puntos estan en todas — enmarcarlos
-         * no marcaria nada. Una pastilla en todo es una pastilla en nada.
+         * LA DURACION SE FUE. No contesta ninguna pregunta que uno se haga mirando una lista, y era
+         * justo el dato que empujaba el renglon a dos lineas en un telefono angosto. Sigue estando
+         * en las estadisticas del partido, que es donde se la busca.
          */}
-        <Text style={s.meta} numberOfLines={2}>
-          <Text style={s.metaWhen}>
-            {formatDate(m.startedAt)} · {formatTime(m.startedAt)}
-          </Text>
-          {' · '}
-          {formatDuration(m.updatedAt - m.startedAt)} · {L.history.points(m.points)}
+        <Text style={s.metaWhen} numberOfLines={1}>
+          {formatDate(m.startedAt)} · {formatTime(m.startedAt)}
         </Text>
 
-        {!m.finished && (
-          <View style={s.pending}>
-            <Text style={s.pendingText}>{L.history.unfinished}</Text>
+        {/* Las marcas: el conteo en celeste, la salvedad en gris. Ver `tagCount`. */}
+        <View style={s.tags}>
+          <View style={[s.tag, s.tagCount]}>
+            <Text style={[s.tagText, s.tagCountText]}>{L.history.points(m.points)}</Text>
           </View>
-        )}
+
+          {!m.finished && (
+            <View style={s.tag}>
+              <Text style={s.tagText}>{L.history.unfinished}</Text>
+            </View>
+          )}
+        </View>
       </View>
 
       <View style={s.actions}>
@@ -581,52 +577,74 @@ const s = StyleSheet.create({
    *
    * `lineHeight` explicito: con dos renglones, sin el, Android los pega uno contra el otro.
    */
-  meta: {
-    color: colors.textFaint,
+  /** Lo que identifica al partido: cuando fue. Solo en su renglon, encendido. */
+  metaWhen: {
+    color: colors.textDim,
     fontSize: 13,
     lineHeight: 18,
-    fontWeight: '600',
+    fontWeight: '700',
     marginTop: 2,
   },
-  /** Lo que se busca de un partido viejo: cuando fue. Encendido, contra el resto de la tira. */
-  metaWhen: { color: colors.textDim, fontWeight: '700' },
 
   /**
-   * SIN TERMINAR. Una pastilla, pero APAGADA — y esa segunda parte importa tanto como la primera.
+   * LAS MARCAS DE LA FILA. La misma pastilla apagada que el conteo de la lista de jugadores: una
+   * app no puede tener una forma distinta para cada dato — se aprende una y sirve en todas.
    *
-   * Estuvo un rato en ambar encendido, y estaba mal: en esta pantalla un partido a medias NO SE
-   * PUEDE RETOMAR (eso vive en el inicio, y solo para el ultimo). Aca "sin terminar" no es una
-   * accion pendiente, es una ADVERTENCIA SOBRE EL DATO: las estadisticas de ese partido estan
-   * incompletas. Y una advertencia sobre el dato es una nota al margen, no una alarma.
+   * APAGADAS, Y ESO IMPORTA TANTO COMO LA FORMA. "Sin terminar" estuvo un rato en ambar encendido
+   * y estaba mal: desde el historial un partido a medias NO SE PUEDE RETOMAR (eso vive en el
+   * inicio, y solo para el ultimo). Aca no es una accion pendiente sino una advertencia sobre el
+   * DATO —sus estadisticas estan incompletas— y encendida hacia lo contrario de lo que hay que
+   * hacer: los partidos incompletos se llevaban la vista, y los completos, que son los que valen,
+   * quedaban como la fila apagada.
    *
-   * Encendida hacia lo contrario de lo que hay que hacer: los partidos INCOMPLETOS se llevaban la
-   * vista y los completos —que son los que valen, los que tienen todo cargado— quedaban como la
-   * fila apagada. La fila normal tiene que ser la del partido terminado.
-   *
-   * Por eso tampoco hay una pastilla "TERMINADO" en las otras: si todas las filas tienen pastilla,
-   * la pastilla deja de marcar algo y pasa a ser una columna mas para leer. Y encima diria lo que
-   * ya se ve — el resultado completo esta arriba, en la letra mas grande de la fila.
-   *
-   * `alignSelf: 'flex-start'`: mide lo que mide la palabra. Una pastilla que cruza la pantalla
-   * entera deja de leerse como una etiqueta.
+   * Y no hay ninguna que diga "FINALIZADO": si todas las filas tienen la misma marca, la marca deja
+   * de marcar. Ademas diria lo que ya se ve — el resultado completo esta arriba, en la letra mas
+   * grande de la fila.
    */
-  pending: {
-    alignSelf: 'flex-start',
-    marginTop: 6,
+  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: space.xs, marginTop: 6 },
+
+  /**
+   * UNA PLACA, NO UNA PASTILLA — Y LA DIFERENCIA NO ES DECORATIVA.
+   *
+   * Arriba de esta lista hay pastillas que SE TOCAN (los filtros). Estas no se tocan: son datos
+   * impresos en la fila. Cuando las dos cosas se veian igual —misma pildora, mismo borde— la fila
+   * invitaba a tocar "5 puntos", que no hace nada.
+   *
+   * Asi que lo que las separa es la FORMA, que es lo que dice si algo es un boton: el filtro tiene
+   * borde y esquinas de pildora (parece un boton); la marca es plana, sin borde y con las esquinas
+   * apenas redondeadas (parece un sello). No hace falta explicarlo — se ve.
+   */
+  tag: {
     paddingVertical: 3,
     paddingHorizontal: space.sm,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: alpha(colors.text, 0.18),
-    backgroundColor: alpha(colors.text, 0.05),
+    borderRadius: radius.sm,
+    backgroundColor: alpha(colors.text, 0.08),
   },
-  pendingText: {
+  tagText: {
     color: colors.textFaint,
-    fontSize: 11.5,
+    fontSize: 12,
     fontWeight: '800',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
+
+  /**
+   * EL CELESTE ES EL CONTEO: cuanto hay detras de esta fila. Y significa lo MISMO en la lista de
+   * jugadores ("2 partidos"). De eso se trata tener un sistema de color y no una coleccion de
+   * decisiones sueltas que se parecen.
+   *
+   * El gris, en cambio, es la nota de estado ("sin terminar"): no cuenta nada, avisa algo.
+   *
+   * El color se eligio por descarte, que es como se elige bien. No podia ser ambar —esta a un paso
+   * del naranja del Equipo 2, y los nombres de un equipo son naranjas en esta misma fila—, ni rojo
+   * (en esta app es lo que destruye: el tachito), ni verde (winner), ni lima (la marca), ni violeta
+   * (Equipo 1). El celeste es el unico que no le debe nada a nadie.
+   *
+   * Y es el celeste APAGADO (`aceChart`), no el del boton de ACE: ese es un celeste de boton, para
+   * mirar una vez. Este vive en una lista de veinte filas, y ahi un color saturado chilla — que es
+   * justo el problema que veniamos arreglando.
+   */
+  tagCount: { backgroundColor: alpha(colors.aceChart, 0.18) },
+  tagCountText: { color: colors.aceChart },
 
   /** Los dos iconos juntos, en fila. */
   actions: { flexDirection: 'row', alignItems: 'center', gap: space.xs },

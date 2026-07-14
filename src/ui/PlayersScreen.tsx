@@ -262,25 +262,31 @@ export function PlayersScreen({
                 {item.player.name}
               </Text>
               {/**
-               * EL NUMERO DE PARTIDOS, ENCENDIDO. Es EL dato del renglon: cuanto jugaste con esa
-               * persona. "Ultimo 14 jul" es contexto — dice si la seguis viendo o si es de otra
-               * epoca— y va apagado. Antes eran las dos cosas del mismo gris, separadas por un
-               * punto: dos datos iguales obligan a leer los dos para quedarse con uno.
+               * EL CONTEO, EN UNA PASTILLA. Es EL dato del renglon —cuanto jugaste con esa persona—
+               * y en una tira gris separada por un punto se leia igual que la fecha, que es apenas
+               * contexto. La pastilla le da una forma: el ojo aterriza ahi sin leer el renglon.
                *
-               * Aca no hay pastilla, y es a proposito: no hay ningun ESTADO que marcar. Una
-               * pastilla es una alarma, y no se gasta en un dato que esta en todas las filas.
+               * Y "SIN PARTIDOS" VA EN LA MISMA PASTILLA, no como texto suelto: tambien es un
+               * conteo —es cero— y ponerlo en el mismo lugar hace que se entienda de una por que
+               * ESA fila tiene un tachito y las otras no.
+               *
+               * Es la misma pastilla apagada que "sin terminar" en el historial, no otro color. Una
+               * app no puede tener una forma distinta para cada dato: se aprende una y sirve en
+               * todas.
                */}
-              <Text style={s.meta} numberOfLines={1}>
-                {ghost ? (
-                  L.players.noMatches
-                ) : (
-                  <>
-                    <Text style={s.metaCount}>{L.players.matches(item.matches)}</Text>
-                    {' · '}
+              <View style={s.metaRow}>
+                <View style={[s.count, !ghost && s.countOn]}>
+                  <Text style={[s.countText, !ghost && s.countOnText]}>
+                    {ghost ? L.players.noMatches : L.players.matches(item.matches)}
+                  </Text>
+                </View>
+
+                {!ghost && (
+                  <Text style={s.meta} numberOfLines={1}>
                     {L.players.last(formatDate(item.last))}
-                  </>
+                  </Text>
                 )}
-              </Text>
+              </View>
             </View>
 
             {/* El lapiz se ve. Un toque largo seria mas limpio, pero es invisible — y en esta app
@@ -539,9 +545,41 @@ const s = StyleSheet.create({
    * mirar este renglon dos veces. El nombre ya lo sabes; lo que no sabes es cuanto jugaste con esa
    * persona y cuando fue la ultima vez. Ese dato estaba escrito mas chico que todo lo demas.
    */
-  meta: { color: colors.textFaint, fontSize: 13, lineHeight: 18, fontWeight: '600' },
-  /** Cuanto jugaste con esa persona: el dato. Encendido contra el resto del renglon. */
-  metaCount: { color: colors.textDim, fontWeight: '700' },
+  /** La pastilla y la fecha, en la misma linea: el dato y su contexto, en ese orden. */
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginTop: 4 },
+  meta: { flexShrink: 1, color: colors.textFaint, fontSize: 13, lineHeight: 18, fontWeight: '600' },
+
+  /**
+   * LA MISMA PLACA QUE LAS MARCAS DEL HISTORIAL. Una sola forma en toda la app: se aprende una vez.
+   *
+   * Plana y sin borde a proposito — un borde y esquinas de pildora es lo que en esta app significa
+   * "esto es un boton" (los filtros del historial se ven asi). Esto no se toca: es un dato impreso
+   * en la fila.
+   */
+  count: {
+    paddingVertical: 3,
+    paddingHorizontal: space.sm,
+    borderRadius: radius.sm,
+    backgroundColor: alpha(colors.text, 0.08),
+  },
+  countText: {
+    color: colors.textFaint,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+
+  /**
+   * EL CELESTE ES EL CONTEO, y significa lo MISMO que en el historial ("5 puntos"): cuanto hay
+   * detras de esta fila. De eso se trata tener un sistema de color y no una coleccion de decisiones
+   * sueltas que se parecen.
+   *
+   * "Sin partidos" NO lo lleva, y por eso mismo: no es un conteo, es la ausencia de uno — la fila no
+   * tiene nada detras. Se queda en gris, que es lo que dicen tambien su nombre apagado y el tachito
+   * que la acompaña.
+   */
+  countOn: { backgroundColor: alpha(colors.aceChart, 0.18) },
+  countOnText: { color: colors.aceChart },
 
   empty: { color: colors.textFaint, fontSize: 14.5, lineHeight: 21, padding: space.md },
 

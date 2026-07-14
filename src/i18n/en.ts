@@ -162,7 +162,7 @@ export const en: Dict = {
 
   history: {
     title: 'History',
-    search: 'Find a player',
+    search: 'Search by player',
     periods: {
       '6m': '6 months',
       '30d': '30 days',

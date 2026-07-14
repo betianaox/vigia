@@ -141,7 +141,7 @@ export const pt: Dict = {
 
   history: {
     title: 'Histórico',
-    search: 'Procurar jogador',
+    search: 'Procurar por jogador',
     periods: {
       '6m': '6 meses',
       '30d': '30 dias',

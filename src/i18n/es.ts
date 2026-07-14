@@ -187,7 +187,7 @@ export const es = {
   /** El historial: la lista de partidos, con su buscador. */
   history: {
     title: 'Historial',
-    search: 'Buscar jugador',
+    search: 'Buscar por jugador',
     periods: {
       '6m': '6 meses',
       '30d': '30 días',
