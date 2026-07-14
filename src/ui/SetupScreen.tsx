@@ -299,7 +299,19 @@ export function SetupScreen({
 
   return (
     <SafeAreaView style={s.root}>
-      <ScrollView contentContainerStyle={s.page}>
+      {/**
+       * `keyboardShouldPersistTaps="handled"` NO es un detalle de scroll: sin esto, el
+       * desplegable de nombres no se puede tocar.
+       *
+       * Por default, con el teclado abierto, el ScrollView se queda con el primer toque que cae
+       * afuera del campo —lo usa para cerrar el teclado— y el toque nunca llega al boton. El
+       * desplegable aparecia, se tocaba, y no pasaba nada: habia que escribir el nombre entero.
+       * En el historial funcionaba porque alli el campo vive fuera del scroll.
+       *
+       * Con "handled", si un hijo atiende el toque, el toque es suyo; el teclado se cierra solo
+       * cuando el toque no lo atiende nadie.
+       */}
+      <ScrollView contentContainerStyle={s.page} keyboardShouldPersistTaps="handled">
         <View style={s.head}>
           <Brand subtitle={onCourt ? 'Partido en curso' : 'Partido nuevo'} tint={colors.ball} />
         </View>
