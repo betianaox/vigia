@@ -94,8 +94,15 @@ const BASE = {
   sheetCloseIcon: 24,
 } as const;
 
-/** Las filas de la hoja de golpes: 7 golpes con lado + bandeja + remate. */
-const SHEET_ROWS = 9;
+/**
+ * Las filas de la hoja de golpes: 5 golpes con lado + la fila sin lado (dejada y recuperacion)
+ * + bandeja + remate.
+ *
+ * Eran 9. La hoja ahora se abre en CADA punto —el golpe dejo de estar detras de un gesto
+ * invisible— asi que se paga en tiempo de lectura, no solo en espacio: cada fila que sobra es
+ * medio segundo mirando la pantalla en vez de la cancha.
+ */
+const SHEET_ROWS = 8;
 
 /** Una linea de texto ocupa algo mas que su tamano de fuente. */
 export const LINE = 1.35;

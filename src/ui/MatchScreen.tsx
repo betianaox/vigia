@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useKeepAwake } from 'expo-keep-awake';
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -17,18 +17,36 @@ import type {
   TeamId,
 } from '../engine';
 import { DEFAULT_PREFS, loadPrefs, type ShotPrompt } from '../store/store';
-import { CHAR, fitWidth } from './layout';
+import { CHAR, fitWidth, TOUCH_MIN } from './layout';
 import { useMetrics, type Metrics } from './metrics';
 import { usePulse } from './pulse';
 import { useRoster } from './roster';
 import { Scoreboard } from './Scoreboard';
-import { STROKE_LABELS, STROKES_CON_LADO, STROKES_POR_ALTO, VARIANT_LABELS } from './shots';
+import {
+  SIDE_LABELS,
+  STROKE_LABELS,
+  STROKES_CON_LADO,
+  STROKES_POR_ALTO,
+  STROKES_SIN_LADO,
+  VARIANT_LABELS,
+} from './shots';
 import { alpha, colors, pressed, radius, ripple, space, teamColor } from './theme';
 
 type RallyAction = 'WINNER' | 'ERROR_FORZADO' | 'ERROR_NO_FORZADO';
 
-/** El golpe con mas variantes (el remate). Fija el ancho de las dos filas de abajo. */
-const MAX_VARIANTS = Math.max(...STROKES_POR_ALTO.map((g) => g.variants.length));
+/**
+ * EL NOMBRE AL MEDIO Y LAS DOS TECLAS A LOS COSTADOS: el reves a la izquierda, la derecha a la
+ * derecha. La fila espeja el cuerpo de una jugadora diestra, que es la mayoria.
+ *
+ * No es una lista, es un MAPA. El pulgar va al lado en que se pego, sin leer — y leer es
+ * exactamente lo que no hay tiempo de hacer entre dos puntos. Es ademas el mismo idioma que ya
+ * hablan las estadisticas: la etiqueta al medio, y lo de cada lado hacia su lado.
+ *
+ * Se elige una vez y vale para siempre: tocar la tecla equivocada no es un error de dibujo, es
+ * cargar el golpe al lado que no fue.
+ */
+const LEFT: Side = 'reves';
+const RIGHT: Side = 'drive';
 
 /**
  * Semaforo, desde la perspectiva del jugador de la tarjeta.
@@ -680,72 +698,109 @@ function ShotSheet(props: {
             </Pressable>
           </View>
 
-          {/* Cada boton dice QUE golpe y de QUE lado: el objetivo tactil y su etiqueta son el
-              mismo objeto. Antes el nombre vivia afuera, en una columna aparte — el ojo leia
-              a la izquierda y el pulgar tocaba a la derecha, y encima la columna era tan
-              angosta que "Salida de pared" se cortaba mientras al lado habia dos cajas de 118
-              dp con una sola letra adentro.
+          {/* LOS GOLPES QUE DEFINEN EL PUNTO, PRIMEROS Y JUNTOS: remate, bandeja y las dos
+              variantes de la bandeja. Son los que mas se van a tocar, asi que van donde el ojo
+              aterriza y donde el pulgar llega sin buscar.
 
-              Tampoco hay encabezado de columna: cada boton ya dice su lado. Un titulo que
-              rotula lo que el boton ya rotula es una fila entera gastada al pedo. */}
-          {STROKES_CON_LADO.map((stroke) => (
-            <View key={stroke} style={s.sheetRow}>
-              {/* El REVES va a la izquierda y el DRIVE a la derecha: la grilla espeja el
-                  cuerpo de una jugadora diestra, que es la mayoria. No es una lista, es un
-                  mapa — se toca del lado en que se pego. */}
-              {(['reves', 'drive'] as Side[]).map((side) => (
+              El boton base es el golpe mismo: se toca REMATE y es un remate. No hay ningun boton
+              que se llame "normal", que no significa nada. Las variantes van al lado, en un solo
+              tap: si marcar una vibora costara dos toques, el que sabe dejaria de usarlas. */}
+          {/* Los cuatro en UNA fila plana, sin agrupar. Agrupados, "Bandeja + sus variantes"
+              se repartia el 75% del ancho y adentro la bandeja se quedaba con la mitad: la
+              vibora y el gancho terminaban en un quinto de fila cada uno, con la palabra
+              apretada contra los bordes. Los cuatro son teclas, y las teclas se reparten el
+              ancho casi parejo; los dos golpes base pesan un poco mas porque son los que se
+              tocan sin pensar. */}
+          <View style={s.sheetRow}>
+            {STROKES_POR_ALTO.map(({ stroke, variants }) => (
+              <Fragment key={stroke}>
                 <Pressable
-                  key={side}
-                  style={({ pressed: p }) => [s.sheetCell, p && s.pressed]}
+                  style={({ pressed: p }) => [s.sheetBase, p && s.pressed]}
                   android_ripple={ripple}
-                  onPress={() => pick({ stroke, side })}
+                  onPress={() => pick({ stroke })}
                 >
-                  <Text style={s.sheetCellName} numberOfLines={1}>
+                  {/* En minusculas, como todos los golpes. Iban en mayusculas cuando eran la
+                      CABECERA de un grupo (el golpe base, con sus variantes colgando). Ya no
+                      encabezan nada: son cuatro teclas de la misma fila. Lo unico que las
+                      distingue —que son el golpe y no una variante— lo dice el relleno. */}
+                  <Text style={s.sheetBaseText} numberOfLines={1} adjustsFontSizeToFit>
                     {STROKE_LABELS[stroke]}
                   </Text>
-                  {/* La misma letra que la marca de agua de la tarjeta: un solo vocabulario. */}
-                  <Text style={s.sheetCellSide}>{side === 'drive' ? 'D' : 'R'}</Text>
                 </Pressable>
-              ))}
+
+                {variants.map((variant) => (
+                  <Pressable
+                    key={variant}
+                    style={({ pressed: p }) => [s.sheetVariant, p && s.pressed]}
+                    android_ripple={ripple}
+                    onPress={() => pick({ stroke, variant })}
+                  >
+                    <Text style={s.sheetVariantText} numberOfLines={1} adjustsFontSizeToFit>
+                      {VARIANT_LABELS[variant]}
+                    </Text>
+                  </Pressable>
+                ))}
+              </Fragment>
+            ))}
+          </View>
+
+          {/* EL TECLADO. El nombre del golpe se escribe UNA vez y a la derecha estan sus dos
+              teclas — antes cada fila decia "Fondo" dos veces, una por boton: el doble de texto
+              para un dato que es uno solo, en una hoja que ahora se abre en cada punto.
+
+              Y el lado del golpe se llama DERECHA, no "drive": drive en esta app es de que lado
+              de la cancha juega la PERSONA, y usar la misma palabra para las dos cosas las
+              confunde. Ademas en España a la derecha le dicen derecha (ver `SIDE_LABELS`). */}
+          <View style={s.keyHead}>
+            <Text style={s.keyHeadText}>{SIDE_LABELS[LEFT].toUpperCase()}</Text>
+            <View style={s.keyName} />
+            <Text style={s.keyHeadText}>{SIDE_LABELS[RIGHT].toUpperCase()}</Text>
+          </View>
+
+          {STROKES_CON_LADO.map((stroke) => (
+            <View key={stroke} style={s.keyRow}>
+              <Pressable
+                style={({ pressed: p }) => [s.key, p && s.pressed]}
+                android_ripple={ripple}
+                onPress={() => pick({ stroke, side: LEFT })}
+              >
+                <View style={s.keyDot} />
+              </Pressable>
+
+              <Text style={s.keyName} numberOfLines={1}>
+                {STROKE_LABELS[stroke]}
+              </Text>
+
+              <Pressable
+                style={({ pressed: p }) => [s.key, p && s.pressed]}
+                android_ripple={ripple}
+                onPress={() => pick({ stroke, side: RIGHT })}
+              >
+                <View style={s.keyDot} />
+              </Pressable>
             </View>
           ))}
 
-          {/* Los golpes sin lado van a continuacion, sin titulo: la lista viene bajando desde
-              el fondo hacia la red, y estos son de red. Se distinguen solos porque no tienen
-              las dos columnas. Un encabezado que anuncia algo que ya se ve es ruido. */}
-          {STROKES_POR_ALTO.map(({ stroke, variants }) => (
-            <View key={stroke} style={s.sheetRow}>
-              {/* El boton base es el golpe mismo: se toca REMATE y es un remate. No hay
-                  ningun boton que se llame "normal", que no significa nada. Va SOLIDO: es
-                  el que se toca sin pensar, y el ojo tiene que aterrizar ahi primero. */}
+          {/* La dejada y la recuperacion, abajo de todo y sin lado: el lado en ellas no dice
+              nada (una recuperacion es un manotazo) y no valen dos botones cada una.
+
+              Con MAS aire arriba: no son la sexta fila del teclado, son otra cosa. El espacio es
+              lo que dice que ahi termina un bloque y empieza otro — sin el, el ojo las lee como
+              si fueran parte de la grilla. */}
+          <View style={[s.sheetRow, s.sheetRowApart]}>
+            {STROKES_SIN_LADO.map((stroke) => (
               <Pressable
-                style={({ pressed: p }) => [s.sheetBase, p && s.pressed]}
+                key={stroke}
+                style={({ pressed: p }) => [s.sheetCell, p && s.pressed]}
                 android_ripple={ripple}
                 onPress={() => pick({ stroke })}
               >
-                <Text style={s.sheetBaseText}>{STROKE_LABELS[stroke].toUpperCase()}</Text>
+                <Text style={s.sheetCellName} numberOfLines={1}>
+                  {STROKE_LABELS[stroke]}
+                </Text>
               </Pressable>
-
-              {/* Las variantes son un lujo, no un requisito: mismo alto y un solo tap, pero
-                  fantasmas. Estan disponibles para el que sabe y no le gritan al que no. */}
-              {variants.map((variant) => (
-                <Pressable
-                  key={variant}
-                  style={({ pressed: p }) => [s.sheetVariant, p && s.pressed]}
-                  android_ripple={ripple}
-                  onPress={() => pick({ stroke, variant })}
-                >
-                  <Text style={s.sheetVariantText}>{VARIANT_LABELS[variant]}</Text>
-                </Pressable>
-              ))}
-
-              {/* Iguala el ancho de las dos filas, para que BANDEJA y REMATE midan lo mismo
-                  aunque uno tenga dos variantes y el otro tres. */}
-              {MAX_VARIANTS - variants.length > 0 && (
-                <View style={{ flex: MAX_VARIANTS - variants.length }} />
-              )}
-            </View>
-          ))}
+            ))}
+          </View>
         </View>
       </View>
     </Modal>
@@ -782,6 +837,12 @@ const makeStyles = (m: Metrics) => {
    */
   const sideFont = Math.round(h.label * 1.3);
   const sideW = sideFont;
+
+  /**
+   * El ancho de una tecla. Un cuarto del ancho util, con un piso: una tecla que no se acierta
+   * con el pulgar —apurado, mirando la cancha— no es una tecla, es una trampa.
+   */
+  const keyW = Math.max(TOUCH_MIN, Math.round((m.availW - h.pad * 2) * 0.25));
 
   /**
    * El nombre del golpe queda en segundo plano: sirve para recorrer la lista con la vista de
@@ -967,9 +1028,12 @@ const makeStyles = (m: Metrics) => {
     sheet: {
       backgroundColor: colors.surface,
       padding: h.pad,
-      /** El Modal se ancla al borde FISICO: sin esto, la ultima fila queda debajo de la barra
-          de navegacion del sistema. */
-      paddingBottom: h.pad + m.insetBottom,
+      /**
+       * El Modal se ancla al borde FISICO: sin esto, la ultima fila queda debajo de la barra de
+       * navegacion del sistema. Pero el aire de la barra YA es aire — sumarle encima el padding
+       * de la hoja dejaba un hueco muerto abajo de todo. Se toma el mayor de los dos, no la suma.
+       */
+      paddingBottom: Math.max(h.pad, m.insetBottom),
       gap: h.gap,
       borderTopLeftRadius: radius.lg,
       borderTopRightRadius: radius.lg,
@@ -986,6 +1050,8 @@ const makeStyles = (m: Metrics) => {
     sheetTitle: { flex: 1, color: colors.textDim, fontSize: h.title, fontWeight: '800' },
 
     sheetRow: { flexDirection: 'row', gap: h.gap, height: h.row },
+    /** Separa un bloque del anterior: el aire es lo unico que dice "esto es otra cosa". */
+    sheetRowApart: { marginTop: h.gap },
 
     sheetCell: {
       flex: 1,
@@ -998,15 +1064,54 @@ const makeStyles = (m: Metrics) => {
       borderColor: SHEET_BORDER,
       backgroundColor: colors.surfaceAlt,
     },
-    /** El golpe, en segundo plano: sirve para recorrer la lista, no para elegir entre los dos. */
-    sheetCellName: { flex: 1, color: colors.textDim, fontSize: strokeFont, fontWeight: '700' },
-    /** El lado, en primer plano: es lo unico que distingue este boton del de al lado. */
-    sheetCellSide: {
-      width: sideW,
-      textAlign: 'right',
-      color: colors.text,
-      fontSize: sideFont,
+    /** Centrado, como el nombre del teclado: toda la hoja lee por el eje del medio. */
+    sheetCellName: {
+      flex: 1,
+      textAlign: 'center',
+      color: colors.textDim,
+      fontSize: strokeFont,
+      fontWeight: '700',
+    },
+
+    /**
+     * EL TECLADO: el nombre a la izquierda, dos teclas a la derecha.
+     *
+     * La tecla es un objetivo entero (respeta el piso tactil de 44 dp), no un puntito: lo que se
+     * achica es el RUIDO, no el boton. El punto que se dibuja adentro es solo la mira.
+     */
+    keyHead: { flexDirection: 'row', alignItems: 'center', gap: h.gap, height: h.row * 0.55 },
+    keyHeadText: {
+      width: keyW,
+      textAlign: 'center',
+      color: colors.textFaint,
+      fontSize: sideFont * 0.62,
       fontWeight: '900',
+      letterSpacing: 1,
+    },
+    keyRow: { flexDirection: 'row', alignItems: 'center', gap: h.gap, height: h.row },
+    /** Al medio y centrado: es el eje de la fila, y las dos teclas cuelgan de el. */
+    keyName: {
+      flex: 1,
+      textAlign: 'center',
+      color: colors.text,
+      fontSize: strokeFont,
+      fontWeight: '700',
+    },
+    key: {
+      width: keyW,
+      height: '100%',
+      borderRadius: radius.sm,
+      borderWidth: 1,
+      borderColor: SHEET_BORDER,
+      backgroundColor: colors.surfaceAlt,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    keyDot: {
+      width: Math.round(sideFont * 0.5),
+      height: Math.round(sideFont * 0.5),
+      borderRadius: radius.pill,
+      backgroundColor: colors.textDim,
     },
 
     /**
@@ -1018,7 +1123,8 @@ const makeStyles = (m: Metrics) => {
      * en la mitad que sobraba y la fila se veia peor que con el escalon. El escalon se banca.
      */
     sheetBase: {
-      flex: 2,
+      /** Un poco mas que una variante, no el doble: los cuatro son teclas de la misma fila. */
+      flex: 1.25,
       borderRadius: radius.sm,
       backgroundColor: alpha(colors.text, 0.14),
       borderWidth: 1,
@@ -1027,7 +1133,8 @@ const makeStyles = (m: Metrics) => {
       justifyContent: 'center',
       paddingHorizontal: 2,
     },
-    sheetBaseText: { color: colors.text, fontSize: h.btn, fontWeight: '900', letterSpacing: 0.5 },
+    /** Sin el espaciado de las mayusculas, que ya no lleva: se escribe como cualquier golpe. */
+    sheetBaseText: { color: colors.text, fontSize: h.btn, fontWeight: '900' },
 
     /**
      * Las variantes cuelgan del base: un solo tap, y con el MISMO peso visual que los golpes
