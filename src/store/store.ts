@@ -274,3 +274,36 @@ export const mergePlayers = async (
   await write(KEY_MERGES, nextMerges);
   return { roster, merges: nextMerges };
 };
+
+/**
+ * BORRAR A UNA PERSONA SOLO ES SEGURO SI NO JUGO NUNCA. Y de ahi sale la unica regla de esta
+ * funcion: NO se le pasa un jugador, se le pasa el jugador Y los ids que aparecen en algun
+ * partido. Si aparece en alguno, no se borra — y no es una comprobacion defensiva de mas.
+ *
+ * UNA PERSONA VIVE ADENTRO DE PARTIDOS QUE SON DE OTRAS TRES. Borrar a Carla no puede borrar sus
+ * partidos, porque en esos partidos tambien jugaron Ana, Beto y Diego, y las estadisticas de ellos
+ * se calculan con esos puntos. Y dejarla borrada CON partidos vivos es peor todavia: el historial
+ * seguiria mostrandola (cada partido guarda una copia del nombre) pero no se podria abrir su
+ * juego, y si alguien vuelve a escribir el mismo nombre nace otra persona con otro id — su
+ * historial quedaria partido en dos para siempre.
+ *
+ * Entonces, ¿a quien se borra? A los que quedaron SIN partidos, que son residuo puro: en esta app
+ * nadie se carga a mano — un jugador nace al empezar un partido. Si hoy no tiene ninguno, es
+ * porque ese partido se borro. No aparecen en ninguna estadistica, no se pueden abrir, y sin
+ * embargo siguen saliendo en el autocompletado del formulario. Eso es lo que se limpia.
+ *
+ * Un duplicado ("Ana" y "Ana Ruiz") NO se arregla borrando: se arregla UNIENDO (ver `mergePlayers`),
+ * que conserva los dos historiales.
+ */
+export const deletePlayer = async (
+  id: PlayerId,
+  roster: Player[],
+  /** Los ids que aparecen en algun partido guardado, ya canonicalizados. */
+  played: Set<PlayerId>,
+): Promise<Player[]> => {
+  if (played.has(id)) return roster;
+
+  const next = roster.filter((p) => p.id !== id);
+  await write(KEY_PLAYERS, next);
+  return next;
+};

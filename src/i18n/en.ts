@@ -184,9 +184,15 @@ export const en: Dict = {
 
   players: {
     title: 'Players',
+    search: 'Search player',
     empty: 'Nobody has played yet. Log a match and players will show up here.',
+    emptyFiltered: 'No player by that name.',
     matches: (n: number) => (n === 1 ? '1 match' : `${n} matches`),
     last: (date: string) => `last ${date}`,
+
+    noMatches: 'No matches',
+    delete: 'Delete player',
+    deleteAsk: (name: string) => `Delete ${name}?`,
 
     rename: 'Rename',
     namePlaceholder: 'Name',

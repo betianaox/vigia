@@ -383,7 +383,10 @@ function Row({
           onPress={onDelete}
           hitSlop={8}
         >
-          <MaterialIcons name="delete-outline" size={22} color={colors.textFaint} />
+          {/* ROJO, Y NO GRIS. Es la unica accion de la app que destruye algo — un partido borrado
+              no vuelve, con todas sus estadisticas adentro. Estaba pintado igual que un chevron.
+              El color no esta para llamar la atencion: esta para que la mano dude medio segundo. */}
+          <MaterialIcons name="delete-outline" size={22} color={colors.errorUnforcedChart} />
         </Pressable>
       </View>
     </Pressable>

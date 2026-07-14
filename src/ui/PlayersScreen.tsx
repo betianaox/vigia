@@ -7,8 +7,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Player, PlayerId } from '../engine';
 import { L, LOCALE } from '../i18n';
 import { loadIndex, type MatchSummary } from '../store/matches';
-import { mergePlayers, renamePlayer, type RenameError } from '../store/store';
+import {
+  deletePlayer,
+  mergePlayers,
+  normalize,
+  renamePlayer,
+  type RenameError,
+} from '../store/store';
 import { Brand } from './Brand';
+import { Confirm } from './Confirm';
+import { PlayerField } from './PlayerField';
 import { useRoster } from './roster';
 import { alpha, colors, pressed, radius, ripple, space } from './theme';
 
@@ -71,6 +79,8 @@ export function PlayersScreen({
   // Del contexto: una sola fuente para el plantel, en toda la app.
   const { players: roster, merges, canon, reload } = useRoster();
   const [index, setIndex] = useState<MatchSummary[]>([]);
+  /** Lo escrito en el buscador. Filtra la lista y nada mas: aca no hay nada que "elegir". */
+  const [query, setQuery] = useState('');
 
   /** La persona que se esta renombrando, lo que se escribio, y por que no se puede guardar. */
   const [editing, setEditing] = useState<Player | null>(null);
@@ -128,7 +138,16 @@ export function PlayersScreen({
     });
 
   /**
-   * Los que efectivamente jugaron. Alguien del plantel sin un solo partido no tiene juego.
+   * TODO EL PLANTEL, INCLUIDOS LOS QUE NO TIENEN NINGUN PARTIDO.
+   *
+   * Antes la lista los escondia, con el argumento de que "sin partidos no hay juego". Es cierto —
+   * pero esconderlos no los borraba: seguian saliendo en el autocompletado del formulario, y no
+   * habia ninguna forma de sacarlos. Quedaban ahi para siempre, ensuciando el unico lugar donde
+   * molestan.
+   *
+   * Y no son un caso raro: en esta app nadie se carga a mano —se nace jugando— asi que un jugador
+   * sin partidos es SIEMPRE el residuo de un partido borrado. Aparecen al final de la lista, dicen
+   * que no jugaron, y son los unicos que se pueden borrar (ver `deletePlayer`).
    *
    * Los partidos se cuentan CONTRA EL CANONICO: si "Ana R." se unio a "Ana Ruiz", los partidos
    * que quedaron guardados con el id viejo son de Ana Ruiz. La union se resuelve al leer.
@@ -148,11 +167,34 @@ export function PlayersScreen({
     }
 
     return roster
-      .filter((p) => stats.has(p.id))
-      .map((p) => ({ player: p, ...stats.get(p.id)! }))
-      // El que mas jugo, primero: es de quien hay mas para decir.
+      .map((p) => ({ player: p, ...(stats.get(p.id) ?? { matches: 0, last: 0 }) }))
+      // El que mas jugo, primero: es de quien hay mas para decir. Los que no jugaron, al final.
       .sort((a, b) => b.matches - a.matches || b.last - a.last);
   }, [index, roster, canon]);
+
+  /** Los que aparecen en algun partido. Es lo unico que decide quien se puede borrar. */
+  const played = useMemo(
+    () => new Set(index.flatMap((m) => m.playerIds.map(canon))),
+    [index, canon],
+  );
+
+  /** La persona que se esta por borrar. Borrar SI se pregunta, aunque no destruya ninguna estadistica. */
+  const [deleting, setDeleting] = useState<Player | null>(null);
+
+  const remove = async (p: Player) => {
+    await deletePlayer(p.id, roster, played);
+    await reload();
+  };
+
+  /**
+   * El filtro. Por PEDAZO de nombre y sin acentos ni mayusculas: se escribe "mend" y aparece
+   * "Carla Méndez". Es el mismo `normalize` con el que la app decide si dos nombres son la misma
+   * persona — si la busqueda fuera mas estricta que eso, encontrarias menos gente de la que existe.
+   */
+  const shown = useMemo(() => {
+    const q = normalize(query);
+    return q ? rows.filter((r) => normalize(r.player.name).includes(q)) : rows;
+  }, [rows, query]);
 
   return (
     <SafeAreaView style={s.root}>
@@ -168,32 +210,61 @@ export function PlayersScreen({
         </Pressable>
       </View>
 
+      {/* EL MISMO CAMPO DEL HISTORIAL Y DEL FORMULARIO, sin el desplegable. Aca no hay nada que
+          "elegir": la lista de abajo ES el resultado. Ofrecer ademas un menu de sugerencias seria
+          hacer dos veces el mismo trabajo y darle dos formas distintas a la misma accion. */}
+      <View style={s.search}>
+        <PlayerField
+          value={query}
+          onChangeText={setQuery}
+          placeholder={L.players.search}
+          suggestions={[]}
+          onPick={() => {}}
+          onClear={() => {
+            tick();
+            setQuery('');
+          }}
+        />
+      </View>
+
       <FlatList
         style={s.scroll}
-        data={rows}
+        data={shown}
         keyExtractor={(r) => r.player.id}
         contentContainerStyle={s.list}
+        keyboardShouldPersistTaps="handled"
         ListEmptyComponent={
           <Text style={s.empty}>
-            {L.players.empty}
+            {query ? L.players.emptyFiltered : L.players.empty}
           </Text>
         }
-        renderItem={({ item }) => (
+        renderItem={({ item }) => {
+          /** Sin partidos: no hay juego que abrir, y es el unico caso en que se puede borrar. */
+          const ghost = item.matches === 0;
+
+          return (
           <Pressable
-            style={({ pressed: pr }) => [s.row, pr && pressed]}
-            android_ripple={ripple}
+            style={({ pressed: pr }) => [s.row, pr && !ghost && pressed]}
+            android_ripple={ghost ? undefined : ripple}
+            disabled={ghost}
             onPress={() => {
               tick();
               onOpen(item.player);
             }}
           >
-            <MaterialIcons name="person" size={24} color={colors.textDim} />
+            <MaterialIcons
+              name="person"
+              size={24}
+              color={ghost ? colors.textFaint : colors.textDim}
+            />
             <View style={s.rowMain}>
-              <Text style={s.name} numberOfLines={1}>
+              <Text style={[s.name, ghost && s.nameGhost]} numberOfLines={1}>
                 {item.player.name}
               </Text>
               <Text style={s.meta} numberOfLines={1}>
-                {L.players.matches(item.matches)} · {L.players.last(formatDate(item.last))}
+                {ghost
+                  ? L.players.noMatches
+                  : `${L.players.matches(item.matches)} · ${L.players.last(formatDate(item.last))}`}
               </Text>
             </View>
 
@@ -215,16 +286,59 @@ export function PlayersScreen({
             </Pressable>
 
             {/**
-             * EL GRAFICO, NO UNA FLECHA. Una flecha dice "vas a ir a algun lado"; el grafico dice A
-             * DONDE — a los numeros de esta persona, que es lo unico que hay detras de este renglon.
+             * LA ULTIMA COLUMNA ES "LO QUE SE PUEDE HACER CON ESTE RENGLON", Y ES UNA SOLA COSA.
              *
-             * Y es EL MISMO icono que la barra de la cancha y el del final del partido, no uno
-             * parecido: en esta app ese dibujo ya significa "estadisticas". Elegir otro grafico
-             * —una linea en vez de barras— sugeriria que lleva a otra clase de cosa, y no es cierto.
+             * El grafico y el tachito son EXCLUYENTES, y por eso comparten el lugar en vez de
+             * ponerse uno al lado del otro: quien tiene partidos tiene algo que VER (sus numeros);
+             * quien no tiene partidos no tiene nada que ver, solo algo que SACAR. Al ser
+             * excluyentes, las filas quedan alineadas solas — sin huecos ni rellenos.
+             *
+             * EL GRAFICO, Y NO UNA FLECHA: una flecha dice "vas a ir a algun lado"; el grafico dice
+             * A DONDE. Y es EL MISMO icono de la barra de la cancha y del final del partido, no uno
+             * parecido: en esta app ese dibujo ya significa "estadisticas".
+             *
+             * EL TACHITO VA EN ROJO. Es una accion que saca algo, y estaba pintada igual que un
+             * chevron. El color no esta para llamar la atencion: esta para que la mano dude medio
+             * segundo.
              */}
-            <MaterialIcons name="bar-chart" size={24} color={colors.textDim} />
+            {ghost ? (
+              <Pressable
+                style={({ pressed: pr }) => [s.edit, pr && pressed]}
+                android_ripple={{ ...ripple, borderless: true }}
+                onPress={() => {
+                  tick();
+                  setDeleting(item.player);
+                }}
+                hitSlop={8}
+              >
+                <MaterialIcons
+                  name="delete-outline"
+                  size={24}
+                  color={colors.errorUnforcedChart}
+                />
+              </Pressable>
+            ) : (
+              <MaterialIcons name="bar-chart" size={24} color={colors.textDim} />
+            )}
           </Pressable>
-        )}
+          );
+        }}
+      />
+
+      {/* Se pregunta, pero NO se explica. El renglon ya dice "Sin partidos": no hay estadisticas
+          que perder, y eso se infiere solo. Un parrafo aclarando lo que ya esta a la vista trata
+          de tonto al que lo lee — y encima nadie lo lee. */}
+      <Confirm
+        visible={deleting !== null}
+        title={deleting ? L.players.deleteAsk(deleting.name) : ''}
+        confirmLabel={L.players.delete}
+        destructive
+        onCancel={() => setDeleting(null)}
+        onConfirm={() => {
+          const p = deleting;
+          setDeleting(null);
+          if (p) void remove(p);
+        }}
       />
 
       {/* Renombrar. El ID NO CAMBIA: de el cuelga todo su historial, y los partidos guardados no
@@ -381,8 +495,14 @@ const s = StyleSheet.create({
   },
   close: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginRight: -8 },
 
-  scroll: { flex: 1, borderTopWidth: 1, borderColor: colors.border },
-  list: { padding: space.lg, gap: space.sm },
+  search: { paddingHorizontal: space.lg, paddingBottom: space.md },
+
+  /** Sin linea arriba: el buscador y la lista son LO MISMO —lo que escribis es lo que ves—, asi
+      que una linea entre medio los presenta como dos cosas. En el historial tampoco esta. */
+  scroll: { flex: 1 },
+  /** `paddingTop: 0`: el aire entre el buscador y la lista ya lo pone el buscador. Sin esto se
+      sumaban los dos y quedaba el doble que en el historial, que hace exactamente esto. */
+  list: { padding: space.lg, paddingTop: 0, gap: space.sm },
 
   row: {
     flexDirection: 'row',
@@ -397,6 +517,8 @@ const s = StyleSheet.create({
   rowMain: { flex: 1, gap: 2 },
   /** Peso de lista, no de titulo: en una lista de nombres, un 800 hace que cada renglon grite. */
   name: { color: colors.text, fontSize: 16, fontWeight: '600' },
+  /** Sin partidos: se ve, pero no compite con la gente que si jugo. */
+  nameGhost: { color: colors.textDim },
   /**
    * Estaba en 11, que es tamaño de nota al pie — y no es una nota al pie: es LA UNICA razon para
    * mirar este renglon dos veces. El nombre ya lo sabes; lo que no sabes es cuanto jugaste con esa

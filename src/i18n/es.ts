@@ -216,9 +216,22 @@ export const es = {
   /** El plantel: la gente con la que jugas. La puerta al juego de cada una. */
   players: {
     title: 'Jugadores',
+    search: 'Buscar jugador',
     empty: 'Todavía no jugó nadie. Carga un partido y aquí aparecerán los jugadores.',
+    emptyFiltered: 'Ningún jugador con ese nombre.',
     matches: (n: number) => (n === 1 ? '1 partido' : `${n} partidos`),
     last: (date: string) => `último ${date}`,
+
+    /**
+     * Un jugador sin partidos es RESIDUO, y por eso se lo puede borrar (ver `deletePlayer`).
+     *
+     * Nadie se carga a mano: se nace jugando. Si hoy no tiene ningun partido es porque el partido
+     * que lo trajo se borro. No sale en ninguna estadistica, no se puede abrir su juego, y sin
+     * embargo sigue apareciendo en el autocompletado del formulario.
+     */
+    noMatches: 'Sin partidos',
+    delete: 'Borrar jugador',
+    deleteAsk: (name: string) => `¿Borrar a ${name}?`,
 
     rename: 'Renombrar',
     namePlaceholder: 'Nombre',

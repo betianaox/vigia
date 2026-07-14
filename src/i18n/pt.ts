@@ -163,9 +163,15 @@ export const pt: Dict = {
 
   players: {
     title: 'Jogadores',
+    search: 'Procurar jogador',
     empty: 'Ainda ninguém jogou. Regista um jogo e os jogadores aparecerão aqui.',
+    emptyFiltered: 'Nenhum jogador com esse nome.',
     matches: (n: number) => (n === 1 ? '1 jogo' : `${n} jogos`),
     last: (date: string) => `último ${date}`,
+
+    noMatches: 'Sem partidas',
+    delete: 'Apagar jogador',
+    deleteAsk: (name: string) => `Apagar ${name}?`,
 
     rename: 'Renomear',
     namePlaceholder: 'Nome',
