@@ -549,8 +549,15 @@ function PlayerCard(props: {
             )}
           </View>
         ) : props.receiving ? (
-          <View style={[s.pill, s.pillGhost]}>
-            <Text style={[s.pillText, { color: colors.textFaint }]}>RESTA</Text>
+          /**
+           * LA MISMA PILDORA QUE "1ER SAQUE", con la misma voz. El que resta estaba dicho en gris
+           * fantasma y no se veia — y el punto lo juegan dos, no uno: el resto es media cancha.
+           *
+           * Se probo marcarle el borde a la tarjeta y era demasiado: dos tarjetas con borde
+           * compiten, y la del que saca es la que tiene que ganar. La pildora alcanza.
+           */
+          <View style={[s.pill, s.pillCool]}>
+            <Text style={s.pillText}>RESTA</Text>
           </View>
         ) : (
           <View style={s.pillEmpty} />
@@ -842,6 +849,7 @@ const makeStyles = (m: Metrics) => {
       justifyContent: 'center',
     },
     sideMarkText: { fontWeight: '900', fontSize: Math.round(k.avatarMax * 0.75) },
+
     avatar: {
       flex: 1,
       /** El circulo sale de aca: el alto lo pone flex (con el techo de avatarRow), el ancho
@@ -898,7 +906,6 @@ const makeStyles = (m: Metrics) => {
     pillEmpty: { height: k.pill },
     pillCool: { borderColor: alpha(colors.serve, 0.5), backgroundColor: alpha(colors.serve, 0.1) },
     pillHot: { borderColor: colors.serve, backgroundColor: colors.serve },
-    pillGhost: { borderColor: colors.border },
     pillText: { color: colors.serve, fontSize: k.pillFont, fontWeight: '900', letterSpacing: 1 },
 
     rallyBtn: {

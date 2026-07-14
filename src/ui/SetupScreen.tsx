@@ -425,8 +425,19 @@ export function SetupScreen({
                     tick();
                     setNames((n) => ({ ...n, [slot]: '' }));
                   }}
+                  /**
+                   * EL DESPLEGABLE NO SE CIERRA AL PERDER EL FOCO, y eso no es un olvido.
+                   *
+                   * Tocar una sugerencia hace que el campo pierda el foco ANTES de que el toque
+                   * se complete. Si el blur cerrara la lista, la lista se desmontaria entre el
+                   * dedo bajando y el dedo subiendo, y el toque terminaria cayendo en el vacio:
+                   * el desplegable aparecia, se tocaba, y no pasaba nada.
+                   *
+                   * Se cierra sola donde corresponde: al elegir a alguien, al vaciar el campo, o
+                   * al pasar a otro campo (que se apropia del foco). Y `suggest` no ofrece nada
+                   * cuando el nombre ya esta escrito entero, asi que tampoco queda colgada.
+                   */
                   onFocus={() => setFocused(slot)}
-                  onBlur={() => setFocused((f) => (f === slot ? null : f))}
                 />
                 </View>
               </View>
