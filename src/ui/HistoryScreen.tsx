@@ -331,9 +331,13 @@ function Row({
   const line = (t: TeamId) => {
     const lost = m.finished && m.winner !== t;
     return (
+      /* DOS RENGLONES. Los cuatro nombres son EL dato de la fila —es como la gente reconoce un
+         partido— y con la letra del sistema en grande una pareja de nombres largos no entra en
+         uno: se leia "Carla Mendez / Diego Per…". La lista scrollea, asi que el alto no cuesta
+         nada; el nombre de alguien cortado, si. */
       <Text
         style={[s.team, { color: teamColor(t) }, lost && s.lost]}
-        numberOfLines={1}
+        numberOfLines={2}
       >
         {teamText(m, t, resolve)}
       </Text>
@@ -413,21 +417,24 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
-    height: 48,
+    minHeight: 48,
+    paddingVertical: space.sm,
     paddingHorizontal: space.md,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: alpha(colors.ball, 0.4),
     backgroundColor: alpha(colors.ball, 0.08),
   },
-  careerText: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '800' },
+  careerText: { flex: 1, color: colors.text, fontSize: 15, fontWeight: '800' },
 
   periods: { flexDirection: 'row', gap: space.sm },
+  /** Alto MINIMO: con la letra del sistema en grande, la pastilla crece en vez de recortar. */
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    height: 36,
+    minHeight: 36,
+    paddingVertical: 6,
     paddingHorizontal: space.md,
     borderRadius: radius.pill,
     borderWidth: 1,
@@ -435,7 +442,7 @@ const s = StyleSheet.create({
     backgroundColor: colors.surfaceAlt,
   },
   chipOn: { backgroundColor: alpha(colors.text, 0.16), borderColor: alpha(colors.text, 0.5) },
-  chipText: { color: colors.textFaint, fontSize: 12, fontWeight: '700' },
+  chipText: { color: colors.textFaint, fontSize: 13, fontWeight: '700' },
   chipTextOn: { color: colors.text, fontWeight: '900' },
 
   list: { padding: space.lg, paddingTop: 0, gap: space.sm },
@@ -450,20 +457,28 @@ const s = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   rowMain: { flex: 1, gap: 2 },
-  team: { fontSize: 14, fontWeight: '800' },
+  team: { fontSize: 15.5, fontWeight: '800' },
   lost: { opacity: 0.45 },
+  /** El resultado: es lo primero que se busca de un partido viejo. Va mas grande que los nombres. */
   score: {
     color: colors.text,
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '900',
     fontVariant: ['tabular-nums'],
     marginTop: 4,
   },
-  /** `lineHeight` explicito: con dos renglones, sin el, Android los pega uno contra el otro. */
+  /**
+   * Estaba en 11, y es lo que DISTINGUE UN PARTIDO DE OTRO: la misma gente juega todas las
+   * semanas, asi que dos filas seguidas pueden tener los mismos cuatro nombres y el mismo
+   * resultado. Lo unico que las separa es esta linea — la hora, la duracion, si quedo sin
+   * terminar. Estaba escrita mas chica que todo lo demas.
+   *
+   * `lineHeight` explicito: con dos renglones, sin el, Android los pega uno contra el otro.
+   */
   meta: {
     color: colors.textFaint,
-    fontSize: 11,
-    lineHeight: 15,
+    fontSize: 13,
+    lineHeight: 18,
     fontWeight: '600',
     marginTop: 2,
   },
