@@ -299,7 +299,7 @@ export const es = {
     playerByPlayer: 'Jugador por jugador',
     shots: 'Golpes',
     detail: 'Detalle',
-    myGame: 'Su juego',
+    myGame: 'Juego',
     evolution: 'Evolución',
     evolutionSub: 'un partido, una barra',
     byShot: 'por golpe, partido a partido',
@@ -347,10 +347,11 @@ export const es = {
     share: 'Compartir',
     shareDialog: 'Compartir el partido',
 
-    /** Sin golpes cargados no hay nada que dibujar: una tabla de ceros diria otra cosa. */
     otherShots: 'Otros',
-    noShots: 'Sin golpes cargados.',
-    noShotsCategory: 'Sin golpes cargados en esta categoría.',
-    oneMatch: 'Con un solo partido no hay evolución que mostrar. Juega otro y esto se llena.',
+    /** Todo lo que no alcanza para dibujar dice lo MISMO y con las mismas dos palabras. */
+    noShots: 'Datos insuficientes.',
+    noShotsCategory: 'Datos insuficientes.',
+    oneMatch: 'Datos insuficientes.',
+    noPoints: 'Datos insuficientes.',
   },
 };

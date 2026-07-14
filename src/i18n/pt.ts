@@ -208,7 +208,7 @@ export const pt: Dict = {
     playerByPlayer: 'Jogador a jogador',
     shots: 'Golpes',
     detail: 'Detalhe',
-    myGame: 'O seu jogo',
+    myGame: 'Jogo',
     evolution: 'Evolução',
     evolutionSub: 'um jogo, uma barra',
     byShot: 'por golpe, jogo a jogo',
@@ -248,8 +248,9 @@ export const pt: Dict = {
     shareDialog: 'Partilhar o jogo',
 
     otherShots: 'Outros',
-    noShots: 'Sem golpes registados.',
-    noShotsCategory: 'Sem golpes registados nesta categoria.',
-    oneMatch: 'Com um só jogo não há evolução para mostrar. Joga outro e isto enche-se.',
+    noShots: 'Dados insuficientes.',
+    noShotsCategory: 'Dados insuficientes.',
+    oneMatch: 'Dados insuficientes.',
+    noPoints: 'Dados insuficientes.',
   },
 };

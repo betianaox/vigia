@@ -208,7 +208,7 @@ export const it: Dict = {
     playerByPlayer: 'Giocatore per giocatore',
     shots: 'Colpi',
     detail: 'Dettaglio',
-    myGame: 'Il suo gioco',
+    myGame: 'Gioco',
     evolution: 'Evoluzione',
     evolutionSub: 'una partita, una barra',
     byShot: 'per colpo, partita per partita',
@@ -248,8 +248,9 @@ export const it: Dict = {
     shareDialog: 'Condividi la partita',
 
     otherShots: 'Altri',
-    noShots: 'Nessun colpo registrato.',
-    noShotsCategory: 'Nessun colpo registrato in questa categoria.',
-    oneMatch: 'Con una sola partita non c’è evoluzione da mostrare. Giocane un’altra.',
+    noShots: 'Dati insufficienti.',
+    noShotsCategory: 'Dati insufficienti.',
+    oneMatch: 'Dati insufficienti.',
+    noPoints: 'Dati insufficienti.',
   },
 };

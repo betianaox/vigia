@@ -113,6 +113,17 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
   const share = pct(stats.teamPointsWon, stats.totalPoints);
 
   /**
+   * Nada propio que mostrar. Se mide por las ACCIONES, no por los puntos del partido: alguien
+   * pudo estar en la cancha sin pegar un winner ni sacar una vez, y ahi la grilla es un muro de
+   * ceros. El retrato sigue; el resto es "Datos insuficientes".
+   */
+  const noData =
+    stats.totals.winners === 0 &&
+    stats.totals.forcedErrors === 0 &&
+    stats.totals.unforcedErrors === 0 &&
+    stats.totals.servePointsPlayed === 0;
+
+  /**
    * Los golpes de cada categoria, partido a partido — y UNA escala para los tres.
    *
    * La escala sale del partido con mas golpes de CUALQUIER categoria. Si cada grafico se
@@ -177,13 +188,8 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
                 historial. Antes decia "sin definir" — una palabra que no existia en ningun otro
                 lado de la app, inventada para un solo cartel. */}
             <View style={s.portrait}>
-              <Big
-                value={`${stats.matches}`}
-                label={L.stats.matches}
-                sub={
-                  stats.undecided > 0 ? L.stats.unfinished(stats.undecided) : L.stats.allFinished
-                }
-              />
+              <View style={s.portraitRow}>
+              <Big value={`${stats.matches}`} label={L.stats.matches} />
               <Big value={`${stats.won}`} label={L.stats.won} />
               <Big value={`${stats.lost}`} label={L.stats.lost} />
               <Big value={num(share, '%')} label={L.stats.pointsShare} />
@@ -194,17 +200,33 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
 
                   Antes este numero iba en verde SIEMPRE, como acento. Ahora el verde significa
                   algo, y dos verdes con dos significados es peor que un color feo. */}
+              {/* Sin un punto cargado, "0/0" no es un cero: es que no hay dato. Guion, como en
+                  todo el resto de la app — y sin color, que ahi no hay nada mejor ni peor. */}
               <Big
-                value={`${stats.totals.winners}/${stats.totals.unforcedErrors}`}
+                value={noData ? '—' : `${stats.totals.winners}/${stats.totals.unforcedErrors}`}
                 label={L.stats.winnersOverErrors}
                 accent={
-                  stats.totals.winners === stats.totals.unforcedErrors
+                  noData || stats.totals.winners === stats.totals.unforcedErrors
                     ? colors.text
                     : stats.totals.winners > stats.totals.unforcedErrors
                       ? colors.winnerChart
                       : colors.errorUnforcedChart
                 }
               />
+              </View>
+
+              {/* El estado del historial —cuantos quedaron a medias— en su propia linea, no
+                  colgando de "Partidos": ahi "todos terminados" se partia en dos renglones bajo
+                  una sola celda y quedaba escalonado. Aca es un pie del retrato, entero.
+
+                  Pill GRIS, no celeste: "sin terminar" es un ESTADO, y en el historial ya es gris.
+                  El celeste esta reservado para las cantidades; que "sin terminar" fuera azul aca
+                  seria el unico lugar de la app donde ese mismo rotulo cambia de significado. */}
+              <View style={s.portraitTag}>
+                <Text style={s.portraitTagText}>
+                  {stats.undecided > 0 ? L.stats.unfinished(stats.undecided) : L.stats.allFinished}
+                </Text>
+              </View>
             </View>
 
             {/* LA PELICULA. El acumulado deja de moverse a los treinta partidos; esto no. */}
@@ -248,6 +270,10 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
             </Section>
 
             <Section title={L.stats.myGame} subtitle={L.stats.pointsPlayed(stats.totalPoints)}>
+              {noData ? (
+                <Text style={s.noData}>{L.stats.noPoints}</Text>
+              ) : (
+              <>
               <View style={s.grid}>
                 <Stat label={L.stats.winners} value={`${stats.totals.winners}`} />
                 <Stat label={L.stats.forcedShort} value={`${stats.totals.forcedErrors}`} />
@@ -299,6 +325,8 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
                 <Stat label={L.stats.acesConceded} value={`${stats.totals.acesConceded}`} />
                 <Stat label={L.stats.doubleFaultsForced} value={`${stats.totals.doubleFaultsForced}`} />
               </View>
+              </>
+              )}
             </Section>
 
             {/* LOS GOLPES, CONTRA EL TIEMPO. El desglose sumado dice cuanto, pero no dice si
@@ -345,12 +373,10 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
 function Big({
   value,
   label,
-  sub,
   accent,
 }: {
   value: string;
   label: string;
-  sub?: string;
   accent?: string;
 }) {
   return (
@@ -367,7 +393,6 @@ function Big({
       <Text style={s.bigLabel} numberOfLines={1} adjustsFontSizeToFit>
         {label}
       </Text>
-      {sub ? <Text style={s.bigSub}>{sub}</Text> : null}
     </View>
   );
 }
@@ -420,25 +445,34 @@ const s = StyleSheet.create({
 
   /** El retrato: quien sos, en cinco numeros. Es lo que se mira primero y no se lee, se ve. */
   portrait: {
-    flexDirection: 'row',
     padding: space.md,
     borderRadius: radius.md,
     backgroundColor: colors.surface,
   },
+  portraitRow: { flexDirection: 'row' },
+  /** El pie del retrato: cuantos partidos quedaron a medias. Pill gris —estado, no cantidad—,
+      que se ajusta a su texto (por eso `alignSelf`, no ocupa el ancho). */
+  portraitTag: {
+    alignSelf: 'flex-start',
+    marginTop: space.sm,
+    borderRadius: radius.sm,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    backgroundColor: alpha(colors.text, 0.08),
+  },
+  portraitTagText: { color: colors.textDim, fontSize: 11, fontWeight: '700' },
   /**
-   * Cinco celdas en el ancho de un telefono. Los valores parecian cortos ("8", "4", "52%") hasta
-   * que W/ENF paso a ser un par ("87/69"), que es el doble de ancho y sigue creciendo con los
-   * partidos jugados. Todo baja de tamaño, y ademas se achica solo si no entra.
+   * Cinco celdas en el ancho de un telefono. El valor mas ancho, W/ENF ("100/71"), crece con los
+   * partidos jugados, asi que se achica solo (`adjustsFontSizeToFit`) si algun dia no entra.
    */
-  bigCell: { flex: 1, alignItems: 'center', gap: 2, paddingHorizontal: 2 },
-  bigValue: { color: colors.text, fontSize: 16, fontWeight: '900' },
-  bigLabel: { color: colors.textDim, fontSize: 9, fontWeight: '700' },
-  bigSub: { color: colors.textFaint, fontSize: 8, textAlign: 'center' },
+  bigCell: { flex: 1, alignItems: 'center', gap: 3, paddingHorizontal: 2 },
+  bigValue: { color: colors.text, fontSize: 20, fontWeight: '900' },
+  bigLabel: { color: colors.textDim, fontSize: 11, fontWeight: '700' },
 
   section: { gap: space.sm },
   sectionHead: { flexDirection: 'row', alignItems: 'baseline', gap: space.sm },
   sectionTitle: { color: colors.text, fontSize: 13, fontWeight: '900', letterSpacing: 0.8 },
-  sectionSub: { flex: 1, color: colors.textFaint, fontSize: 11, fontWeight: '600' },
+  sectionSub: { flex: 1, color: colors.textFaint, fontSize: 12.5, fontWeight: '600' },
   card: {
     padding: space.md,
     gap: space.md,
@@ -455,9 +489,9 @@ const s = StyleSheet.create({
    * Y con alto fijo, para que todas midan igual aunque una use un renglon y otra dos — si no,
    * la fila queda escalonada y se lee como si algunas fueran mas importantes que otras.
    */
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.xs },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   chip: {
-    width: '32%',
+    width: '31%',
     height: 48,
     alignItems: 'center',
     justifyContent: 'center',
@@ -470,26 +504,29 @@ const s = StyleSheet.create({
   chipOn: { backgroundColor: alpha(colors.text, 0.16), borderColor: alpha(colors.text, 0.5) },
   chipText: {
     color: colors.textFaint,
-    fontSize: 11.5,
+    fontSize: 12,
     fontWeight: '700',
     textAlign: 'center',
     lineHeight: 15,
   },
   chipTextOn: { color: colors.text, fontWeight: '900' },
 
+  /** El mismo cuerpo que la grilla de la pantalla del partido: las dos cuentan lo mismo. */
   grid: { flexDirection: 'row' },
-  statCell: { flex: 1, alignItems: 'center', gap: 1 },
-  statValue: { color: colors.text, fontSize: 16, fontWeight: '800' },
-  statLabel: { color: colors.textDim, fontSize: 10, fontWeight: '600' },
-  statSub: { color: colors.textFaint, fontSize: 9 },
+  statCell: { flex: 1, alignItems: 'center', gap: 2 },
+  statValue: { color: colors.text, fontSize: 20, fontWeight: '800' },
+  statLabel: { color: colors.textDim, fontSize: 12, fontWeight: '600', textAlign: 'center' },
+  statSub: { color: colors.textFaint, fontSize: 11 },
 
   blockLabel: {
     color: colors.textDim,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '900',
     letterSpacing: 1.4,
   },
   divider: { height: 1, backgroundColor: colors.border },
 
   empty: { color: colors.textFaint, fontSize: 13, lineHeight: 19, padding: space.md },
+  /** La frase que reemplaza la grilla de ceros: mismo tono que la de la evolucion. */
+  noData: { color: colors.textFaint, fontSize: 13, lineHeight: 19 },
 });

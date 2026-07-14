@@ -229,7 +229,7 @@ export const en: Dict = {
     playerByPlayer: 'Player by player',
     shots: 'Shots',
     detail: 'Detail',
-    myGame: 'Their game',
+    myGame: 'Game',
     evolution: 'Progress',
     evolutionSub: 'one match, one bar',
     byShot: 'by shot, match by match',
@@ -269,8 +269,9 @@ export const en: Dict = {
     shareDialog: 'Share the match',
 
     otherShots: 'Other',
-    noShots: 'No shots logged.',
-    noShotsCategory: 'No shots logged in this category.',
-    oneMatch: 'One match is not a trend. Play another and this fills up.',
+    noShots: 'Not enough data.',
+    noShotsCategory: 'Not enough data.',
+    oneMatch: 'Not enough data.',
+    noPoints: 'Not enough data.',
   },
 };
