@@ -42,34 +42,59 @@ const BASE = {
    * Apilar los nombres no fue solo para que entren los largos: al ocupar dos lineas, las
    * celdas de GM y PTS pasan a abarcar el bloque entero — y con el doble de alto, el numero
    * crece un 30% mientras el tanteador crece un 4%.
+   *
+   * ESTOS NUMEROS SUBIERON, Y EL ALTO SE LO SACAN A LAS TARJETAS DE ABAJO. El tanteador estaba
+   * escrito en letra chica: es la unica parte de la cancha que hay que LEER (un nombre, un 40,
+   * un 6-4) y estaba mas chica que los botones, que se reconocen por color y posicion sin leer.
+   * Era exactamente al reves de lo que hace falta.
+   *
+   * El alto sale del presupuesto general (`BASE_TOTAL`), asi que subir estos numeros achica el
+   * resto solo, sin tocar nada mas: las tarjetas se lo bancan porque su parte elastica es el
+   * avatar — una pelota grande no le sirve a nadie, un nombre ilegible arruina la pantalla.
+   *
+   * Y la cancha ya NO obedece la escala de letra del sistema (ver `FixedText`), asi que estos
+   * numeros son los que se ven: no hay un telefono en el que el tanteador se dibuje de otro
+   * tamaño y se corte.
    */
-  boardPadV: 5,
-  boardHeader: 11,
-  boardNameLine: 16,
+  boardPadV: 6,
+  boardHeader: 12,
+  boardNameLine: 20,
   boardRowGap: 2,
   /** La celda abarca las dos lineas del equipo. */
-  cell: 32,
+  cell: 40,
   cellGap: 4,
-  ballSlot: 16,
-  boardNames: 12,
-  boardSmall: 9,
-  setNum: 16,
-  liveNum: 22,
+  ballSlot: 18,
+  boardNames: 15,
+  boardSmall: 10,
+  setNum: 19,
+  liveNum: 26,
 
-  // Tarjeta de jugador
+  /**
+   * Tarjeta de jugador.
+   *
+   * LOS TAMAÑOS SUBIERON PORQUE AHORA SON LOS DEFINITIVOS. Antes, cualquier numero que pusieramos
+   * aca lo multiplicaba despues la escala de letra del telefono, asi que habia que dejar aire por
+   * las dudas — y ese aire se lo comia el que NO habia tocado los ajustes, que es casi todo el
+   * mundo. Ahora la cancha no escala (ver `FixedText`): lo que se escribe aca es lo que se ve, y
+   * conviene escribirlo grande.
+   *
+   * El aire que se gasta sale del avatar, que es lo elastico de la tarjeta. Un circulo con dos
+   * iniciales no necesita ser enorme: ya se distingue por color.
+   */
   cardPad: 8,
   rowGap: 4,
-  btnPadH: 3,
+  /** Aire lateral de verdad adentro del boton: la palabra deja de tocar el borde. */
+  btnPadH: 5,
   serve: 46,
-  serveFont: 13,
-  rally: 54,
-  rallyFont: 15,
-  rallyDesc: 9,
-  avatar: 60,
-  name: 13,
-  pill: 19,
+  serveFont: 14,
+  rally: 56,
+  rallyFont: 17,
+  rallyDesc: 10,
+  avatar: 56,
+  name: 15,
+  pill: 21,
   gap: 8,
-  pillFont: 9,
+  pillFont: 10,
 
   // Cancha
   courtPad: 12,
@@ -160,15 +185,17 @@ export function layout(avail: number, availW: number) {
     rowGap: px(BASE.boardRowGap),
     /** Siempre exactamente las dos lineas del equipo: si no, la celda no alinea con los nombres. */
     cell: boardNameLine * 2,
-    cellW: px(30),
+    /** Un poco mas ancha: adentro entran ahora numeros mas grandes. */
+    cellW: px(34),
     gap: px(BASE.cellGap),
     ballSlot: px(BASE.ballSlot),
-    ball: px(8),
-    names: font(BASE.boardNames, 10),
-    small: font(BASE.boardSmall, 8),
-    setNum: font(BASE.setNum, 13),
-    sup: font(9, 8),
-    liveNum: font(BASE.liveNum, 16),
+    ball: px(9),
+    /** El piso sube con el resto: por debajo de 12 el nombre deja de leerse de reojo. */
+    names: font(BASE.boardNames, 12),
+    small: font(BASE.boardSmall, 9),
+    setNum: font(BASE.setNum, 15),
+    sup: font(10, 8),
+    liveNum: font(BASE.liveNum, 19),
   };
 
   const bottom = {

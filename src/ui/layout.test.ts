@@ -85,18 +85,29 @@ describe('la escala del diseno', () => {
   });
 
   /**
-   * Estos son los bugs que se veian en pantalla: FALTA partido en dos lineas, ENF cortado
-   * en "E...", y la descripcion terminando en "no for...". Los tres son de ANCHO.
+   * LO QUE NO SE PUEDE CORTAR NUNCA: la palabra del boton de saque y la inicial del de punto.
+   *
+   * Son las dos cosas que se tocan sin leer, mirando la cancha. Un "FAU…" o un "E…" no es un
+   * texto mas chico: es un boton que hay que descifrar justo cuando no hay tiempo.
+   *
+   * LA DESCRIPCION SI SE PUEDE CORTAR, Y ESTA DECIDIDO. En un telefono de 360 dp ese boton deja
+   * unos 36 dp de texto —seis caracteres— y las descripciones miden entre 8 y 11 ("Unforced",
+   * "No forzado", "Non forzato"). Entrarlas enteras costaba partirlas en dos lineas o inventar
+   * palabras mas cortas, y no lo valen: quien elige el boton se guia por la inicial y por el
+   * color, que son enormes. La descripcion esta para que alguien entienda QUE es un ENF la
+   * primera vez, y para eso "No forz…" alcanza.
+   *
+   * Este test decia que la descripcion tampoco se cortaba, y era mentira: media contra
+   * "forzado" (7 caracteres), que fue la palabra mas larga hasta que dejo de serlo. Un test en
+   * verde que afirma algo falso es peor que no tenerlo — es el que te hace confiar.
    */
-  it.each(PHONES)('$name: el texto de los botones entra sin cortarse', ({ avail, availW }) => {
+  it.each(PHONES)('$name: lo que se toca sin leer nunca se corta', ({ avail, availW }) => {
     const { m, textW } = fit(avail, availW);
 
     // FALTA y DOBLE: cinco caracteres en negrita.
     expect(wordW(5, m.card.serveFont, 0.72)).toBeLessThanOrEqual(textW);
     // ENF: tres.
     expect(wordW(3, m.card.rallyFont, 0.72)).toBeLessThanOrEqual(textW);
-    // "forzado": la palabra mas larga de las descripciones, que ocupa una linea de las dos.
-    expect(wordW(7, m.card.rallyDesc, 0.56)).toBeLessThanOrEqual(textW);
   });
 
   it.each(PHONES)('$name: y aun asi se sigue leyendo', ({ avail, availW }) => {
@@ -129,11 +140,24 @@ describe('la escala del diseno', () => {
     expect(m.sheet.close).toBeGreaterThanOrEqual(TOUCH_MIN);
   });
 
-  it('el tanteador deja de comerse la cancha: en ninguna pantalla se lleva mas del 15%', () => {
+  /**
+   * El techo paso de 15% a 17%, y no fue porque el test molestaba.
+   *
+   * El tanteador estaba escrito en letra chica, y es la unica parte de la cancha que hay que LEER:
+   * un nombre, un "40", un 6-4. Los botones no se leen —se reconocen por color y por posicion— asi
+   * que tenerlos grandes a ellos y el tanteador chico era exactamente al reves. Se le devolvieron
+   * dos puntos de alto, que salen del avatar, que no los necesita.
+   *
+   * El techo sigue puesto porque el peligro es real y es lento: cada vez que algo del tanteador
+   * crece un poquito, la cancha pierde un poquito, y nadie se da cuenta hasta que los botones no
+   * se pueden tocar. Si esto vuelve a fallar, la pregunta no es "¿subimos el numero?" — es "¿que
+   * sacamos del tanteador?".
+   */
+  it('el tanteador no se come la cancha: en ninguna pantalla se lleva mas del 17%', () => {
     for (const { avail, availW } of PHONES) {
       const m = layout(avail, availW);
       const boardH = m.board.padV * 2 + m.board.header + m.board.cell * 2 + m.board.rowGap;
-      expect(boardH / avail).toBeLessThan(0.15);
+      expect(boardH / avail).toBeLessThan(0.17);
     }
   });
 });

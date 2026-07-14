@@ -1,7 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Animated, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import type { MatchConfig, MatchState, TeamId } from '../engine';
+/**
+ * TODO EL TANTEADOR VA EN TEXTO QUE NO ESCALA (el porque, en `FixedText`).
+ *
+ * Es una TABLA: cuatro nombres, dos columnas de numeros y unos casilleros que tienen que alinear
+ * entre si. Con la letra del sistema en grande los nombres se pisaban uno al otro, "GM" y "PTS"
+ * se cortaban por arriba y las celdas dejaban de alinear con las lineas. Un tanteador roto no es
+ * un tanteador mas grande.
+ *
+ * Se importa CON EL NOMBRE `Text` a proposito: asi no queda ni un `<Text>` comun al que se le
+ * escape la regla, y el que agregue una linea manana la hereda sin enterarse.
+ */
+import { FixedText as Text } from './FixedText';
 import { CHAR, fitWidth } from './layout';
 import { useMetrics, type Metrics } from './metrics';
 import { usePulse } from './pulse';

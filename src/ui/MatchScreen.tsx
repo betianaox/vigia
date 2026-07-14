@@ -19,6 +19,19 @@ import type {
 } from '../engine';
 import { L } from '../i18n';
 import { DEFAULT_PREFS, loadPrefs, type ShotPrompt } from '../store/store';
+/**
+ * DOS TEXTOS EN EL MISMO ARCHIVO, Y LA DIFERENCIA ES DELIBERADA.
+ *
+ * La CANCHA usa `FixedText`: no obedece la letra del sistema (el porque, entero, en `FixedText`).
+ * Es una pantalla sin scroll, de botones que se reconocen por color y posicion, donde agrandar la
+ * letra no agranda nada — corta "FAULT" en "FAU…", que no se lee mejor: no se lee.
+ *
+ * La HOJA DE GOLPES usa el `Text` de siempre, y SI escala. Es la unica parte de esta pantalla con
+ * palabras de verdad ("Salida de pared", "Chiquita"), es un modal que puede crecer, y se probo con
+ * la letra del sistema al maximo sin un solo corte. Ahi la escala del sistema ayuda de verdad, asi
+ * que ahi se respeta.
+ */
+import { FixedText } from './FixedText';
 import { CHAR, fitWidth, TOUCH_MIN } from './layout';
 import { useMetrics, type Metrics } from './metrics';
 import { usePulse } from './pulse';
@@ -268,9 +281,9 @@ export function MatchScreen({
 
       {state.isGoldenPoint && (
         <View style={s.goldenBar}>
-          <Text style={s.goldenText}>
+          <FixedText style={s.goldenText}>
             {state.awaitingBoxChoice ? L.court.goldenPointChoose : L.court.goldenPoint}
-          </Text>
+          </FixedText>
           {state.awaitingBoxChoice && (
             <View style={s.row}>
               {(['derecha', 'izquierda'] as Box[]).map((b) => (
@@ -283,9 +296,9 @@ export function MatchScreen({
                     push({ type: 'ELECCION_CUADRO', box: b });
                   }}
                 >
-                  <Text style={s.goldenBtnText}>
+                  <FixedText style={s.goldenBtnText}>
                     {b === 'derecha' ? L.court.boxRight : L.court.boxLeft}
-                  </Text>
+                  </FixedText>
                 </Pressable>
               ))}
             </View>
@@ -363,16 +376,16 @@ export function MatchScreen({
               color={colors.trophy}
             />
 
-            <Text style={s.finishedTitle}>{L.court.finished}</Text>
+            <FixedText style={s.finishedTitle}>{L.court.finished}</FixedText>
 
-            <Text
+            <FixedText
               style={[s.finishedWinners, { color: teamColor(state.winner!) }]}
               numberOfLines={1}
             >
               {[config.teams[state.winner!].drive, config.teams[state.winner!].reves]
                 .map((p) => nameOf(p, config.players[p]?.name))
                 .join(' / ')}
-            </Text>
+            </FixedText>
 
             <View style={s.finishedRow}>
               {/* Deshabilitado hasta que exista la pantalla de inicio: un boton que parece
@@ -389,7 +402,7 @@ export function MatchScreen({
                 disabled={!onHome}
               >
                 <MaterialIcons name="home" size={m.card.avatarMax * 0.55} color={colors.text} />
-                <Text style={s.finishedBtnText}>{L.court.home}</Text>
+                <FixedText style={s.finishedBtnText}>{L.court.home}</FixedText>
               </Pressable>
 
               <Pressable
@@ -405,7 +418,7 @@ export function MatchScreen({
                   size={m.card.avatarMax * 0.55}
                   color={colors.text}
                 />
-                <Text style={s.finishedBtnText}>{L.court.stats}</Text>
+                <FixedText style={s.finishedBtnText}>{L.court.stats}</FixedText>
               </Pressable>
             </View>
           </View>
@@ -430,7 +443,7 @@ export function MatchScreen({
           disabled={events.length === 0}
         >
           <MaterialIcons name="undo" size={m.bottom.icon} color={colors.text} />
-          <Text style={s.utilText}>{L.court.undo}</Text>
+          <FixedText style={s.utilText}>{L.court.undo}</FixedText>
         </Pressable>
         {/* Solo icono: la etiqueta no explicaba nada (¿"dar vuelta" que?) y ocupaba lugar.
             Da vuelta la vista 180 grados para que coincida con lo que ve el que mira. */}
@@ -533,9 +546,9 @@ function PlayerCard(props: {
       android_ripple={ripple}
       onPress={onPress}
     >
-      <Text style={[s.serveText, { color: solid ? colors.onLight : color }]} numberOfLines={1}>
+      <FixedText style={[s.serveText, { color: solid ? colors.onLight : color }]} numberOfLines={1}>
         {label}
-      </Text>
+      </FixedText>
     </Pressable>
   );
 
@@ -562,9 +575,9 @@ function PlayerCard(props: {
           {/* Un cuadrado que se resuelve solo: toma el alto disponible y saca el ancho de ahi.
               Nadie le dice cuanto mide — solo hasta donde puede crecer. */}
           <View style={[s.avatar, { backgroundColor: c }]}>
-            <Text style={s.avatarText} numberOfLines={1} adjustsFontSizeToFit>
+            <FixedText style={s.avatarText} numberOfLines={1} adjustsFontSizeToFit>
               {initials(props.name)}
-            </Text>
+            </FixedText>
           </View>
 
           {/* De que lado juega, como marca de agua. Va atada a la FILA DEL AVATAR, no a toda
@@ -572,15 +585,15 @@ function PlayerCard(props: {
               altura del nombre, que con un nombre largo se le montaba encima. Es absoluta y
               no captura toques — informa sin mover ni tapar nada. */}
           <View style={s.sideMark} pointerEvents="none">
-            <Text style={[s.sideMarkText, { color: alpha(c, 0.34) }]}>
+            <FixedText style={[s.sideMarkText, { color: alpha(c, 0.34) }]}>
               {props.position === 'drive' ? 'D' : 'R'}
-            </Text>
+            </FixedText>
           </View>
         </View>
 
-        <Text style={s.cardName} numberOfLines={1}>
+        <FixedText style={s.cardName} numberOfLines={1}>
           {props.name}
-        </Text>
+        </FixedText>
 
         {props.serving ? (
           <View style={s.pillRow}>
@@ -601,9 +614,9 @@ function PlayerCard(props: {
                 },
               ]}
             >
-              <Text style={[s.pillText, second && { color: colors.onLight }]}>
+              <FixedText style={[s.pillText, second && { color: colors.onLight }]}>
                 {second ? L.court.secondServe : L.court.firstServe}
-              </Text>
+              </FixedText>
             </Animated.View>
 
             {/* "Saca el otro". Pegado a la pildora porque habla de eso: de quien saca. Solo
@@ -633,7 +646,7 @@ function PlayerCard(props: {
            * compiten, y la del que saca es la que tiene que ganar. La pildora alcanza.
            */
           <View style={[s.pill, s.pillCool]}>
-            <Text style={s.pillText}>{L.court.returning}</Text>
+            <FixedText style={s.pillText}>{L.court.returning}</FixedText>
           </View>
         ) : (
           <View style={s.pillEmpty} />
@@ -653,20 +666,26 @@ function PlayerCard(props: {
             onPress={() => props.onRally(a.type)}
             onLongPress={() => props.onRallyLong(a.type)}
           >
-            <Text style={[s.rallyText, { color: a.color }]} numberOfLines={1}>
+            <FixedText style={[s.rallyText, { color: a.color }]} numberOfLines={1}>
               {a.label}
-            </Text>
-            {/* Una sola linea, siempre, y si no entra se corta con puntos suspensivos. El
-                alto de la caja es fijo por eso mismo: las tres iniciales tienen que quedar
-                a la misma altura, que es lo que permite encontrar el boton de un vistazo. */}
+            </FixedText>
+            {/* UNA SOLA LINEA, SIEMPRE, Y SI NO ENTRA SE CORTA. Esta decidido, no es un descuido.
+                En un telefono de 360 dp aca entran unos seis caracteres, y las descripciones miden
+                entre 8 y 11 ("Unforced", "No forzado"): entrarlas enteras costaba dos renglones o
+                palabras inventadas mas cortas. No lo valen — el boton se elige por la INICIAL y
+                por el color, que son enormes; la descripcion solo esta para entender que es un ENF
+                la primera vez, y para eso "No forz…" alcanza.
+
+                El alto de la caja es fijo por lo mismo: las tres iniciales tienen que quedar a la
+                misma altura, que es lo que permite encontrar el boton sin mirar. */}
             <View style={s.descBox}>
-              <Text
+              <FixedText
                 style={[s.rallyDesc, { color: alpha(a.color, 0.8) }]}
                 numberOfLines={1}
                 ellipsizeMode="tail"
               >
                 {a.desc}
-              </Text>
+              </FixedText>
             </View>
           </Pressable>
         ))}
