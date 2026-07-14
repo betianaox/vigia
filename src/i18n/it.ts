@@ -13,7 +13,8 @@ export const it: Dict = {
     bandeja: 'Bandeja',
     volea: 'Volée',
     chiquita: 'Chiquita',
-    salida_de_pared: 'Salida de pared',
+    /** El italiano SI tiene nombre propio, y es uno de sus ocho golpes fundamentales. */
+    salida_de_pared: 'Uscita di parete',
     fondo: 'Fondo',
     globo: 'Pallonetto',
     dejada: 'Smorzata',

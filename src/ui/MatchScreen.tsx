@@ -811,10 +811,19 @@ function ShotSheet(props: {
               Y el lado del golpe se llama DERECHA, no "drive": drive en esta app es de que lado
               de la cancha juega la PERSONA, y usar la misma palabra para las dos cosas las
               confunde. Ademas en España a la derecha le dicen derecha (ver `SIDE_LABELS`). */}
+          {/* UNA LINEA, Y SI NO ENTRA SE ACHICA — NUNCA SE PARTE. Son las dos palabras mas largas
+              de la hoja ("BACKHAND", "FOREHAND", "IZQUIERDA") metidas en la caja mas angosta, que
+              es el ancho de una tecla. Con la letra del sistema en grande se partian en dos
+              renglones y el segundo quedaba cortado por el borde: se leia "BACKHA…". Que se
+              achiquen es correcto: son un rotulo de columna, no algo que se toque. */}
           <View style={s.keyHead}>
-            <Text style={s.keyHeadText}>{sides[LEFT].toUpperCase()}</Text>
+            <Text style={s.keyHeadText} numberOfLines={1} adjustsFontSizeToFit>
+              {sides[LEFT].toUpperCase()}
+            </Text>
             <View style={s.keyName} />
-            <Text style={s.keyHeadText}>{sides[RIGHT].toUpperCase()}</Text>
+            <Text style={s.keyHeadText} numberOfLines={1} adjustsFontSizeToFit>
+              {sides[RIGHT].toUpperCase()}
+            </Text>
           </View>
 
           {STROKES_CON_LADO.map((stroke) => {
@@ -926,7 +935,7 @@ const makeStyles = (m: Metrics) => {
    * achicara por su cuenta, "Volea" quedaria enorme al lado de "Salida de pared".
    */
   const strokeFont = Math.max(
-    11,
+    12,
     Math.min(
       h.label,
       fitWidth(longestStroke(), cellW - cellPad * 2 - sideW - h.gap, CHAR.semiLower),
@@ -1218,7 +1227,13 @@ const makeStyles = (m: Metrics) => {
       paddingHorizontal: 2,
     },
     /** Sin el espaciado de las mayusculas, que ya no lleva: se escribe como cualquier golpe. */
-    sheetBaseText: { color: colors.text, fontSize: h.btn, fontWeight: '900' },
+    /**
+     * EL MISMO TAMAÑO QUE TODA LA HOJA. Lo que distingue al golpe base de una variante ya lo dice
+     * el RELLENO —es el unico solido y en blanco— y con eso alcanza. Agrandarle ademas la letra es
+     * decir dos veces lo mismo, y de paso rompe la fila: nueve nombres iguales y dos mas grandes se
+     * leen como si fueran de otra cosa.
+     */
+    sheetBaseText: { color: colors.text, fontSize: strokeFont, fontWeight: '900' },
 
     /**
      * Las variantes cuelgan del base: un solo tap, y con el MISMO peso visual que los golpes

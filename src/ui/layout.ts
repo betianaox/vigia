@@ -106,14 +106,36 @@ const BASE = {
   utilFont: 15,
   utilIcon: 24,
 
-  // Hoja de golpes
+  /**
+   * Hoja de golpes.
+   *
+   * Aca los nombres SI se leen —"Salida de pared", "Chiquita"— asi que la letra subio. Ojo con
+   * que el numero de `sheetLabel` es solo un TECHO: el tamaño real lo decide tambien el ancho,
+   * contra el golpe de nombre mas largo (ver `strokeFont` en MatchScreen). En un telefono angosto
+   * manda el ancho y este numero no cambia nada; en uno normal, manda este.
+   *
+   * Y es la unica parte de la cancha que SIGUE obedeciendo la letra del sistema: es un modal, tiene
+   * a donde crecer, y se probo con la fuente al maximo sin un solo corte.
+   */
   sheetPad: 12,
   /** El aire entre botones: si estan pegados, la grilla se lee como una pared. */
   sheetGap: 9,
-  sheetTitle: 15,
-  sheetLabel: 13,
-  sheetBtn: 12,
-  sheetVariant: 11,
+  sheetTitle: 16,
+  /**
+   * UN SOLO TAMAÑO PARA LOS ONCE NOMBRES DE LA HOJA, y no tres.
+   *
+   * Habia un numero para el golpe base, otro para las variantes y otro para la grilla. De ahi salio
+   * un absurdo que se veia en pantalla: el remate y la bandeja —los que se tocan sin pensar— tenian
+   * la letra MAS CHICA que la vibora y el gancho, que cuelgan de ellos.
+   *
+   * La jerarquia ya la dice el relleno (el base es el unico solido y en blanco). Diciendola tambien
+   * con el tamaño se rompia la fila: nombres de distinto tamaño se leen como cosas de distinta
+   * clase, y son todos golpes.
+   *
+   * Es un TECHO, no una promesa: el tamaño real lo decide tambien el ancho, contra el golpe de
+   * nombre mas largo (ver `strokeFont`). En un telefono angosto manda el ancho.
+   */
+  sheetLabel: 16,
   sheetRow: 56,
   sheetClose: 44,
   sheetCloseIcon: 24,
@@ -288,8 +310,6 @@ export function layout(avail: number, availW: number) {
     /** La X dibujada: mas grande que el titulo, porque es un boton y tiene que verse. */
     closeIcon: font(BASE.sheetCloseIcon, 18),
     label: font(BASE.sheetLabel, 10),
-    btn: font(BASE.sheetBtn, 10),
-    variant: font(BASE.sheetVariant, 9),
     row: sheetRow,
     /** Lo que mide la hoja entera, ya resuelta. De aca sale que no necesite scroll. */
     height: sheetChrome + sheetGap * (SHEET_ROWS - 1) + sheetRow * SHEET_ROWS,

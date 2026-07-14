@@ -14,7 +14,20 @@ export const en: Dict = {
     bandeja: 'Bandeja',
     volea: 'Volley',
     chiquita: 'Chiquita',
-    salida_de_pared: 'Salida de pared',
+    /**
+     * EL INGLES NO TIENE NOMBRE PARA ESTE GOLPE, ASI QUE SE LO DESCRIBE.
+     *
+     * Los entrenadores anglofonos no lo nombran: hablan del cristal. Dicen "the back glass" y
+     * "play it off the glass". Lo que circula como nombre —"wall exit"— es una traduccion literal
+     * que nadie usa en cancha, y la bajada (que es OTRO golpe: el ataque, no la salida) directamente
+     * la dicen en castellano, igual que la bandeja o la chiquita.
+     *
+     * Entre dejarlo en castellano —que seria lo coherente con bandeja/chiquita/vibora— y que un
+     * principiante anglofono entienda de que se le habla, gana lo segundo: este golpe no es jerga
+     * de iniciados, es uno de los fundamentales, y quien recien empieza tiene que poder encontrarlo
+     * en la hoja sin saber castellano.
+     */
+    salida_de_pared: 'Off the glass',
     fondo: 'Groundstroke',
     globo: 'Lob',
     dejada: 'Drop shot',

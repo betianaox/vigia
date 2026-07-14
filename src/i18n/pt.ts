@@ -13,7 +13,8 @@ export const pt: Dict = {
     bandeja: 'Bandeja',
     volea: 'Voleio',
     chiquita: 'Chiquita',
-    salida_de_pared: 'Salida de pared',
+    /** El portugues tiene el suyo, y no es el castellano: se dice "saída", no "salida". */
+    salida_de_pared: 'Saída de parede',
     fondo: 'Fundo',
     globo: 'Globo',
     dejada: 'Dejada',
