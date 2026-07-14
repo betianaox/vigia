@@ -130,12 +130,12 @@ const s = StyleSheet.create({
   input: {
     flex: 1,
     color: colors.text,
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
     padding: 0,
     includeFontPadding: false,
   },
-  chosen: { flex: 1, color: colors.text, fontSize: 15, fontWeight: '900' },
+  chosen: { flex: 1, color: colors.text, fontSize: 16, fontWeight: '900' },
 
   hits: { borderRadius: radius.md, backgroundColor: colors.surface, overflow: 'hidden' },
   hit: {
@@ -145,5 +145,5 @@ const s = StyleSheet.create({
     height: 48,
     paddingHorizontal: space.md,
   },
-  hitText: { flex: 1, color: colors.text, fontSize: 15, fontWeight: '600' },
+  hitText: { flex: 1, color: colors.text, fontSize: 16, fontWeight: '600' },
 });

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Animated,
   Easing,
+  PixelRatio,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -535,38 +536,54 @@ export function SetupScreen({
               hints={[L.setup.shotPromptHints.siempre, L.setup.shotPromptHints.opcional]}
             />
 
+            {/* UNA LINEA ENTRE OPCION Y OPCION. Hacia abajo no hay limite —esta pantalla ya
+                scrollea— asi que el aire es gratis, y la linea convierte una lista continua en
+                bloques que se leen de a uno. */}
+            <View style={s.panelRule} />
+
             <Segmented
               title={L.setup.gameFormat}
               options={FORMATS}
               value={prefs.gameFormat}
               onChange={(v) => setPrefs((x) => ({ ...x, gameFormat: v as Prefs['gameFormat'] }))}
+              stack
             />
+
             {prefs.length === 'tres_sets' && (
-              <Segmented
-                title={L.setup.thirdSet}
-                options={THIRD_SETS}
-                value={prefs.thirdSet}
-                onChange={(v) => setPrefs((x) => ({ ...x, thirdSet: v as Prefs['thirdSet'] }))}
-              />
+              <>
+                <View style={s.panelRule} />
+                <Segmented
+                  title={L.setup.thirdSet}
+                  options={THIRD_SETS}
+                  value={prefs.thirdSet}
+                  onChange={(v) => setPrefs((x) => ({ ...x, thirdSet: v as Prefs['thirdSet'] }))}
+                />
+              </>
             )}
+
+            <View style={s.panelRule} />
+
             <Segmented
               title={L.setup.changeEnds}
               options={CHANGE_ENDS}
               value={prefs.changeEnds}
               onChange={(v) => setPrefs((x) => ({ ...x, changeEnds: v as Prefs['changeEnds'] }))}
+              stack
             />
 
             {/* La formacion es por PAREJA, no por partido: cada equipo elige la suya. Solo
                 afecta como se paran cuando SACAN — recibiendo, el reglamento las obliga a
                 mantener el lugar que eligieron al empezar el set. */}
             {(['A', 'B'] as TeamId[]).map((team) => (
-              <Segmented
-                key={team}
-                title={L.setup.formation(teamName(team).toUpperCase())}
-                options={FORMATIONS}
-                value={formations[team]}
-                onChange={(v) => setFormations((f) => ({ ...f, [team]: v as Formation }))}
-              />
+              <View key={team} style={s.panelBlock}>
+                <View style={s.panelRule} />
+                <Segmented
+                  title={L.setup.formation(teamName(team).toUpperCase())}
+                  options={FORMATIONS}
+                  value={formations[team]}
+                  onChange={(v) => setFormations((f) => ({ ...f, [team]: v as Formation }))}
+                />
+              </View>
             ))}
 
             <Text style={s.hint}>{L.setup.remembered}</Text>
@@ -705,8 +722,7 @@ function HeadChip({
   );
 }
 
-/** Un grupo de opciones excluyentes. Todas visibles: elegir no puede costar dos toques. */
-function Segmented(props: {
+interface SegmentedProps {
   title: string;
   options: ReadonlyArray<{ value: string; label: string }>;
   value: string;
@@ -728,60 +744,99 @@ function Segmented(props: {
    * de set) el nombre YA lo dice todo, y explicar lo obvio es ruido.
    */
   hints?: readonly string[];
-}) {
+  /** Tres opciones en dos renglones (2 + 1 centrada). Solo en las avanzadas: ver abajo. */
+  stack?: boolean;
+}
+
+/** Un grupo de opciones excluyentes. Todas visibles: elegir no puede costar dos toques. */
+function Segmented(props: SegmentedProps) {
   return (
     <View style={s.segBlock}>
       <View style={s.segHead}>
         <Text style={s.segTitle}>{props.title}</Text>
         {props.right}
       </View>
-      <View style={s.segRow}>
-        {props.options.map((o, i) => {
-          const on = o.value === props.value;
-          const c = props.colorOf?.(o.value);
-          const hint = props.hints?.[i];
+      {/**
+       * TRES OPCIONES EN DOS RENGLONES: dos arriba y una centrada abajo.
+       *
+       * Tres botones en una fila dejan un tercio de pantalla para cada uno, y ahi "Punto estrella"
+       * no entra: o se corta, o hay que achicar la letra de las tres. Abajo, en cambio, el espacio
+       * es GRATIS — la pantalla ya scrollea. Se paga con un renglon y se gana el doble de ancho.
+       *
+       * Solo en las avanzadas: en el formulario principal las opciones son cortas (1 game, 1 set)
+       * y entran las tres al hilo.
+       */}
+      {props.stack && props.options.length === 3 ? (
+        <>
+          <View style={s.segRow}>
+            {button(props, 0)}
+            {button(props, 1)}
+          </View>
+          <View style={s.segRow}>
+            <View style={s.segSpacer} />
+            {button(props, 2)}
+            <View style={s.segSpacer} />
+          </View>
+        </>
+      ) : (
+        <View style={s.segRow}>{props.options.map((_, i) => button(props, i))}</View>
+      )}
 
-          /** Con explicacion, el boton y su linea son UNA columna: la linea no puede quedar
-              huerfana ni obligar a repetir el nombre del boton para saber de cual habla. */
-          const Wrap = hint
-            ? ({ children }: { children: ReactNode }) => <View style={s.segCol}>{children}</View>
-            : ({ children }: { children: ReactNode }) => <>{children}</>;
-
-          return (
-            <Wrap key={o.value}>
-            <Pressable
-              style={({ pressed: pr }) => [
-                s.seg,
-                hint && s.segInCol,
-                on && s.segOn,
-                /* Con color propio, los DOS van del color de su equipo — nunca en gris. Lo que
-                   distingue al elegido es el BORDE BLANCO, que es el mismo vocabulario de la
-                   cancha: alla, el borde blanco marca al que saca. Nada nuevo que aprender. */
-                c && { backgroundColor: alpha(c, on ? 0.24 : 0.1), borderColor: alpha(c, 0.45) },
-                c && on && { borderColor: colors.serve },
-                pr && pressed,
-              ]}
-              android_ripple={ripple}
-              onPress={() => {
-                tick();
-                props.onChange(o.value);
-              }}
-              disabled={props.disabled}
-            >
-              <Text
-                style={[s.segText, on && s.segTextOn, c && { color: c }]}
-                numberOfLines={1}
-              >
-                {o.label}
-              </Text>
-            </Pressable>
-
-              {hint ? <Text style={s.segHint}>{hint}</Text> : null}
-            </Wrap>
-          );
-        })}
-      </View>
+      {/**
+       * Las explicaciones van en SU PROPIO renglon, no adentro de cada boton.
+       *
+       * Cuando el sistema tiene la letra grande, "Preguntar siempre" pasa a dos lineas y ese boton
+       * crece. Si cada boton viviera en su columna junto con su explicacion, el de al lado —que
+       * entra en una linea— quedaria mas bajo, y dos botones hermanos de distinto alto se leen como
+       * un error. En una fila, en cambio, se estiran los dos al mismo alto sin pedir permiso.
+       */}
+      {props.hints && (
+        <View style={s.segRow}>
+          {props.hints.map((hint, i) => (
+            <Text key={props.options[i]!.value} style={[s.segCell, s.segHint]}>
+              {hint}
+            </Text>
+          ))}
+        </View>
+      )}
     </View>
+  );
+}
+
+/** Un boton del grupo. Vive afuera para poder dibujarlo en cualquier renglon (ver el 2+1). */
+function button(props: SegmentedProps, i: number): ReactNode {
+  const o = props.options[i]!;
+  const on = o.value === props.value;
+  const c = props.colorOf?.(o.value);
+
+  return (
+    <Pressable
+      key={o.value}
+      style={({ pressed: pr }) => [
+        s.seg,
+        on && s.segOn,
+        /* Con color propio, los DOS van del color de su equipo — nunca en gris. Lo que
+           distingue al elegido es el BORDE BLANCO, que es el mismo vocabulario de la
+           cancha: alla, el borde blanco marca al que saca. Nada nuevo que aprender. */
+        c && { backgroundColor: alpha(c, on ? 0.24 : 0.1), borderColor: alpha(c, 0.45) },
+        c && on && { borderColor: colors.serve },
+        pr && pressed,
+      ]}
+      android_ripple={ripple}
+      onPress={() => {
+        tick();
+        props.onChange(o.value);
+      }}
+      disabled={props.disabled}
+    >
+      {/* DOS LINEAS, NO PUNTOS SUSPENSIVOS. Con la letra del sistema en grande, "Preguntar
+          siempre" ya no entra de un renglon: cortarlo en "Preguntar siem…" es peor que no
+          escribirlo. El boton tiene alto MINIMO, no alto fijo — si la palabra necesita otra
+          linea, la toma. La pantalla scrollea; el alto no es un recurso escaso. */}
+      <Text style={[s.segText, on && s.segTextOn, c && { color: c }]} numberOfLines={2}>
+        {o.label}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -829,7 +884,7 @@ const s = StyleSheet.create({
   },
   resumeEyebrow: {
     color: colors.textDim,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '900',
     letterSpacing: 1.5,
   },
@@ -848,16 +903,17 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     gap: space.sm,
     height: 52,
+    paddingHorizontal: space.md,
     borderRadius: radius.sm,
   },
   resumeGo: { flex: 3, backgroundColor: colors.cta },
   resumeEnd: { flex: 2, borderWidth: 1, borderColor: alpha(colors.text, 0.2) },
-  resumeBtnText: { color: colors.text, fontSize: 14, fontWeight: '900' },
-  resumeBtnTextDim: { color: colors.textDim, fontSize: 14, fontWeight: '800' },
+  resumeBtnText: { color: colors.text, fontSize: 15, fontWeight: '900' },
+  resumeBtnTextDim: { color: colors.textDim, fontSize: 15, fontWeight: '800' },
 
   block: { gap: space.sm },
   blockHead: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginBottom: 2 },
-  blockTitle: { fontSize: 11, fontWeight: '900', letterSpacing: 1.5 },
+  blockTitle: { fontSize: 12.5, fontWeight: '900', letterSpacing: 1.5 },
   /** Corre desde el titulo hasta el borde. Al 50%: marca la seccion, no la grita. */
   blockRule: { flex: 1, height: 1, borderRadius: radius.pill },
 
@@ -865,38 +921,55 @@ const s = StyleSheet.create({
   slotRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },
   slotField: { flex: 1 },
   slotLabel: {
-    width: 48,
+    /**
+     * ANCHO FIJO PERO NO CONSTANTE. Fijo, porque las cuatro etiquetas tienen que medir lo mismo:
+     * si cada una tomara el ancho de su palabra, los cuatro campos empezarian en cuatro sitios
+     * distintos y la columna se torceria. Pero 52 es el ancho de "Revés" con la letra normal —
+     * con la del sistema en grande la palabra crece y la caja no, y quedaba "Revé".
+     *
+     * Asi que la caja crece con la letra: la misma escala que agranda la palabra agranda el
+     * lugar donde vive.
+     */
+    width: 52 * PixelRatio.getFontScale(),
     height: 48,
     color: colors.textFaint,
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '700',
     lineHeight: 48,
   },
 
-  hint: { color: colors.textFaint, fontSize: 11, lineHeight: 15 },
+  hint: { color: colors.textFaint, fontSize: 12.5, lineHeight: 17 },
 
   segBlock: { gap: space.sm },
   segHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  /** El boton y su explicacion, en la misma columna: la linea habla del boton que tiene encima. */
-  segCol: { flex: 1, gap: 6 },
-  segInCol: { flexGrow: 0, alignSelf: 'stretch' },
-  segHint: { color: colors.textFaint, fontSize: 11, lineHeight: 14 },
-  segTitle: { flex: 1, color: colors.textFaint, fontSize: 10, fontWeight: '900', letterSpacing: 1.5 },
+  /** Una explicacion ocupa lo mismo que el boton del que habla: quedan alineadas en columna. */
+  segCell: { flex: 1 },
+  /** El hueco a los costados de la opcion suelta del 2+1: la deja centrada y del mismo ancho. */
+  segSpacer: { flex: 0.5 },
+  segHint: { color: colors.textFaint, fontSize: 12.5, lineHeight: 16 },
+  segTitle: { flex: 1, color: colors.textFaint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1.5 },
 
   segRow: { flexDirection: 'row', gap: space.sm },
   seg: {
     flex: 1,
-    height: 44,
+    /** MINIMO, no fijo: ver el porque en el Text de adentro. */
+    minHeight: 44,
+    paddingVertical: 6,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 2,
+    /**
+     * AIRE LATERAL DE VERDAD. Estaba en 2: la palabra tocaba el borde, y un texto pegado al
+     * borde se lee como un error de imprenta aunque entre. El boton pide su aire PRIMERO, y la
+     * letra usa lo que queda — nunca al reves.
+     */
+    paddingHorizontal: 10,
     borderRadius: radius.sm,
     borderWidth: 1,
     borderColor: alpha(colors.text, 0.2),
     backgroundColor: colors.surfaceAlt,
   },
   segOn: { backgroundColor: alpha(colors.text, 0.16), borderColor: alpha(colors.text, 0.5) },
-  segText: { color: colors.textDim, fontSize: 12, fontWeight: '700' },
+  segText: { color: colors.textDim, fontSize: 14, fontWeight: '700', textAlign: 'center' },
   segTextOn: { color: colors.text, fontWeight: '900' },
 
   /**
@@ -910,16 +983,17 @@ const s = StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    height: 32,
-    paddingHorizontal: space.sm,
+    gap: 6,
+    height: 34,
+    /** Sortear y Avanzadas tienen espacio de sobra: el aire aca es todo ganancia. */
+    paddingHorizontal: space.md,
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: alpha(colors.text, 0.2),
     backgroundColor: colors.surfaceAlt,
   },
   chipOn: { backgroundColor: alpha(colors.text, 0.16), borderColor: alpha(colors.text, 0.5) },
-  chipText: { color: colors.textDim, fontSize: 11.5, fontWeight: '800' },
+  chipText: { color: colors.textDim, fontSize: 13, fontWeight: '800' },
   chipTextOn: { color: colors.text, fontWeight: '900' },
 
   /** Una caja propia, justo debajo de lo que la abrio: lo que agrupa a las opciones ES la caja. */
@@ -929,6 +1003,10 @@ const s = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: colors.surface,
   },
+  /** Sutil: separa sin dibujar cajas adentro de la caja. */
+  panelRule: { height: StyleSheet.hairlineWidth, backgroundColor: alpha(colors.text, 0.12) },
+  /** Cada formacion con su propia linea arriba, sin romper el `gap` del panel. */
+  panelBlock: { gap: space.lg },
 
   /**
    * La linea que corta el formulario.
@@ -952,6 +1030,7 @@ const s = StyleSheet.create({
    */
   door: {
     flex: 1,
+    paddingHorizontal: space.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -962,7 +1041,7 @@ const s = StyleSheet.create({
     borderColor: alpha(colors.text, 0.2),
     backgroundColor: colors.surfaceAlt,
   },
-  doorText: { color: colors.textDim, fontSize: 14, fontWeight: '800' },
+  doorText: { color: colors.textDim, fontSize: 15, fontWeight: '800' },
 
   /**
    * Empezar no es una de esas dos: es lo que ARRANCA el partido. Va solo, a lo ancho, y con el
@@ -975,10 +1054,11 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     gap: space.sm,
     height: 56,
+    paddingHorizontal: space.md,
     borderRadius: radius.md,
     backgroundColor: colors.cta,
   },
-  startText: { color: colors.text, fontSize: 16, fontWeight: '900' },
+  startText: { color: colors.text, fontSize: 17, fontWeight: '900' },
   /**
    * Deshabilitado NO es "el mismo boton mas transparente": el lima al 35% sobre fondo oscuro
    * da un verde oliva sucio que no se lee como apagado, se lee como roto. Se apaga cambiando

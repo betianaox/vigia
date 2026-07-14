@@ -357,8 +357,14 @@ function Row({
         </Text>
 
         {/* La hora, no solo el dia: en un club se juegan varios partidos la misma tarde, y
-            "el de las 8" es como los distingue la gente que estuvo ahi. */}
-        <Text style={s.meta} numberOfLines={1}>
+            "el de las 8" es como los distingue la gente que estuvo ahi.
+
+            DOS RENGLONES, no uno. En un renglon solo, la linea entra en una pantalla ancha y en
+            una angosta se corta — y lo que se pierde es SIEMPRE lo ultimo, que es justo "sin
+            terminar": el unico dato de la fila que cambia lo que la persona va a hacer con ese
+            partido. Un dato que solo se ve en los telefonos grandes no es un dato, es una
+            loteria. */}
+        <Text style={s.meta} numberOfLines={2}>
           {formatDate(m.startedAt)} · {formatTime(m.startedAt)} ·{' '}
           {formatDuration(m.updatedAt - m.startedAt)} · {L.history.points(m.points)}
           {m.finished ? '' : ` · ${L.history.unfinished}`}
@@ -449,7 +455,14 @@ const s = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     marginTop: 4,
   },
-  meta: { color: colors.textFaint, fontSize: 11, fontWeight: '600', marginTop: 2 },
+  /** `lineHeight` explicito: con dos renglones, sin el, Android los pega uno contra el otro. */
+  meta: {
+    color: colors.textFaint,
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: '600',
+    marginTop: 2,
+  },
 
   /** Los dos iconos juntos, en fila. */
   actions: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
