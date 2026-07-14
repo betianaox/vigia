@@ -1,9 +1,10 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import type { MatchConfig, MatchEvent, MatchState, PlayerId, TeamId } from '../engine';
 import { computeStats } from '../engine/stats';
 import { L, LOCALE } from '../i18n';
 import { Brand } from './Brand';
+import { FixedText as Text } from './FixedText';
 import { HeadToHead } from './charts/HeadToHead';
 import { playerRows } from './charts/playerRows';
 import { gridPlayers, ShotGrid, shotGrid } from './charts/ShotGrid';
@@ -16,6 +17,15 @@ import { colors, radius, space } from './theme';
  * El ancho del lienzo, en puntos. NO es el ancho de la pantalla: la tarjeta no depende del
  * telefono que la genero — el mismo partido tiene que dar la misma imagen en cualquier equipo.
  * La captura la multiplica por la densidad, asi que de aca sale un PNG de ~1000px de ancho.
+ *
+ * Por eso TODO EL TEXTO DE LA TARJETA VA EN `FixedText`, y por eso el `HeadToHead` de abajo
+ * recibe `allowFontScaling={false}`. El lienzo era fijo pero su letra no: la tarjeta que mandaba
+ * alguien con la fuente del sistema al 150% salia con la ultima columna de golpes afuera de la
+ * imagen, y el que la recibia veia eso sin saber por que. Una imagen no se puede adaptar despues:
+ * lo que sale del lienzo no esta.
+ *
+ * La contracara es que la letra de la tarjeta no la agranda nadie, asi que la agrandamos nosotros:
+ * la tarjeta se mira dentro de una burbuja de WhatsApp, y tiene que leerse SIN hacer pinch.
  */
 export const CARD_WIDTH = 420;
 
@@ -102,10 +112,13 @@ export function ShareCard({
           playersB={names('B')}
           colorA={colors.teamAFill}
           colorB={colors.teamBFill}
-          nameSize={13.5}
+          nameSize={15}
           nameColor={colors.text}
           nameWeight="500"
           nameGap={12}
+          valueSize={15}
+          labelSize={13}
+          allowFontScaling={false}
         />
       </View>
 
@@ -156,7 +169,7 @@ const s = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   date: {
     color: colors.textFaint,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '800',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
@@ -176,11 +189,11 @@ const s = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: colors.border,
   },
-  teamValue: { flex: 1, fontSize: 15, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  teamValue: { flex: 1, fontSize: 18, fontWeight: '900', fontVariant: ['tabular-nums'] },
   teamValueRight: { textAlign: 'right' },
   teamLabel: {
     color: colors.textDim,
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '800',
     letterSpacing: 1.2,
   },
@@ -194,13 +207,13 @@ const s = StyleSheet.create({
 
   blockLabel: {
     color: colors.textFaint,
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '800',
     letterSpacing: 1.2,
     paddingBottom: space.sm,
   },
 
   foot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  meta: { color: colors.textFaint, fontSize: 11, fontWeight: '600' },
-  cta: { color: colors.textDim, fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
+  meta: { color: colors.textFaint, fontSize: 12, fontWeight: '600' },
+  cta: { color: colors.textDim, fontSize: 13, fontWeight: '800', letterSpacing: 0.5 },
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeStats, shotLines, teamShotLines, winnerErrorRatio, pct } from './stats';
+import { computeStats, shotLines, winnerErrorRatio, pct } from './stats';
 import type { MatchConfig, MatchEvent, TeamId } from './types';
 
 const baseConfig = (over: Partial<MatchConfig> = {}): MatchConfig => ({
@@ -354,15 +354,6 @@ describe('desglose por golpe', () => {
     expect(shotLines(s.players.a1!)).toEqual([]);
   });
 
-  it('el desglose del equipo suma los golpes de los dos jugadores', () => {
-    const s = computeStats(c, [
-      { type: 'WINNER', player: 'a1', shot: { stroke: 'bandeja' } },
-      { type: 'WINNER', player: 'a2', shot: { stroke: 'bandeja', variant: 'vibora' } },
-      { type: 'ERROR_NO_FORZADO', player: 'a2', shot: { stroke: 'bandeja' } },
-    ]);
-    const lines = teamShotLines(s, c, 'A');
-    expect(lines).toEqual([{ shot: 'bandeja', winners: 2, forced: 0, unforced: 1, total: 3 }]);
-  });
 });
 
 describe('las estadisticas son una funcion pura del log', () => {

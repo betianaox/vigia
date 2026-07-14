@@ -30,7 +30,7 @@ export interface Row {
 }
 
 const BAR = 8; // marca fina, muy por debajo del tope de 24px
-const CENTER = 92;
+const CENTER = 100;
 
 /**
  * Comparativa cara a cara, como en las transmisiones, pero POR JUGADOR: un entrenador
@@ -58,7 +58,7 @@ export function HeadToHead({
    * En la TARJETA no: el tanteador va chico y al que perdio lo dibuja en gris, asi que estos
    * nombres pasan a ser los que sostienen la lectura. Crecen y se encienden.
    */
-  nameSize = 11,
+  nameSize = 12.5,
   nameColor = colors.textDim,
   /**
    * Y MENOS NEGRITA CUANTO MAS GRANDE. Un nombre chico necesita peso para no desaparecer; uno
@@ -67,6 +67,19 @@ export function HeadToHead({
   nameWeight = '700',
   /** Cuanto respira el nombre del punto de color. Cuanto mas grande la letra, mas aire pide. */
   nameGap = 6,
+  /** Los numeros y las etiquetas del medio. En la tarjeta van mas grandes: ver `allowFontScaling`. */
+  valueSize = 13,
+  labelSize = 12,
+  /**
+   * EN LA TARJETA VA EN `false`, Y NO ES UN CAPRICHO.
+   *
+   * La tarjeta es una IMAGEN de ancho fijo: el mismo partido tiene que dar el mismo PNG en
+   * cualquier telefono. Si su texto creciera con la fuente del sistema, la imagen que manda
+   * alguien con la letra al 150% sale con la ultima columna afuera del lienzo — y el que la
+   * recibe ve eso, sin saber por que. En la app, en cambio, esto SI tiene que escalar: es una
+   * pantalla que se lee, no una foto que se manda.
+   */
+  allowFontScaling = true,
 }: {
   rows: Row[];
   playersA: [string, string];
@@ -77,6 +90,9 @@ export function HeadToHead({
   nameColor?: string;
   nameWeight?: TextStyle['fontWeight'];
   nameGap?: number;
+  valueSize?: number;
+  labelSize?: number;
+  allowFontScaling?: boolean;
 }) {
   return (
     <View style={s.root}>
@@ -88,6 +104,7 @@ export function HeadToHead({
             {playersA.map((n) => (
               <Text
                 key={n}
+                allowFontScaling={allowFontScaling}
                 style={[s.headName, {
                     fontSize: nameSize,
                     lineHeight: nameSize + 4,
@@ -106,6 +123,7 @@ export function HeadToHead({
             {playersB.map((n) => (
               <Text
                 key={n}
+                allowFontScaling={allowFontScaling}
                 style={[
                   s.headName,
                   s.headNameRight,
@@ -142,7 +160,12 @@ export function HeadToHead({
               <View style={s.side}>
                 {r.a.map((c, k) => (
                   <View key={k} style={s.sub}>
-                    <Text style={s.value}>{c.text}</Text>
+                    <Text
+                      allowFontScaling={allowFontScaling}
+                      style={[s.value, { fontSize: valueSize }]}
+                    >
+                      {c.text}
+                    </Text>
                     {/* El espaciador va primero para que la barra nazca en el centro y
                         crezca hacia afuera. La punta exterior va redondeada. */}
                     <View style={s.track}>
@@ -155,7 +178,11 @@ export function HeadToHead({
                 ))}
               </View>
 
-              <Text style={s.label} numberOfLines={2}>
+              <Text
+                allowFontScaling={allowFontScaling}
+                style={[s.label, { fontSize: labelSize }]}
+                numberOfLines={2}
+              >
                 {r.label}
               </Text>
 
@@ -168,7 +195,12 @@ export function HeadToHead({
                       />
                       <View style={{ flex: 1 - c.value / max }} />
                     </View>
-                    <Text style={s.value}>{c.text}</Text>
+                    <Text
+                      allowFontScaling={allowFontScaling}
+                      style={[s.value, { fontSize: valueSize }]}
+                    >
+                      {c.text}
+                    </Text>
                   </View>
                 ))}
               </View>
@@ -188,7 +220,7 @@ const s = StyleSheet.create({
   headSideRight: { justifyContent: 'flex-end' },
   swatch: { width: 10, height: 10, borderRadius: 3 },
   /** El texto va en tokens de texto, nunca en el color de la serie. */
-  headName: { color: colors.textDim, fontSize: 11, fontWeight: '700', lineHeight: 15 },
+  headName: { color: colors.textDim, fontSize: 12.5, fontWeight: '700', lineHeight: 17 },
   headNameRight: { textAlign: 'right' },
 
   sep: { height: 1, backgroundColor: colors.border },
@@ -203,24 +235,30 @@ const s = StyleSheet.create({
   barRight: { borderTopRightRadius: 4, borderBottomRightRadius: 4 },
 
   value: {
-    minWidth: 34,
+    minWidth: 38,
     textAlign: 'center',
     color: colors.text,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
   },
 
-  /** Alto fijo de dos renglones: asi todas las filas miden igual, aunque la etiqueta
-      entre en uno solo. */
+  /**
+   * Dos renglones de alto, para que todas las filas midan igual aunque la etiqueta entre en uno.
+   *
+   * `minHeight`, NO `height`: los dp no escalan con la fuente del sistema pero el texto si, asi
+   * que una caja de 30 con la letra en grande le corta el segundo renglon a "Errores no forzados".
+   * Es la misma trampa que nos comimos en la cancha. El piso mantiene la grilla pareja; el techo
+   * lo pone el texto.
+   */
   label: {
     width: CENTER,
-    height: 30,
+    minHeight: 32,
     textAlignVertical: 'center',
     textAlign: 'center',
     color: colors.textDim,
-    fontSize: 10.5,
-    lineHeight: 14,
+    fontSize: 12,
+    lineHeight: 15,
     fontWeight: '600',
   },
 });

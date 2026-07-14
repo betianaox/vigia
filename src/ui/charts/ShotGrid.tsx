@@ -1,8 +1,9 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import type { MatchConfig, PlayerId, Stroke, TeamId } from '../../engine';
 import type { MatchStats, PlayerStats } from '../../engine/stats';
 import { L } from '../../i18n';
+import { FixedText as Text } from '../FixedText';
 import { strokeLabels } from '../shots';
 import { colors, space } from '../theme';
 
@@ -79,6 +80,13 @@ export const shotGrid = (stats: MatchStats, config: MatchConfig): GridRow[] => {
  * Con numeros, los CUATRO jugadores entran en la misma fila. El bloque se parte al medio de alto
  * y de paso se comparan de un vistazo, que es lo que uno hace cuando la recibe. Estudiar es en la
  * app; la tarjeta es la foto.
+ *
+ * TRES NUMEROS, TRES CASILLEROS. Cada cifra tiene su ancho reservado, no el que ocupa. Escritos
+ * uno al lado del otro, un "12" empuja a los que siguen y la celda queda corrida respecto de las
+ * otras filas: alcanza con que UNA persona pegue diez voleas para que la tabla se desalinee. Con
+ * el casillero, "12" ocupa lo mismo que "3", los winners de todas las filas caen en la misma
+ * columna, y la tabla se lee por columna ademas de por fila. El ancho da para dos cifras — que en
+ * un partido es lo que hay; tres seria un mundial de un solo golpe.
  */
 export function ShotGrid({
   rows,
@@ -149,26 +157,37 @@ export function ShotGrid({
 const s = StyleSheet.create({
   legend: { flexDirection: 'row', gap: space.md, paddingBottom: space.sm },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  swatch: { width: 8, height: 8, borderRadius: 2 },
-  legendText: { color: colors.textDim, fontSize: 9, fontWeight: '700' },
+  swatch: { width: 9, height: 9, borderRadius: 2 },
+  legendText: { color: colors.textDim, fontSize: 11, fontWeight: '700' },
 
-  head: { flexDirection: 'row', alignItems: 'flex-end', paddingBottom: 4 },
+  head: { flexDirection: 'row', alignItems: 'flex-end', paddingBottom: 5 },
   /** El nombre de pila, centrado sobre SUS tres numeros. */
-  name: { flex: 1, textAlign: 'center', fontSize: 10, fontWeight: '800' },
+  name: { flex: 1, textAlign: 'center', fontSize: 13, fontWeight: '800' },
 
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 5,
+    paddingVertical: 6,
     borderTopWidth: 1,
     borderColor: colors.border,
   },
-  label: { width: 84 },
-  labelText: { color: colors.textDim, fontSize: 10.5, fontWeight: '600' },
+  /**
+   * 76, no 84: los cuatro golpes de la tarjeta son cortos ("Bandeja" es el mas largo) y los ocho
+   * puntos que se le sacan a la etiqueta se los llevan las celdas, que son las que tienen que
+   * aguantar dos cifras.
+   */
+  label: { width: 76 },
+  labelText: { color: colors.textDim, fontSize: 13, fontWeight: '600' },
 
   /** Los tres numeros de una persona, juntos: se leen como un grupo, no como tres columnas. */
-  cell: { flex: 1, flexDirection: 'row', justifyContent: 'center', gap: 6 },
-  n: { fontSize: 12, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  cell: { flex: 1, flexDirection: 'row', justifyContent: 'center' },
+  n: {
+    minWidth: 21,
+    textAlign: 'center',
+    fontSize: 15,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
   /** Apagado a proposito: la ausencia de dato no compite con los datos. */
-  none: { color: colors.textFaint, fontSize: 12, fontWeight: '800' },
+  none: { color: colors.textFaint, fontSize: 15, fontWeight: '800' },
 });

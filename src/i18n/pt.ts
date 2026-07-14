@@ -243,7 +243,7 @@ export const pt: Dict = {
     noMatches: 'Ainda não jogou nenhum jogo.',
 
     finished: 'Jogo terminado.',
-    finishedEarly: 'Jogo terminado antes do tempo.',
+    finishedEarly: 'Jogo por terminar.',
     share: 'Partilhar',
     shareDialog: 'Partilhar o jogo',
 

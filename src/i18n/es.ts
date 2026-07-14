@@ -178,7 +178,16 @@ export const es = {
     boxRight: 'Derecha',
     boxLeft: 'Izquierda',
 
-    finished: 'Partido terminado',
+    /**
+     * UN PARTIDO ESTA "FINALIZADO" O "SIN TERMINAR", Y SE DICE ASI EN TODA LA APP.
+     *
+     * Habia tres maneras de decir lo mismo: la cancha decia "Partido terminado", las estadisticas
+     * "Partido terminado antes de tiempo" y el historial "sin terminar". Tres palabras para un
+     * hecho es lo que hace que alguien se pregunte si son tres hechos distintos.
+     *
+     * El par es: FINALIZADO / SIN TERMINAR. Y no se toca sin cambiarlo en los tres lugares.
+     */
+    finished: 'Partido finalizado',
     home: 'Inicio',
     stats: 'Stats',
     undo: 'Deshacer',
@@ -333,8 +342,8 @@ export const es = {
     noMatches: 'Todavía no jugó ningún partido.',
 
     /** El pie de la pantalla del partido. */
-    finished: 'Partido terminado.',
-    finishedEarly: 'Partido terminado antes de tiempo.',
+    finished: 'Partido finalizado.',
+    finishedEarly: 'Partido sin terminar.',
     share: 'Compartir',
     shareDialog: 'Compartir el partido',
 

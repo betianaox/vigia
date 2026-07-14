@@ -154,7 +154,7 @@ export const en: Dict = {
     boxRight: 'Deuce',
     boxLeft: 'Ad',
 
-    finished: 'Match over',
+    finished: 'Match finished',
     home: 'Home',
     stats: 'Stats',
     undo: 'Undo',
@@ -263,8 +263,8 @@ export const en: Dict = {
     allFinished: 'all finished',
     noMatches: 'No matches played yet.',
 
-    finished: 'Match over.',
-    finishedEarly: 'Match ended early.',
+    finished: 'Match finished.',
+    finishedEarly: 'Match unfinished.',
     share: 'Share',
     shareDialog: 'Share the match',
 

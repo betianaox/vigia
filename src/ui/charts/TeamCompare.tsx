@@ -52,18 +52,18 @@ export function TeamCompare({ rows }: { rows: CompareRow[] }) {
          * es el equipo 1) y los numeros de arriba la siguen diciendo.
          *
          * Bordo el que erro mas, gris el otro. Sin verde: ver `worse` en theme.ts.
+         *
+         * Y EL EMPATE ES GRIS DE LOS DOS LADOS. Sin esto, 5 errores contra 5 no daba ningun
+         * ganador —ni `aWins` ni `bWins`— y las dos mitades se pintaban de bordo: una barra
+         * entera roja, que se lee como un desastre y no como un empate. En un empate no hay peor.
          */
         const flipped = r.lowerIsBetter === true;
-        const aColor = flipped
-          ? aWins
-            ? colors.neutralFill
-            : colors.worse
-          : colors.teamAFill;
-        const bColor = flipped
-          ? bWins
-            ? colors.neutralFill
-            : colors.worse
-          : colors.teamBFill;
+        const tied = r.aValue === r.bValue;
+        const errColor = (wins: boolean): string =>
+          tied || wins ? colors.neutralFill : colors.worse;
+
+        const aColor = flipped ? errColor(aWins) : colors.teamAFill;
+        const bColor = flipped ? errColor(bWins) : colors.teamBFill;
 
         return (
           <View key={r.label} style={s.row}>
@@ -97,7 +97,7 @@ const s = StyleSheet.create({
   row: { gap: 6 },
 
   head: { flexDirection: 'row', alignItems: 'center' },
-  value: { fontSize: 18, fontWeight: '900', fontVariant: ['tabular-nums'], minWidth: 64 },
+  value: { fontSize: 20, fontWeight: '900', fontVariant: ['tabular-nums'], minWidth: 68 },
   valueA: { textAlign: 'left' },
   valueB: { textAlign: 'right' },
   /** El que no gana esa fila se apaga. El ganador se lee sin comparar. */
@@ -106,7 +106,7 @@ const s = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
     color: colors.textDim,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
   },
   bar: {

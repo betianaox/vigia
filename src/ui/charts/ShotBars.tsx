@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import type { ShotLine } from '../../engine/stats';
 import { L } from '../../i18n';
@@ -9,6 +9,22 @@ const BAR = 12;
 const GAP = 2; // el separador es un hueco del color de la superficie, no un borde
 
 /**
+ * La columna del nombre del golpe, a la fuente normal del sistema.
+ *
+ * Tiene que ser FIJA —si cada fila se anchara con su palabra, las barras arrancarian en una x
+ * distinta en cada una y no habria nada que comparar—, pero fija en dp significa que no crece con
+ * la letra: con la fuente al 150%, "Recuperación" no entra y React Native, que no sabe cortar
+ * palabras con guion, la parte al medio ("Recuperaci / ón").
+ *
+ * Asi que la columna escala con la MISMA fuente que va adentro. Sigue siendo una sola medida para
+ * todas las filas —las barras siguen alineadas— y el nombre entra entero en cualquier tamaño. El
+ * tope existe porque de la pantalla no salen mas puntos: pasado 1.6 la barra se quedaria sin
+ * espacio, y ahi es preferible que la palabra envuelva.
+ */
+const NAME_W = 110;
+const NAME_MAX_SCALE = 1.6;
+
+/**
  * Que rindio cada golpe: la barra se parte en winners / errores forzados / no forzados.
  * Un golpe que es casi todo rojo es plata para un entrenador — y es exactamente el
  * dato que ningun sensor puede producir, porque hace falta que alguien juzgue el punto.
@@ -16,6 +32,9 @@ const GAP = 2; // el separador es un hueco del color de la superficie, no un bor
  * Cada barra se escala contra el golpe MAS usado, asi se ve de un vistazo cuales pesan.
  */
 export function ShotBars({ lines }: { lines: ShotLine[] }) {
+  const { fontScale } = useWindowDimensions();
+  const nameWidth = Math.round(NAME_W * Math.min(fontScale, NAME_MAX_SCALE));
+
   if (lines.length === 0) {
     return (
       <Text style={s.empty}>{L.stats.noShots}</Text>
@@ -42,7 +61,9 @@ export function ShotBars({ lines }: { lines: ShotLine[] }) {
 
       {lines.map((l) => (
         <View key={l.shot} style={s.row}>
-          <Text style={s.name} numberOfLines={1}>
+          {/* Dos renglones como techo: los nombres largos de dos palabras ("Salida de pared",
+              "Uscita di parete") envuelven en vez de cortarse. */}
+          <Text style={[s.name, { width: nameWidth }]} numberOfLines={2}>
             {strokeLabels()[l.shot]}
           </Text>
 
@@ -86,23 +107,25 @@ export function ShotBars({ lines }: { lines: ShotLine[] }) {
 
 const s = StyleSheet.create({
   root: { gap: space.sm },
-  empty: { color: colors.textFaint, fontSize: 11, fontStyle: 'italic' },
+  empty: { color: colors.textFaint, fontSize: 12, fontStyle: 'italic' },
 
   legend: { flexDirection: 'row', gap: space.md, flexWrap: 'wrap' },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   swatch: { width: 9, height: 9, borderRadius: 3 },
-  legendText: { color: colors.textDim, fontSize: 10, fontWeight: '600' },
+  legendText: { color: colors.textDim, fontSize: 11.5, fontWeight: '600' },
 
   row: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  name: { width: 92, color: colors.textDim, fontSize: 11, fontWeight: '600' },
+  /** El mismo cuerpo que en la hoja de golpes: un golpe se llama igual en toda la app.
+      El ancho lo pone el componente, que es el unico que sabe cuanto crecio la letra. */
+  name: { color: colors.textDim, fontSize: 13, lineHeight: 16, fontWeight: '600' },
   track: { flex: 1, flexDirection: 'row', height: BAR, alignItems: 'center' },
   stack: { flexDirection: 'row', height: BAR },
   seg: { height: BAR },
   total: {
-    minWidth: 18,
+    minWidth: 22,
     textAlign: 'right',
     color: colors.text,
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '800',
     fontVariant: ['tabular-nums'],
   },

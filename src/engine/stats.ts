@@ -385,24 +385,4 @@ export const computeStats = (config: MatchConfig, events: MatchEvent[]): MatchSt
   return { players, teams, totalPoints, goldenPointsPlayed, hasShotData };
 };
 
-/** Suma los golpes de los dos jugadores de un equipo. */
-export const teamShotLines = (
-  stats: MatchStats,
-  config: MatchConfig,
-  team: TeamId,
-): ShotLine[] => {
-  const merge = (key: 'winnersByShot' | 'forcedByShot' | 'unforcedByShot'): ShotTally => {
-    const out: ShotTally = {};
-    for (const id of [config.teams[team].drive, config.teams[team].reves]) {
-      for (const [shot, n] of Object.entries(stats.players[id]![key]) as Array<[Stroke, number]>) {
-        out[shot] = (out[shot] ?? 0) + n;
-      }
-    }
-    return out;
-  };
-  return shotLines({
-    winnersByShot: merge('winnersByShot'),
-    forcedByShot: merge('forcedByShot'),
-    unforcedByShot: merge('unforcedByShot'),
-  });
-};
+

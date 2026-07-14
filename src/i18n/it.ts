@@ -243,7 +243,7 @@ export const it: Dict = {
     noMatches: 'Non ha ancora giocato nessuna partita.',
 
     finished: 'Partita finita.',
-    finishedEarly: 'Partita interrotta prima della fine.',
+    finishedEarly: 'Partita non finita.',
     share: 'Condividi',
     shareDialog: 'Condividi la partita',
 

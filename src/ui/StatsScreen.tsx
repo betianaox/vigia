@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { computeStats, pct, teamShotLines, shotLines } from '../engine/stats';
+import { computeStats, pct, shotLines } from '../engine/stats';
 import type { MatchStats, PlayerStats } from '../engine/stats';
 import type { MatchConfig, MatchEvent, MatchState, PlayerId, TeamId } from '../engine';
 import { L } from '../i18n';
@@ -137,11 +137,6 @@ const globalRows = (stats: MatchStats): CompareRow[] => {
  */
 type NameOf = (id: PlayerId, fallback?: string) => string;
 
-const teamNames = (config: MatchConfig, t: TeamId, nameOf: NameOf): string =>
-  [config.teams[t].drive, config.teams[t].reves]
-    .map((p) => nameOf(p, config.players[p]?.name).split(' ')[0])
-    .join(' / ');
-
 /** En el mismo orden en que se dibujan las barras: primero drive, despues reves. */
 const playerNames = (config: MatchConfig, t: TeamId, nameOf: NameOf): [string, string] =>
   [config.teams[t].drive, config.teams[t].reves].map((p) =>
@@ -241,17 +236,18 @@ export function StatsScreen({
               />
             </Section>
 
-            {stats.hasShotData &&
-              (['A', 'B'] as TeamId[]).map((t) => (
-                <Section
-                  key={t}
-                  title={L.stats.shots}
-                  accent={teamColor(t)}
-                  subtitle={teamNames(config, t, nameOf)}
-                >
-                  <ShotBars lines={teamShotLines(stats, config, t)} />
-                </Section>
-              ))}
+            {/**
+             * SE FUERON LOS DOS BLOQUES DE GOLPES POR EQUIPO. Sumaban los golpes de los dos
+             * compañeros: "entre Ana y Beto pegaron 9 voleas".
+             *
+             * Eso no contesta ninguna pregunta que alguien se haga. Un golpe es de UNA persona: la
+             * bandeja de Ana no dice nada de la de Beto, y sumarlas no describe a nadie — describe a
+             * un jugador promedio que no existe. Las estadisticas de golpes solo sirven individuales.
+             *
+             * Y no se pierde nada: los golpes de cada uno ya estan MAS ABAJO, adentro de su propia
+             * tarjeta, que es donde son relevantes. Estos dos bloques eran la misma informacion
+             * agregada de la unica manera en que deja de servir.
+             */}
 
             {/* Una tarjeta POR PERSONA. Los cuatro estaban adentro de una sola caja, y eso era
                 un muro de numeros donde no se veia donde terminaba uno y empezaba el otro. */}
@@ -467,7 +463,6 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   /** Existe, esta dibujada, y nadie la ve. Es lo que la camara necesita para poder sacarle la foto. */
   offscreen: { position: 'absolute', left: -CARD_WIDTH * 2, top: 0 },
-  row: { flexDirection: 'row', gap: space.sm },
   /**
    * Las dos lineas que despegan el contenido de los bordes fijos.
    *
@@ -493,12 +488,12 @@ const s = StyleSheet.create({
   sectionDot: { width: 8, height: 8, borderRadius: radius.pill },
   sectionTitle: {
     color: colors.text,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '900',
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
-  sectionSub: { color: colors.textFaint, fontSize: 12, fontWeight: '600' },
+  sectionSub: { color: colors.textFaint, fontSize: 12.5, fontWeight: '600' },
 
   card: {
     backgroundColor: colors.surface,
@@ -526,20 +521,20 @@ const s = StyleSheet.create({
   },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   dot: { width: 10, height: 10, borderRadius: radius.pill },
-  cardName: { color: colors.text, fontSize: 15, fontWeight: '800' },
+  cardName: { color: colors.text, fontSize: 17, fontWeight: '800' },
   /** Del color de su equipo, y apagado: es un dato de contexto, no un numero mas. */
-  cardSide: { flex: 1, fontSize: 11, fontWeight: '700', opacity: 0.75 },
+  cardSide: { flex: 1, fontSize: 12, fontWeight: '700', opacity: 0.75 },
   ratioBox: { alignItems: 'flex-end' },
   /** El COLOR ya lo destaca. Con el tamaño y el peso encima, gritaba. */
-  ratioValue: { color: colors.text, fontSize: 14, fontWeight: '800' },
-  ratioLabel: { color: colors.textFaint, fontSize: 9, fontWeight: '800', letterSpacing: 0.6 },
+  ratioValue: { color: colors.text, fontSize: 16, fontWeight: '800' },
+  ratioLabel: { color: colors.textFaint, fontSize: 10, fontWeight: '800', letterSpacing: 0.6 },
 
   grid: { flexDirection: 'row' },
-  statCell: { flex: 1, alignItems: 'center', gap: 1 },
-  statValue: { color: colors.text, fontSize: 16, fontWeight: '800' },
-  statLabel: { color: colors.textDim, fontSize: 10, fontWeight: '600' },
+  statCell: { flex: 1, alignItems: 'center', gap: 2 },
+  statValue: { color: colors.text, fontSize: 20, fontWeight: '800' },
+  statLabel: { color: colors.textDim, fontSize: 12, fontWeight: '600', textAlign: 'center' },
   /** Sin `tabular-nums`: aca ya no van solo cifras, van los duelos ("3 a Beto · 1 a Bea"). */
-  statSub: { color: colors.textFaint, fontSize: 9, textAlign: 'center' },
+  statSub: { color: colors.textFaint, fontSize: 11, textAlign: 'center' },
 
   /**
    * Parte la tarjeta en las dos mitades del partido: la que sacas y la que restas.
@@ -550,7 +545,7 @@ const s = StyleSheet.create({
    */
   blockLabel: {
     color: colors.textDim,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '900',
     letterSpacing: 1.4,
     marginTop: 2,
@@ -558,10 +553,6 @@ const s = StyleSheet.create({
   },
 
   divider: { height: 1, backgroundColor: colors.border },
-
-  /** Cifra grande: figuras proporcionales, no tabulares. */
-  kpi: { color: colors.text, fontSize: 26, fontWeight: '900' },
-  kpiSub: { color: colors.textFaint, fontSize: 10, fontWeight: '700' },
 
   head: {
     flexDirection: 'row',
@@ -573,7 +564,7 @@ const s = StyleSheet.create({
   },
   close: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginRight: -8 },
 
-  overNote: { color: colors.textFaint, fontSize: 11, textAlign: 'center' },
+  overNote: { color: colors.textFaint, fontSize: 12, textAlign: 'center' },
   actions: { padding: space.md, gap: space.sm, backgroundColor: colors.surface },
   // Sin flex: dentro de un contenedor en columna, flex:1 colapsa el boton y le come el texto.
   btn: {
