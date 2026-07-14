@@ -103,7 +103,7 @@ export const es = {
       tres_sets: '3 sets',
     },
 
-    shotPrompt: 'REGISTRO DE GOLPE',
+    shotPrompt: 'Registro de golpe',
     shotPrompts: {
       siempre: 'Preguntar siempre',
       opcional: 'Registro opcional',
@@ -112,6 +112,10 @@ export const es = {
       siempre: 'La hoja de golpes se abre en cada punto.',
       opcional: 'El toque corto registra, sostenido abre la hoja.',
     },
+
+    language: 'Idioma',
+    /** Sigue al telefono. El nombre del idioma que le toca lo pone la app, no el diccionario. */
+    languageAuto: 'Automático',
 
     gameFormat: 'AL 40-40',
     gameFormats: {

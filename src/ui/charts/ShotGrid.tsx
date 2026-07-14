@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import type { MatchConfig, PlayerId, Stroke, TeamId } from '../../engine';
 import type { MatchStats, PlayerStats } from '../../engine/stats';
 import { L } from '../../i18n';
-import { STROKE_LABELS } from '../shots';
+import { strokeLabels } from '../shots';
 import { colors, space } from '../theme';
 
 /** Lo que rindio UN golpe en las manos de UNA persona. */
@@ -123,7 +123,7 @@ export function ShotGrid({
       {rows.map((r) => (
         <View key={r.shot} style={s.row}>
           <Text style={[s.label, s.labelText]} numberOfLines={1}>
-            {STROKE_LABELS[r.shot]}
+            {strokeLabels()[r.shot]}
           </Text>
 
           {r.cells.map((c, i) => (

@@ -65,7 +65,7 @@ export const pt: Dict = {
       tres_sets: '3 sets',
     },
 
-    shotPrompt: 'REGISTO DO GOLPE',
+    shotPrompt: 'Registo do golpe',
     shotPrompts: {
       siempre: 'Perguntar sempre',
       opcional: 'Registo opcional',
@@ -74,6 +74,9 @@ export const pt: Dict = {
       siempre: 'A folha de golpes abre em cada ponto.',
       opcional: 'O toque curto regista; manter abre a folha.',
     },
+
+    language: 'Idioma',
+    languageAuto: 'Automático',
 
     gameFormat: 'AOS 40-40',
     gameFormats: {

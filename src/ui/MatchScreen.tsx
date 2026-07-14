@@ -25,12 +25,12 @@ import { usePulse } from './pulse';
 import { useRoster } from './roster';
 import { Scoreboard } from './Scoreboard';
 import {
-  SIDE_LABELS,
-  STROKE_LABELS,
+  sideLabels,
+  strokeLabels,
   STROKES_CON_LADO,
   STROKES_POR_ALTO,
   STROKES_SIN_LADO,
-  VARIANT_LABELS,
+  variantLabels,
 } from './shots';
 import { alpha, colors, pressed, radius, ripple, space, teamColor } from './theme';
 
@@ -81,7 +81,7 @@ const ANCHOR_BAJO: Stroke = 'dejada';
  * "Error no forzado" no entraba en dos lineas — se cortaba en "no for...". Dice lo mismo
  * en la mitad de ancho.
  */
-const RALLY: Array<{ type: RallyAction; label: string; desc: string; color: string }> = [
+const rally = (): Array<{ type: RallyAction; label: string; desc: string; color: string }> => [
   { type: 'WINNER', label: L.court.winnerShort, desc: L.court.winner, color: colors.winner },
   {
     type: 'ERROR_FORZADO',
@@ -641,7 +641,7 @@ function PlayerCard(props: {
       </View>
 
       <View style={s.row}>
-        {RALLY.map((a) => (
+        {rally().map((a) => (
           <Pressable
             key={a.type}
             style={({ pressed: p }) => [
@@ -693,7 +693,12 @@ function ShotSheet(props: {
 }) {
   const { s, m } = props;
   /** La misma inicial y el mismo color del boton que se acaba de tocar. */
-  const action = RALLY.find((a) => a.type === props.action)!;
+  const action = rally().find((a) => a.type === props.action)!;
+
+  /** Los nombres, leidos al dibujar: si cambia el idioma, cambia la hoja. */
+  const strokes = strokeLabels();
+  const sides = sideLabels();
+  const variantName = variantLabels();
 
   const pick = (shot: Shot) => {
     tick();
@@ -760,7 +765,7 @@ function ShotSheet(props: {
                       encabezan nada: son cuatro teclas de la misma fila. Lo unico que las
                       distingue —que son el golpe y no una variante— lo dice el relleno. */}
                   <Text style={s.sheetBaseText} numberOfLines={1} adjustsFontSizeToFit>
-                    {STROKE_LABELS[stroke]}
+                    {strokes[stroke]}
                   </Text>
                 </Pressable>
 
@@ -772,7 +777,7 @@ function ShotSheet(props: {
                     onPress={() => pick({ stroke, variant })}
                   >
                     <Text style={s.sheetVariantText} numberOfLines={1} adjustsFontSizeToFit>
-                      {VARIANT_LABELS[variant]}
+                      {variantName[variant]}
                     </Text>
                   </Pressable>
                 ))}
@@ -788,9 +793,9 @@ function ShotSheet(props: {
               de la cancha juega la PERSONA, y usar la misma palabra para las dos cosas las
               confunde. Ademas en España a la derecha le dicen derecha (ver `SIDE_LABELS`). */}
           <View style={s.keyHead}>
-            <Text style={s.keyHeadText}>{SIDE_LABELS[LEFT].toUpperCase()}</Text>
+            <Text style={s.keyHeadText}>{sides[LEFT].toUpperCase()}</Text>
             <View style={s.keyName} />
-            <Text style={s.keyHeadText}>{SIDE_LABELS[RIGHT].toUpperCase()}</Text>
+            <Text style={s.keyHeadText}>{sides[RIGHT].toUpperCase()}</Text>
           </View>
 
           {STROKES_CON_LADO.map((stroke) => {
@@ -806,7 +811,7 @@ function ShotSheet(props: {
                 </Pressable>
 
                 <Text style={s.keyName} numberOfLines={1}>
-                  {STROKE_LABELS[stroke]}
+                  {strokes[stroke]}
                 </Text>
 
                 <Pressable
@@ -840,7 +845,7 @@ function ShotSheet(props: {
                     style={[s.sheetCellName, anchor && s.sheetCellNameOn]}
                     numberOfLines={1}
                   >
-                    {STROKE_LABELS[stroke]}
+                    {strokes[stroke]}
                   </Text>
                 </Pressable>
               );
@@ -852,8 +857,13 @@ function ShotSheet(props: {
   );
 }
 
-/** El golpe de nombre mas largo ("Salida de pared"): es el que fija el tamano de fuente. */
-const LONGEST_STROKE = Math.max(...STROKES_CON_LADO.map((st) => STROKE_LABELS[st].length));
+/**
+ * El golpe de nombre mas largo ("Salida de pared"): es el que fija el tamano de fuente de toda la
+ * hoja. Se mide en el IDIOMA QUE ESTA PUESTO —de ahi que sea una funcion— porque el mas largo no
+ * es el mismo en los cuatro: en italiano la "uscita dalla parete" es bastante mas larga.
+ */
+const longestStroke = (): number =>
+  Math.max(...STROKES_CON_LADO.map((st) => strokeLabels()[st].length));
 
 /**
  * El contorno de los botones de la hoja: mas marcado que un borde de superficie, para que
@@ -898,7 +908,10 @@ const makeStyles = (m: Metrics) => {
    */
   const strokeFont = Math.max(
     11,
-    Math.min(h.label, fitWidth(LONGEST_STROKE, cellW - cellPad * 2 - sideW - h.gap, CHAR.semiLower)),
+    Math.min(
+      h.label,
+      fitWidth(longestStroke(), cellW - cellPad * 2 - sideW - h.gap, CHAR.semiLower),
+    ),
   );
   /** La descripcion vive en una linea exacta, siempre. */
   const descLine = Math.round(k.rallyDesc * 1.35);

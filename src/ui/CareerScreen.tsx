@@ -44,64 +44,65 @@ const num = (n: number | null, suffix = ''): string =>
  * ahi mas es PEOR. Una barra que sube se lee como que vas bien; si son errores, vas mal. El
  * cambio de color es el aviso de que cambio la regla.
  */
-const METRICS = [
-  {
-    key: 'ratio',
-    label: L.stats.winnersPerError,
-    color: colors.ballChart,
-    of: (p: CareerPoint) =>
-      p.stats.unforcedErrors === 0
-        ? p.stats.winners === 0
-          ? null
-          : p.stats.winners
-        : p.stats.winners / p.stats.unforcedErrors,
-    total: (c: CareerStats) =>
-      c.totals.unforcedErrors === 0
-        ? c.totals.winners === 0
-          ? null
-          : c.totals.winners
-        : c.totals.winners / c.totals.unforcedErrors,
-    format: (v: number) => v.toFixed(1),
-  },
-  {
-    key: 'primero',
-    label: L.stats.firstServeIn,
-    color: colors.aceChart,
-    of: (p: CareerPoint) => pct(p.stats.firstServesIn, p.stats.servePointsPlayed),
-    total: (c: CareerStats) => pct(c.totals.firstServesIn, c.totals.servePointsPlayed),
-    format: (v: number) => `${Math.round(v)}%`,
-  },
-  {
-    key: 'gana1',
-    label: L.stats.wonWithFirstLong,
-    color: colors.ballChart,
-    of: (p: CareerPoint) => pct(p.stats.firstServePointsWon, p.stats.firstServesIn),
-    total: (c: CareerStats) => pct(c.totals.firstServePointsWon, c.totals.firstServesIn),
-    format: (v: number) => `${Math.round(v)}%`,
-  },
-  {
-    key: 'resto',
-    label: L.stats.wonReturning,
-    color: colors.aceChart,
-    of: (p: CareerPoint) => pct(p.stats.returnPointsWon, p.stats.returnPointsPlayed),
-    total: (c: CareerStats) => pct(c.totals.returnPointsWon, c.totals.returnPointsPlayed),
-    format: (v: number) => `${Math.round(v)}%`,
-  },
-  {
-    key: 'enf',
-    label: L.stats.unforcedErrors,
-    color: colors.worse,
-    of: (p: CareerPoint) => p.stats.unforcedErrors,
-    total: (c: CareerStats) =>
-      c.matches === 0 ? null : c.totals.unforcedErrors / c.matches,
-    format: (v: number) => v.toFixed(1),
-  },
-] as const;
+const metrics = () =>
+  [
+    {
+      key: 'ratio',
+      label: L.stats.winnersPerError,
+      color: colors.ballChart,
+      of: (p: CareerPoint) =>
+        p.stats.unforcedErrors === 0
+          ? p.stats.winners === 0
+            ? null
+            : p.stats.winners
+          : p.stats.winners / p.stats.unforcedErrors,
+      total: (c: CareerStats) =>
+        c.totals.unforcedErrors === 0
+          ? c.totals.winners === 0
+            ? null
+            : c.totals.winners
+          : c.totals.winners / c.totals.unforcedErrors,
+      format: (v: number) => v.toFixed(1),
+    },
+    {
+      key: 'primero',
+      label: L.stats.firstServeIn,
+      color: colors.aceChart,
+      of: (p: CareerPoint) => pct(p.stats.firstServesIn, p.stats.servePointsPlayed),
+      total: (c: CareerStats) => pct(c.totals.firstServesIn, c.totals.servePointsPlayed),
+      format: (v: number) => `${Math.round(v)}%`,
+    },
+    {
+      key: 'gana1',
+      label: L.stats.wonWithFirstLong,
+      color: colors.ballChart,
+      of: (p: CareerPoint) => pct(p.stats.firstServePointsWon, p.stats.firstServesIn),
+      total: (c: CareerStats) => pct(c.totals.firstServePointsWon, c.totals.firstServesIn),
+      format: (v: number) => `${Math.round(v)}%`,
+    },
+    {
+      key: 'resto',
+      label: L.stats.wonReturning,
+      color: colors.aceChart,
+      of: (p: CareerPoint) => pct(p.stats.returnPointsWon, p.stats.returnPointsPlayed),
+      total: (c: CareerStats) => pct(c.totals.returnPointsWon, c.totals.returnPointsPlayed),
+      format: (v: number) => `${Math.round(v)}%`,
+    },
+    {
+      key: 'enf',
+      label: L.stats.unforcedErrors,
+      color: colors.worse,
+      of: (p: CareerPoint) => p.stats.unforcedErrors,
+      total: (c: CareerStats) =>
+        c.matches === 0 ? null : c.totals.unforcedErrors / c.matches,
+      format: (v: number) => v.toFixed(1),
+    },
+  ] as const;
 
 export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: () => void }) {
   const { nameOf } = useRoster();
-  const [metric, setMetric] = useState<(typeof METRICS)[number]['key']>('ratio');
-  const m = METRICS.find((x) => x.key === metric)!;
+  const [metric, setMetric] = useState<ReturnType<typeof metrics>[number]['key']>('ratio');
+  const m = metrics().find((x) => x.key === metric)!;
 
   const points: TrendPoint[] = useMemo(
     () => stats.timeline.map((p) => ({ at: p.at, value: m.of(p) })),
@@ -209,7 +210,7 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
             {/* LA PELICULA. El acumulado deja de moverse a los treinta partidos; esto no. */}
             <Section title={L.stats.evolution} subtitle={L.stats.evolutionSub}>
               <View style={s.chips}>
-                {METRICS.map((x) => (
+                {metrics().map((x) => (
                   <Pressable
                     key={x.key}
                     style={({ pressed: p }) => [

@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Animated,
   Easing,
-  PixelRatio,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -29,24 +28,36 @@ import {
   savePrefs,
 } from '../store/store';
 import type { Prefs } from '../store/store';
-import { L } from '../i18n';
+import { L, LANG_NAMES, resolveLang, setLanguage, type Lang, type LangPref } from '../i18n';
 import { Brand } from './Brand';
 import { PlayerField } from './PlayerField';
 import { useRoster } from './roster';
+import { Select } from './Select';
 import { alpha, colors, pressed, radius, ripple, space, teamColor } from './theme';
 
 const tick = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 /** El golpe seco con el que aterriza el sorteo. */
 const thud = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
+/**
+ * TODAS ESTAS LISTAS SON FUNCIONES, NO CONSTANTES.
+ *
+ * Una constante de modulo copia los textos cuando carga el bundle: quedaria en el idioma con el
+ * que arranco la app y no se enteraria nunca de que la persona lo cambio. Leen el diccionario al
+ * DIBUJAR, y por eso el idioma se puede cambiar en caliente (ver la regla en `i18n/index.ts`).
+ */
+
 /** Los cuatro lugares de la cancha. El orden importa: es el que se muestra. */
 type Slot = 'a1' | 'a2' | 'b1' | 'b2';
-const SLOTS: Array<{ slot: Slot; team: TeamId; label: string }> = [
+const slots = (): Array<{ slot: Slot; team: TeamId; label: string }> => [
   { slot: 'a1', team: 'A', label: L.positions.drive },
   { slot: 'a2', team: 'A', label: L.positions.reves },
   { slot: 'b1', team: 'B', label: L.positions.drive },
   { slot: 'b2', team: 'B', label: L.positions.reves },
 ];
+
+/** El tamano de la etiqueta del lugar. */
+const SLOT_FONT = 14;
 
 /** El nombre del equipo, que se usa en media pantalla. */
 const teamName = (t: TeamId): string => (t === 'A' ? L.teams.a : L.teams.b);
@@ -55,34 +66,63 @@ const teamName = (t: TeamId): string => (t === 'A' ? L.teams.a : L.teams.b);
  * Las opciones de formato. Los textos cortos son a proposito: entran en un segmento y no hay
  * que leer un parrafo para elegir. Lo largo va en la ayuda de abajo.
  */
-const LENGTHS = [
-  { value: 'un_game', label: L.setup.lengths.un_game },
-  { value: 'un_set', label: L.setup.lengths.un_set },
-  { value: 'tres_sets', label: L.setup.lengths.tres_sets },
-] as const;
+const lengths = () =>
+  [
+    { value: 'un_game', label: L.setup.lengths.un_game },
+    { value: 'un_set', label: L.setup.lengths.un_set },
+    { value: 'tres_sets', label: L.setup.lengths.tres_sets },
+  ] as const;
 
-const FORMATS = [
-  { value: 'ventajas', label: L.setup.gameFormats.ventajas },
-  { value: 'punto_de_oro', label: L.setup.gameFormats.punto_de_oro },
-  { value: 'punto_estrella', label: L.setup.gameFormats.punto_estrella },
-] as const;
+const formats = () =>
+  [
+    { value: 'ventajas', label: L.setup.gameFormats.ventajas },
+    { value: 'punto_de_oro', label: L.setup.gameFormats.punto_de_oro },
+    { value: 'punto_estrella', label: L.setup.gameFormats.punto_estrella },
+  ] as const;
 
-const THIRD_SETS = [
-  { value: 'set_normal', label: L.setup.thirdSets.set_normal },
-  { value: 'super_tiebreak', label: L.setup.thirdSets.super_tiebreak },
-] as const;
+const thirdSets = () =>
+  [
+    { value: 'set_normal', label: L.setup.thirdSets.set_normal },
+    { value: 'super_tiebreak', label: L.setup.thirdSets.super_tiebreak },
+  ] as const;
 
-const CHANGE_ENDS = [
-  { value: 'games_impares', label: L.setup.changeEndsOptions.games_impares },
-  { value: 'fin_de_set', label: L.setup.changeEndsOptions.fin_de_set },
-  { value: 'nunca', label: L.setup.changeEndsOptions.nunca },
-] as const;
+const changeEnds = () =>
+  [
+    { value: 'games_impares', label: L.setup.changeEndsOptions.games_impares },
+    { value: 'fin_de_set', label: L.setup.changeEndsOptions.fin_de_set },
+    { value: 'nunca', label: L.setup.changeEndsOptions.nunca },
+  ] as const;
 
-/** Las dos maneras de cargar un golpe. La primera es el default, y es la que enseña. */
-const SHOT_PROMPTS = [
-  { value: 'siempre', label: L.setup.shotPrompts.siempre },
-  { value: 'opcional', label: L.setup.shotPrompts.opcional },
-] as const;
+/**
+ * Las dos maneras de cargar un golpe. La primera es el default, y es la que enseña.
+ *
+ * Cada una viene CON SU EXPLICACION, porque en el selector la descripcion va adentro de la
+ * opcion: no hay que leer un renglon aparte para saber que hace la que no elegiste.
+ */
+const shotPrompts = () =>
+  [
+    {
+      value: 'siempre',
+      label: L.setup.shotPrompts.siempre,
+      desc: L.setup.shotPromptHints.siempre,
+    },
+    {
+      value: 'opcional',
+      label: L.setup.shotPrompts.opcional,
+      desc: L.setup.shotPromptHints.opcional,
+    },
+  ] as const;
+
+/**
+ * Los idiomas. `auto` primero: es el default y significa "segui al telefono" — al lado, entre
+ * parentesis, el idioma que le toca hoy, para que elegirlo no sea elegir a ciegas.
+ *
+ * Los nombres NO se traducen: quien busca "Português" lo busca escrito asi (ver `LANG_NAMES`).
+ */
+const languages = (): Array<{ value: LangPref; label: string }> => [
+  { value: 'auto', label: `${L.setup.languageAuto} · ${LANG_NAMES[resolveLang('auto')]}` },
+  ...(Object.keys(LANG_NAMES) as Lang[]).map((k) => ({ value: k, label: LANG_NAMES[k] })),
+];
 
 /**
  * Como se para la pareja cuando saca. Es por PAREJA, no por partido — cada equipo elige.
@@ -96,10 +136,11 @@ const SHOT_PROMPTS = [
  * La CLAVE sigue siendo `australiana` / `cambio`: el motor no se entera, y los partidos ya
  * jugados no se tocan. Para esto existe la separacion entre la etiqueta y el dato.
  */
-const FORMATIONS = [
-  { value: 'australiana', label: L.setup.formations.australiana },
-  { value: 'cambio', label: L.setup.formations.cambio },
-] as const;
+const formationOptions = () =>
+  [
+    { value: 'australiana', label: L.setup.formations.australiana },
+    { value: 'cambio', label: L.setup.formations.cambio },
+  ] as const;
 
 export function SetupScreen({
   onStart,
@@ -108,6 +149,7 @@ export function SetupScreen({
   resumable,
   onResume,
   onClosePending,
+  onLanguage,
 }: {
   onStart: (config: MatchConfig) => void;
   onHistory: () => void;
@@ -118,6 +160,12 @@ export function SetupScreen({
   onResume: (m: SavedMatch) => void;
   /** Cerrarlo: deja de ofrecerse, pero queda en el historial como sin terminar. */
   onClosePending: () => void;
+  /**
+   * Cambio el idioma. El diccionario ya esta cambiado cuando esto se llama: lo unico que falta es
+   * que React redibuje la app entera, y eso solo lo puede hacer quien esta MAS ARRIBA que todas
+   * las pantallas — este formulario redibujandose a si mismo dejaria el resto en el idioma viejo.
+   */
+  onLanguage: () => void;
 }) {
   const { width } = useWindowDimensions();
   // El plantel sale del contexto: una sola fuente en toda la app.
@@ -135,6 +183,7 @@ export function SetupScreen({
   const [advanced, setAdvanced] = useState(false);
   const [drawing, setDrawing] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
 
   /** Hay un partido en curso: no se puede empezar otro sin decidir que paso con este. */
   const busy = resumable !== null;
@@ -247,20 +296,37 @@ export function SetupScreen({
     void loadPrefs().then(setPrefs);
   }, []);
 
-  const filled = SLOTS.map(({ slot }) => names[slot].trim()).filter((n) => n.length > 0);
+  const filled = slots().map(({ slot }) => names[slot].trim()).filter((n) => n.length > 0);
   /** Los cuatro lugares llenos y con cuatro personas distintas (sin acentos ni mayusculas). */
   const ready = filled.length === 4 && new Set(filled.map(normalize)).size === 4;
 
   /** Los jugadores guardados que coinciden con lo escrito, sin los que ya estan en otro lugar. */
   const suggest = (slot: Slot): Player[] => {
     const q = normalize(names[slot]);
-    const used = SLOTS.filter((x) => x.slot !== slot).map((x) => normalize(names[x.slot]));
+    const used = slots().filter((x) => x.slot !== slot).map((x) => normalize(names[x.slot]));
     return roster
       .filter((p) => !used.includes(normalize(p.name)))
       .filter((p) => q.length > 0 && normalize(p.name).includes(q))
       .filter((p) => normalize(p.name) !== q) // ya escribiste su nombre exacto: no hay nada que sugerir
       .slice(0, 4);
   };
+
+  /**
+   * Una preferencia DE LA APP: se guarda al tocarla, no al empezar el partido.
+   *
+   * Las del partido (el formato, el tercer set) se guardan recien en `start`, y esta bien: no son
+   * una configuracion, son EL RECUERDO DE COMO JUGASTE LA ULTIMA VEZ — si abandonaste el
+   * formulario, no jugaste, y no hay nada que recordar.
+   *
+   * Estas dos son otra cosa. Cambiar el idioma y perderlo porque no llegaste a empezar un partido
+   * seria absurdo: no tiene nada que ver con ningun partido.
+   */
+  const setAppPref = (patch: Partial<Prefs>) =>
+    setPrefs((x) => {
+      const next = { ...x, ...patch };
+      void savePrefs(next);
+      return next;
+    });
 
   const start = async () => {
     if (!ready) return;
@@ -275,7 +341,7 @@ export function SetupScreen({
      */
     let next = roster;
     const resolved = {} as Record<Slot, Player>;
-    for (const { slot } of SLOTS) {
+    for (const { slot } of slots()) {
       const name = names[slot].trim();
       next = await addPlayer(name, next);
       resolved[slot] = findPlayer(name, next)!;
@@ -420,9 +486,38 @@ export function SetupScreen({
 
                 Aca, a diferencia del historial, el texto libre VALE: es donde nacen los
                 jugadores nuevos. El desplegable ayuda, no obliga. */}
-            {SLOTS.filter((x) => x.team === team).map(({ slot, label }) => (
+            {slots().filter((x) => x.team === team).map(({ slot, label }) => (
               <View key={slot} style={s.slotRow}>
-                <Text style={s.slotLabel}>{label}</Text>
+                {/**
+                 * LAS CUATRO ETIQUETAS MIDEN LO MISMO, Y NADIE CALCULA CUANTO.
+                 *
+                 * Tienen que medir lo mismo: si cada una tomara el ancho de su palabra, los cuatro
+                 * campos empezarian en cuatro sitios distintos y la columna se torceria. La
+                 * pregunta era de donde sale ese ancho, y las dos respuestas obvias fallan.
+                 *
+                 * Un numero a mano (52) es el ancho de "Revés" con ESTA letra: en ingles se leia
+                 * "Forehan". Estimarlo —caracteres por el ancho medio de un caracter— tambien
+                 * falla, y tiene que fallar: ese ancho medio depende de la TIPOGRAFIA, y la
+                 * tipografia la pone cada telefono.
+                 *
+                 * Asi que no se calcula: se DIBUJAN LAS DOS PALABRAS, una encima de la otra, y la
+                 * que no va se deja invisible y sin alto. La caja termina midiendo lo que mide la
+                 * mas ancha —la fuente que sea, el idioma que sea, el tamaño de letra que sea— y
+                 * las cuatro cajas contienen las mismas dos palabras, asi que las cuatro miden
+                 * igual. Sin medir en JavaScript, sin estado y sin un cuadro desalineado al
+                 * arrancar: lo resuelve el layout, que es el unico que sabe cuanto ocupa un texto.
+                 */}
+                <View style={s.slotLabelBox}>
+                  <Text style={s.slotLabel} numberOfLines={1}>
+                    {label}
+                  </Text>
+                  <Text style={[s.slotLabel, s.slotGhost]} numberOfLines={1}>
+                    {L.positions.drive}
+                  </Text>
+                  <Text style={[s.slotLabel, s.slotGhost]} numberOfLines={1}>
+                    {L.positions.reves}
+                  </Text>
+                </View>
                 {/* El ancho que sobra lo pide QUIEN LO USA, no el componente. */}
                 <View style={s.slotField}>
                 <PlayerField
@@ -493,7 +588,7 @@ export function SetupScreen({
             distinto. */}
         <Segmented
           title={L.setup.match}
-          options={LENGTHS}
+          options={lengths()}
           value={prefs.length}
           onChange={(v) => setPrefs((x) => ({ ...x, length: v as Prefs['length'] }))}
           right={
@@ -519,31 +614,11 @@ export function SetupScreen({
             que las agrupa es la CAJA. */}
         {advanced && (
           <View style={s.panel}>
-            {/**
-             * PRIMERA DE TODAS, y no por orden alfabetico: es la unica opcion de la lista que le
-             * enseña algo al que no sabe. Las otras configuran el reglamento; esta le cuenta que
-             * los golpes se pueden registrar — que es el diferencial entero de la app y hasta hoy
-             * vivia detras de un gesto invisible.
-             *
-             * El default es "Preguntar siempre" a proposito (ver `DEFAULT_PREFS`): el que no
-             * quiere que le pregunten lo apaga una vez y no lo ve nunca mas.
-             */}
-            <Segmented
-              title={L.setup.shotPrompt}
-              options={SHOT_PROMPTS}
-              value={prefs.shotPrompt}
-              onChange={(v) => setPrefs((x) => ({ ...x, shotPrompt: v as Prefs['shotPrompt'] }))}
-              hints={[L.setup.shotPromptHints.siempre, L.setup.shotPromptHints.opcional]}
-            />
-
-            {/* UNA LINEA ENTRE OPCION Y OPCION. Hacia abajo no hay limite —esta pantalla ya
-                scrollea— asi que el aire es gratis, y la linea convierte una lista continua en
-                bloques que se leen de a uno. */}
-            <View style={s.panelRule} />
-
+            {/* Lo del PARTIDO: el reglamento con el que se va a jugar hoy. Botones, todos a la
+                vista, porque son decisiones que se toman mirando las opciones juntas. */}
             <Segmented
               title={L.setup.gameFormat}
-              options={FORMATS}
+              options={formats()}
               value={prefs.gameFormat}
               onChange={(v) => setPrefs((x) => ({ ...x, gameFormat: v as Prefs['gameFormat'] }))}
               stack
@@ -551,10 +626,13 @@ export function SetupScreen({
 
             {prefs.length === 'tres_sets' && (
               <>
+                {/* UNA LINEA ENTRE OPCION Y OPCION. Hacia abajo no hay limite —esta pantalla ya
+                    scrollea— asi que el aire es gratis, y la linea convierte una lista continua
+                    en bloques que se leen de a uno. */}
                 <View style={s.panelRule} />
                 <Segmented
                   title={L.setup.thirdSet}
-                  options={THIRD_SETS}
+                  options={thirdSets()}
                   value={prefs.thirdSet}
                   onChange={(v) => setPrefs((x) => ({ ...x, thirdSet: v as Prefs['thirdSet'] }))}
                 />
@@ -565,7 +643,7 @@ export function SetupScreen({
 
             <Segmented
               title={L.setup.changeEnds}
-              options={CHANGE_ENDS}
+              options={changeEnds()}
               value={prefs.changeEnds}
               onChange={(v) => setPrefs((x) => ({ ...x, changeEnds: v as Prefs['changeEnds'] }))}
               stack
@@ -579,7 +657,7 @@ export function SetupScreen({
                 <View style={s.panelRule} />
                 <Segmented
                   title={L.setup.formation(teamName(team).toUpperCase())}
-                  options={FORMATIONS}
+                  options={formationOptions()}
                   value={formations[team]}
                   onChange={(v) => setFormations((f) => ({ ...f, [team]: v as Formation }))}
                 />
@@ -587,6 +665,46 @@ export function SetupScreen({
             ))}
 
             <Text style={s.hint}>{L.setup.remembered}</Text>
+
+            {/**
+             * LO DE LA APP, NO LO DEL PARTIDO. Y NO LO DICE NINGUN CARTEL: LO DICE LA FORMA.
+             *
+             * Todo lo de arriba se elige para el partido de hoy y cambia de una vez a otra. Estas
+             * dos no: son como te gusta a VOS usar la app, y una vez puestas no se tocan mas.
+             * Meterlas entre los botones era ponerlas en la misma bolsa que el reglamento.
+             *
+             * Se separan con un componente distinto —un selector en vez de botones— y con un
+             * corte mas ancho que las lineas de arriba. Nadie tiene que leer que son otra cosa:
+             * se ve que son otra cosa. Y van ULTIMAS porque se llega hasta aca UNA vez.
+             */}
+            <View style={s.panelCut} />
+
+            {/**
+             * El default es "Preguntar siempre" a proposito (ver `DEFAULT_PREFS`): es la unica
+             * opcion de toda la lista que le enseña algo al que no sabe — le cuenta que los golpes
+             * se pueden registrar, que es el diferencial entero de la app. El que no quiere que le
+             * pregunten lo apaga una vez y no lo ve nunca mas.
+             */}
+            <Select
+              title={L.setup.shotPrompt}
+              options={shotPrompts()}
+              value={prefs.shotPrompt}
+              onChange={(v) => setAppPref({ shotPrompt: v as Prefs['shotPrompt'] })}
+            />
+
+            <Select
+              title={L.setup.language}
+              options={languages()}
+              value={prefs.language}
+              onChange={(v) => {
+                /* Primero se cambia el diccionario, despues se avisa: `onLanguage` redibuja la
+                   app entera, y tiene que encontrar el diccionario nuevo ya puesto. Sin reiniciar
+                   nada y sin pantalla intermedia — se toca y ya esta. */
+                setLanguage(v as LangPref);
+                setAppPref({ language: v as LangPref });
+                onLanguage();
+              }}
+            />
           </View>
         )}
 
@@ -920,23 +1038,17 @@ const s = StyleSheet.create({
   /** La etiqueta del lugar, y al lado el campo (que se dibuja solo, en PlayerField). */
   slotRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },
   slotField: { flex: 1 },
+  /** La caja mide lo que la mas ancha de las dos palabras: ver el bloque de arriba. */
+  slotLabelBox: { alignItems: 'flex-start' },
   slotLabel: {
-    /**
-     * ANCHO FIJO PERO NO CONSTANTE. Fijo, porque las cuatro etiquetas tienen que medir lo mismo:
-     * si cada una tomara el ancho de su palabra, los cuatro campos empezarian en cuatro sitios
-     * distintos y la columna se torceria. Pero 52 es el ancho de "Revés" con la letra normal —
-     * con la del sistema en grande la palabra crece y la caja no, y quedaba "Revé".
-     *
-     * Asi que la caja crece con la letra: la misma escala que agranda la palabra agranda el
-     * lugar donde vive.
-     */
-    width: 52 * PixelRatio.getFontScale(),
     height: 48,
     color: colors.textFaint,
-    fontSize: 14,
+    fontSize: SLOT_FONT,
     fontWeight: '700',
     lineHeight: 48,
   },
+  /** Reserva el ancho y no ocupa alto ni se ve. Solo esta para que la caja mida bien. */
+  slotGhost: { height: 0, opacity: 0 },
 
   hint: { color: colors.textFaint, fontSize: 12.5, lineHeight: 17 },
 
@@ -1005,6 +1117,19 @@ const s = StyleSheet.create({
   },
   /** Sutil: separa sin dibujar cajas adentro de la caja. */
   panelRule: { height: StyleSheet.hairlineWidth, backgroundColor: alpha(colors.text, 0.12) },
+  /**
+   * EL CORTE. Separa el reglamento del partido de lo que es de la app.
+   *
+   * No es la misma linea de arriba con otro nombre: las de arriba separan opciones HERMANAS, y
+   * esta separa dos CATEGORIAS. Por eso pesa mas —mas aire arriba y abajo, y la linea un punto
+   * mas viva— y por eso el componente que viene despues es otro. Las dos señales dicen lo mismo,
+   * que es lo que hace que no haga falta escribirlo.
+   */
+  panelCut: {
+    height: StyleSheet.hairlineWidth,
+    marginTop: space.sm,
+    backgroundColor: alpha(colors.text, 0.22),
+  },
   /** Cada formacion con su propia linea arriba, sin romper el `gap` del panel. */
   panelBlock: { gap: space.lg },
 

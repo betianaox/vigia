@@ -26,14 +26,15 @@ const tick = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
  * Rangos, no un calendario. Nadie se acuerda de la fecha exacta de un partido, pero todos
  * saben si fue "esta semana" o "este año".
  */
-const PERIODS = [
-  { value: 'all', label: L.history.periods.all, days: 0 },
-  { value: 'year', label: L.history.periods.year, days: 365 },
-  { value: '30d', label: L.history.periods['30d'], days: 30 },
-  { value: '7d', label: L.history.periods['7d'], days: 7 },
-] as const;
+const periods = () =>
+  [
+    { value: 'all', label: L.history.periods.all, days: 0 },
+    { value: 'year', label: L.history.periods.year, days: 365 },
+    { value: '30d', label: L.history.periods['30d'], days: 30 },
+    { value: '7d', label: L.history.periods['7d'], days: 7 },
+  ] as const;
 
-type Period = (typeof PERIODS)[number]['value'];
+type Period = ReturnType<typeof periods>[number]['value'];
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -116,7 +117,7 @@ export function HistoryScreen({
   }, [all, roster, query, player]);
 
   const matches = useMemo(() => {
-    const days = PERIODS.find((p) => p.value === period)!.days;
+    const days = periods().find((p) => p.value === period)!.days;
     const since = days === 0 ? 0 : Date.now() - days * DAY;
     const q = normalize(query);
     return all
@@ -206,7 +207,7 @@ export function HistoryScreen({
         )}
 
         <View style={s.periods}>
-          {PERIODS.map((p) => (
+          {periods().map((p) => (
             <Pressable
               key={p.value}
               style={({ pressed: pr }) => [

@@ -74,7 +74,7 @@ export const en: Dict = {
       tres_sets: '3 sets',
     },
 
-    shotPrompt: 'SHOT LOGGING',
+    shotPrompt: 'Shot logging',
     shotPrompts: {
       siempre: 'Always ask',
       opcional: 'Optional',
@@ -83,6 +83,9 @@ export const en: Dict = {
       siempre: 'The shot sheet opens on every point.',
       opcional: 'A tap scores it; hold to open the sheet.',
     },
+
+    language: 'Language',
+    languageAuto: 'Automatic',
 
     gameFormat: 'AT 40-40',
     gameFormats: {

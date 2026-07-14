@@ -8,6 +8,7 @@ import type {
   PlayerId,
   ThirdSetFormat,
 } from '../engine';
+import type { LangPref } from '../i18n';
 
 /**
  * El guardado local. Es lo unico que persiste hoy, y es a proposito el pedazo mas aburrido
@@ -41,13 +42,20 @@ const KEY_MERGES = 'vigia.merges.v1';
  */
 export type ShotPrompt = 'siempre' | 'opcional';
 
-/** Lo que se acuerda del ultimo partido: el formato, no los jugadores. */
+/**
+ * Lo que se acuerda del ultimo partido: el formato, no los jugadores.
+ *
+ * Y dos cosas que NO son del partido sino de la APP —como se cargan los golpes y en que idioma
+ * esta— que viven en el mismo archivo porque el archivo es "lo que se acuerda de vos". La
+ * diferencia se cuenta en la pantalla, no aca (ver las avanzadas).
+ */
 export interface Prefs {
   gameFormat: GameFormat;
   length: MatchLength;
   thirdSet: ThirdSetFormat;
   changeEnds: ChangeEndsRule;
   shotPrompt: ShotPrompt;
+  language: LangPref;
 }
 
 /** La primera vez que se abre la app. De ahi en adelante manda lo ultimo que se uso. */
@@ -71,6 +79,13 @@ export const DEFAULT_PREFS: Prefs = {
    * funcion.
    */
   shotPrompt: 'siempre',
+
+  /**
+   * El del telefono. Nadie entra a una app de padel a elegir idioma: la abre y espera entenderla.
+   * El selector existe para el caso real —tener el telefono en un idioma y jugar al padel en
+   * otro— no para hacerle tomar una decision a alguien que no la pidio.
+   */
+  language: 'auto',
 };
 
 /**

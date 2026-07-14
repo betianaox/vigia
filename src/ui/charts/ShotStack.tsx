@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import type { ShotTally } from '../../engine/stats';
 import type { Stroke } from '../../engine';
 import { L } from '../../i18n';
-import { STROKE_LABELS } from '../shots';
+import { strokeLabels } from '../shots';
 import { alpha, colors, radius, space } from '../theme';
 
 /** Un partido: cuantos golpes de cada tipo, en esta categoria. */
@@ -117,7 +117,7 @@ export function ShotStack({
         {top.map((shot, i) => (
           <View key={shot} style={s.key}>
             <View style={[s.swatch, { backgroundColor: shade(i, segments) }]} />
-            <Text style={s.keyText}>{STROKE_LABELS[shot]}</Text>
+            <Text style={s.keyText}>{strokeLabels()[shot]}</Text>
           </View>
         ))}
         {hasOthers && (

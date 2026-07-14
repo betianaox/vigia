@@ -9,8 +9,13 @@ import { L } from '../i18n';
  * diciendo x3 aunque el boton ya no exista.
  *
  * Que golpe se traduce y cual no, y por que, esta en `i18n/es.ts`.
+ *
+ * SON FUNCIONES, NO CONSTANTES, y esa es toda la diferencia entre poder cambiar el idioma en
+ * caliente y no poder: una constante copia los strings cuando carga el bundle y se queda con el
+ * idioma con el que arranco la app para siempre. Estas leen el diccionario CADA VEZ QUE SE
+ * DIBUJA — asi que cambia el idioma y cambian ellas (ver la regla en `i18n/index.ts`).
  */
-export const STROKE_LABELS: Record<Stroke, string> = L.shots;
+export const strokeLabels = (): Record<Stroke, string> => L.shots;
 
 /**
  * EL LADO DEL GOLPE NO ES EL LADO DEL JUGADOR, y hasta hace poco los dos decian "D".
@@ -23,9 +28,9 @@ export const STROKE_LABELS: Record<Stroke, string> = L.shots;
  *
  * La CLAVE sigue siendo `drive`: no se migra ni un partido. Cambia el cartel, no el dato.
  */
-export const SIDE_LABELS: Record<Side, string> = L.sides;
+export const sideLabels = (): Record<Side, string> => L.sides;
 
-export const VARIANT_LABELS: Record<Variant, string> = L.variants;
+export const variantLabels = (): Record<Variant, string> => L.variants;
 
 /**
  * Los golpes que se juegan de derecha o de reves. En la hoja son un teclado: el nombre una vez,

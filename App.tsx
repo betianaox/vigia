@@ -1,6 +1,10 @@
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+import { LOCALE, setLanguage } from './src/i18n';
+import { loadPrefs } from './src/store/store';
 
 import { reduce } from './src/engine';
 import { career, type CareerStats } from './src/engine/career';
@@ -26,6 +30,19 @@ import { useBackHandler } from './src/ui/useBackHandler';
 
 // Herramienta de desarrollo: pone en pantalla todas las variantes del tanteador juntas.
 const PREVIEW = false;
+
+/**
+ * EL SPLASH SE QUEDA HASTA QUE SEPAMOS EN QUE IDIOMA HABLAR.
+ *
+ * El idioma elegido vive en el disco, y leerlo es asincronico: si dibujaramos mientras tanto, la
+ * app abriria en el idioma del TELEFONO y un instante despues se daria vuelta entera. Ese
+ * parpadeo no se lee como "esta cargando", se lee como que la app esta rota — y es lo primero que
+ * ve alguien que justamente eligio otro idioma porque el del telefono no le sirve.
+ *
+ * No agrega espera: lo que se retiene es un pestañeo. Y de paso el splash deja de irse antes de
+ * que se lo pueda ver.
+ */
+void SplashScreen.preventAutoHideAsync();
 
 type Screen =
   | { name: 'setup' }
@@ -55,9 +72,35 @@ type Screen =
  * a abrir nunca.
  */
 export default function App() {
+  /**
+   * El idioma, resuelto ANTES del primer dibujo.
+   *
+   * Se guarda en el estado —aunque el diccionario de verdad viva en un modulo— por una sola
+   * razon: React no se entera de que `setLanguage` cambio algo. Este valor no lo lee nadie: lo
+   * unico que hace es DISPARAR EL REDIBUJO, y con eso alcanza, porque cada pantalla lee el
+   * diccionario mientras se dibuja (ver la regla en `i18n/index.ts`).
+   *
+   * Y NO es la `key` del arbol, aunque remontar todo seria mas facil de razonar: remontar borra
+   * el estado, y el estado de esta pantalla son los cuatro nombres que la persona acaba de
+   * escribir. Nadie deberia perder el equipo que cargo por cambiar el idioma.
+   */
+  const [lang, setLang] = useState<string | null>(null);
+
+  useEffect(() => {
+    void (async () => {
+      const prefs = await loadPrefs();
+      setLanguage(prefs.language);
+      setLang(LOCALE);
+      await SplashScreen.hideAsync();
+    })();
+  }, []);
+
+  // Todavia no sabemos el idioma: no hay nada que se pueda dibujar sin mentir. Sigue el splash.
+  if (!lang) return null;
+
   return (
     <RosterProvider>
-      <Vigia />
+      <Vigia onLanguage={() => setLang(LOCALE)} />
     </RosterProvider>
   );
 }
@@ -66,7 +109,7 @@ export default function App() {
  * El plantel envuelve a TODO: el nombre de una persona se lee de la tabla, por id, en cualquier
  * pantalla. La copia que cada partido guarda adentro queda como respaldo (ver `roster.tsx`).
  */
-function Vigia() {
+function Vigia({ onLanguage }: { onLanguage: () => void }) {
   const { canon } = useRoster();
   const [screen, setScreen] = useState<Screen>({ name: 'setup' });
   const [match, setMatch] = useState<SavedMatch | null>(null);
@@ -225,6 +268,8 @@ function Vigia() {
           onStart={start}
           onHistory={() => setScreen({ name: 'history' })}
           onPlayers={() => setScreen({ name: 'players' })}
+          /* El formulario ya cambio el diccionario; esto es lo que hace que React se entere. */
+          onLanguage={onLanguage}
         />
       )}
     </SafeAreaProvider>
