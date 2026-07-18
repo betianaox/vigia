@@ -184,6 +184,17 @@ export const en: Dict = {
     deleteTitle: 'Delete match',
     deleteNote: 'Gone for good, along with all its stats.',
     delete: 'Delete',
+
+    backup: 'Backup',
+    export: 'Export',
+    import: 'Import',
+    exportNote: 'Your matches live on this phone. Keep this copy wherever you like.',
+    imported: (n: number) => (n === 1 ? '1 match added.' : `${n} matches added.`),
+    importedNone: 'Nothing added: you already had them all.',
+    importedSkipped: (n: number) => (n === 1 ? '1 was already there.' : `${n} were already there.`),
+    importBad: 'That file is not a Vigía backup.',
+    importFailed: 'Could not read the file.',
+    ok: 'Done',
   },
 
   players: {

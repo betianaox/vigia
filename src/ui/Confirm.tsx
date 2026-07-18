@@ -21,6 +21,7 @@ export function Confirm({
   confirmLabel,
   secondaryLabel,
   destructive,
+  single,
   onCancel,
   onConfirm,
   onSecondary,
@@ -38,6 +39,12 @@ export function Confirm({
   secondaryLabel?: string;
   /** Pinta la accion en rojo. Solo para lo que no se puede deshacer. */
   destructive?: boolean;
+  /**
+   * UN AVISO NO ES UNA PREGUNTA. Cuando el dialogo solo informa algo que YA paso —"se agregaron
+   * 52 partidos"— no hay nada que cancelar, y ofrecer "Cancelar" al lado invita a pensar que
+   * todavia se puede deshacer. Queda un solo boton.
+   */
+  single?: boolean;
   onCancel: () => void;
   onConfirm: () => void;
   onSecondary?: () => void;
@@ -55,7 +62,7 @@ export function Confirm({
             {/* Con dos respuestas validas, las dos van arriba y con el mismo peso: no hay una
                 "correcta". Cancelar baja a un renglon aparte — no es una respuesta, es un
                 arrepentimiento. */}
-            {twoWays ? (
+            {single ? null : twoWays ? (
               <Pressable
                 style={({ pressed: p }) => [s.btn, s.cancel, p && pressed]}
                 android_ripple={ripple}

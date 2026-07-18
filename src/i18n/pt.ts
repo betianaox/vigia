@@ -163,6 +163,17 @@ export const pt: Dict = {
     deleteTitle: 'Apagar o jogo',
     deleteNote: 'Apaga-se para sempre, com todas as suas estatísticas.',
     delete: 'Apagar',
+
+    backup: 'Cópia de segurança',
+    export: 'Exportar',
+    import: 'Importar',
+    exportNote: 'Os teus jogos vivem neste telemóvel. Guarda esta cópia onde quiseres.',
+    imported: (n: number) => (n === 1 ? 'Adicionou-se 1 jogo.' : `Adicionaram-se ${n} jogos.`),
+    importedNone: 'Não se adicionou nenhum: já os tinhas todos.',
+    importedSkipped: (n: number) => (n === 1 ? '1 já estava.' : `${n} já estavam.`),
+    importBad: 'Esse ficheiro não é uma cópia do Vigía.',
+    importFailed: 'Não foi possível ler o ficheiro.',
+    ok: 'Pronto',
   },
 
   players: {

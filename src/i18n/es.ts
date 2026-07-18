@@ -233,6 +233,22 @@ export const es = {
     deleteTitle: 'Borrar el partido',
     deleteNote: 'Se borra para siempre, con todas sus estadísticas.',
     delete: 'Borrar',
+
+    /**
+     * La copia de seguridad. Los verbos van solos en la barra —se explican solos y aguantan
+     * cualquier tamaño de fuente—; el nombre de la cosa aparece como titulo del dialogo.
+     */
+    backup: 'Copia de seguridad',
+    export: 'Exportar',
+    import: 'Importar',
+    exportNote: 'Tus partidos viven en este teléfono. Guarda esta copia donde quieras.',
+    /** El resultado se MUESTRA para que la segunda importación del mismo archivo se vea inocua. */
+    imported: (n: number) => (n === 1 ? 'Se agregó 1 partido.' : `Se agregaron ${n} partidos.`),
+    importedNone: 'No se agregó ninguno: ya estaban todos.',
+    importedSkipped: (n: number) => (n === 1 ? '1 ya estaba.' : `${n} ya estaban.`),
+    importBad: 'Ese archivo no es una copia de Vigía.',
+    importFailed: 'No se pudo leer el archivo.',
+    ok: 'Listo',
   },
 
   /** El plantel: la gente con la que jugas. La puerta al juego de cada una. */

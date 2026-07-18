@@ -163,6 +163,17 @@ export const it: Dict = {
     deleteTitle: 'Elimina la partita',
     deleteNote: 'Sparisce per sempre, con tutte le sue statistiche.',
     delete: 'Elimina',
+
+    backup: 'Copia di sicurezza',
+    export: 'Esporta',
+    import: 'Importa',
+    exportNote: 'Le tue partite vivono in questo telefono. Conserva questa copia dove vuoi.',
+    imported: (n: number) => (n === 1 ? 'Aggiunta 1 partita.' : `Aggiunte ${n} partite.`),
+    importedNone: 'Non è stata aggiunta nessuna: le avevi già tutte.',
+    importedSkipped: (n: number) => (n === 1 ? '1 c’era già.' : `${n} c’erano già.`),
+    importBad: 'Quel file non è una copia di Vigía.',
+    importFailed: 'Non è stato possibile leggere il file.',
+    ok: 'Fatto',
   },
 
   players: {

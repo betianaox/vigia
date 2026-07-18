@@ -110,6 +110,14 @@ const write = async (key: string, value: unknown): Promise<void> => {
 };
 
 export const loadPlayers = (): Promise<Player[]> => read<Player[]>(KEY_PLAYERS, []);
+
+/**
+ * Escribir el plantel y las uniones ENTEROS. Los usa la copia de seguridad al importar, que es
+ * el unico lugar que trae gente de afuera y necesita dejar la tabla como quedo despues de unir
+ * lo que vino con lo que habia. El resto de la app no escribe listas completas: agrega de a uno.
+ */
+export const savePlayers = (roster: Player[]): Promise<void> => write(KEY_PLAYERS, roster);
+export const saveMerges = (m: Merges): Promise<void> => write(KEY_MERGES, m);
 /**
  * Las preferencias guardadas se COMPLETAN con los valores por default.
  *

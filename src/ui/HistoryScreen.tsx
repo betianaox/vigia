@@ -1,5 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
 import * as Haptics from 'expo-haptics';
+import * as Sharing from 'expo-sharing';
 import { useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,6 +15,7 @@ import {
   type SavedMatch,
 } from '../store/matches';
 import { L, LOCALE } from '../i18n';
+import { applyBackup, buildBackup, readBackupFile, writeBackupFile } from '../store/backup';
 import { normalize } from '../store/store';
 import { Brand } from './Brand';
 import { Confirm } from './Confirm';
@@ -82,7 +85,7 @@ export function HistoryScreen({
   onCareer: (player: Player) => void;
 }) {
   // El plantel sale del contexto: una sola fuente, y un renombre se ve en todas las pantallas.
-  const { players: roster, all: everyone, canon } = useRoster();
+  const { players: roster, all: everyone, canon, reload: reloadRoster } = useRoster();
 
   /**
    * El nombre de una persona, resuelto AL CANONICO.
@@ -111,9 +114,79 @@ export function HistoryScreen({
   /** El partido que se esta por borrar. Borrar SI se pregunta: el archivo se va y no vuelve. */
   const [deleting, setDeleting] = useState<MatchSummary | null>(null);
 
+  /** El resultado de importar, que se MUESTRA: ver `runImport`. */
+  const [notice, setNotice] = useState<string | null>(null);
+  /** Un toque doble no puede disparar dos exportaciones ni dos importaciones. */
+  const [busy, setBusy] = useState(false);
+
   useEffect(() => {
     void loadIndex().then(setAll);
   }, []);
+
+  /**
+   * Exportar: arma el archivo y se lo entrega a la bandeja de compartir de Android. La app no
+   * sube nada a ningun lado — a donde va la copia lo decide la persona.
+   */
+  const runExport = async (): Promise<void> => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      if (!(await Sharing.isAvailableAsync())) return;
+      const uri = await writeBackupFile(await buildBackup());
+      // Sin mimeType, el selector de Android no sabe que es y ofrece la mitad de las apps.
+      await Sharing.shareAsync(uri, {
+        mimeType: 'application/json',
+        dialogTitle: L.history.backup,
+      });
+    } catch {
+      setNotice(L.history.importFailed);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /**
+   * Importar: SUMA, nunca pisa. Y el resultado se muestra siempre, incluso —sobre todo— cuando
+   * no entro nada: quien importe el mismo archivo dos veces tiene que ver con sus ojos que la
+   * segunda vez no rompio nada. La idempotencia se ve, no se confia.
+   */
+  const runImport = async (): Promise<void> => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const picked = await DocumentPicker.getDocumentAsync({
+        // Muchos gestores de archivos etiquetan el .json como texto plano o no lo etiquetan.
+        type: ['application/json', 'text/plain', '*/*'],
+        copyToCacheDirectory: false,
+      });
+      if (picked.canceled) return;
+
+      const file = picked.assets[0];
+      if (!file) return;
+
+      const backup = await readBackupFile(file.uri);
+      if (!backup) {
+        setNotice(L.history.importBad);
+        return;
+      }
+
+      const r = await applyBackup(backup);
+      setAll(await loadIndex());
+      await reloadRoster();
+
+      setNotice(
+        r.matchesAdded === 0
+          ? L.history.importedNone
+          : r.matchesSkipped > 0
+            ? `${L.history.imported(r.matchesAdded)} ${L.history.importedSkipped(r.matchesSkipped)}`
+            : L.history.imported(r.matchesAdded),
+      );
+    } catch {
+      setNotice(L.history.importFailed);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   /**
    * Escribir BUSCA; elegir FIJA.
@@ -306,6 +379,46 @@ export function HistoryScreen({
             }}
           />
         )}
+      />
+
+      {/* LA COPIA DE SEGURIDAD, abajo y de bajo enfasis.
+
+          Va aca y no en las avanzadas porque es donde viven los datos: se mira el historial que
+          uno no quiere perder y la accion esta ahi mismo. Fija, para que no haya que scrollear
+          500 partidos para encontrarla.
+
+          Y SOLO LOS DOS VERBOS. El nombre de la cosa ("Copia de seguridad") es el titulo del
+          dialogo: metido tambien en la barra, a fuente 1.5 se iba a dos renglones. Los verbos
+          se explican solos y aguantan cualquier tamaño. */}
+      <View style={s.backup}>
+        <Pressable
+          style={({ pressed: p }) => [s.backupBtn, p && pressed]}
+          android_ripple={ripple}
+          onPress={() => void runExport()}
+        >
+          <MaterialIcons name="save-alt" size={18} color={colors.textDim} />
+          <Text style={s.backupText}>{L.history.export}</Text>
+        </Pressable>
+
+        <Pressable
+          style={({ pressed: p }) => [s.backupBtn, p && pressed]}
+          android_ripple={ripple}
+          onPress={() => void runImport()}
+        >
+          <MaterialIcons name="file-upload" size={18} color={colors.textDim} />
+          <Text style={s.backupText}>{L.history.import}</Text>
+        </Pressable>
+      </View>
+
+      {/* El resultado de importar. Un aviso, no una pregunta: un solo boton. */}
+      <Confirm
+        visible={notice !== null}
+        title={L.history.backup}
+        message={notice ?? undefined}
+        confirmLabel={L.history.ok}
+        single
+        onCancel={() => setNotice(null)}
+        onConfirm={() => setNotice(null)}
       />
 
       {/* Borrar SI se pregunta. Terminar un partido no destruia nada —quedaba en el historial—
@@ -548,6 +661,27 @@ const s = StyleSheet.create({
   chipTextOn: { color: colors.text, fontWeight: '900' },
 
   list: { padding: space.lg, paddingTop: 0, gap: space.sm },
+
+  /**
+   * La barra de la copia: importante que se vea, pero no que compita con los partidos. Por eso
+   * va sin relleno de color y en `textDim` — es una herramienta, no una accion del dia a dia.
+   * Arriba ya hay buscador y cinco pastillas; esto no puede sumar ruido.
+   */
+  backup: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  backupBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: space.md,
+  },
+  backupText: { color: colors.textDim, fontSize: 13, fontWeight: '700' },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
