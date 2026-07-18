@@ -12,6 +12,7 @@
     "expo-haptics": "~57.0.0",
     "expo-keep-awake": "~57.0.0",
     "expo-localization": "~57.0.0",
+    "expo-navigation-bar": "~57.0.2",
     "expo-sharing": "~57.0.3",
     "expo-splash-screen": "~57.0.2",
     "expo-status-bar": "~57.0.0",

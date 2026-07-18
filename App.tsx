@@ -1,4 +1,5 @@
 import * as SplashScreen from 'expo-splash-screen';
+import { NavigationBar } from 'expo-navigation-bar';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -215,6 +216,15 @@ function Vigia({ onLanguage }: { onLanguage: () => void }) {
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
+
+      {/* La barra de navegacion de Android, abajo. Sin esto queda CLARA en los telefonos que
+          usan tres botones —un rectangulo blanco pegado a una app oscura— porque Android le
+          dibuja un velo de contraste por su cuenta. Ese velo se apaga en el plugin
+          (`enforceContrast: false`) y aca se pide barra oscura con iconos claros.
+
+          `dark` es "barra oscura con contenido claro", al reves de lo que uno diria: es la
+          convencion de la libreria, verificada en sus tipos. */}
+      <NavigationBar style="dark" />
 
       {PREVIEW ? (
         <ScoreboardPreview />
