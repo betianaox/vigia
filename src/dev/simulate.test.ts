@@ -53,16 +53,32 @@ describe('el partido simulado', () => {
     expect(simulate(c, at)).toEqual(simulate(c, at));
   });
 
+  /**
+   * SE MIRAN VARIOS SEMILLEROS, NO UNO. Lo que se prueba es que el simulador PUEDE producir
+   * cada cosa, no que un stream de azar particular la produzca: con un solo seed, cualquier
+   * cambio en el orden en que se piden los randoms rompe el test sin que nada este mal —paso
+   * al agregarle "quien forzo" al error forzado, que consume un random mas.
+   */
   it('trae de todo: aces, dobles faltas, lets y golpes cargados', () => {
     const c = config();
-    const events = simulate(c, { seed: 7 });
-    const stats = computeStats(c, events);
+    const seeds = [1, 3, 7, 11, 23];
 
-    expect(events.some((e) => e.type === 'LET')).toBe(true);
-    expect(stats.hasShotData).toBe(true);
+    let aces = 0;
+    let dobles = 0;
+    let lets = false;
+    let shotData = false;
 
-    const aces = Object.values(stats.players).reduce((n, p) => n + p.aces, 0);
-    const dobles = Object.values(stats.players).reduce((n, p) => n + p.doubleFaults, 0);
+    for (const seed of seeds) {
+      const events = simulate(c, { seed });
+      const stats = computeStats(c, events);
+      aces += Object.values(stats.players).reduce((n, p) => n + p.aces, 0);
+      dobles += Object.values(stats.players).reduce((n, p) => n + p.doubleFaults, 0);
+      lets ||= events.some((e) => e.type === 'LET');
+      shotData ||= stats.hasShotData;
+    }
+
+    expect(lets).toBe(true);
+    expect(shotData).toBe(true);
     expect(aces).toBeGreaterThan(0);
     expect(dobles).toBeGreaterThan(0);
   });

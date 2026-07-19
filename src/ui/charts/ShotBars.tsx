@@ -72,7 +72,6 @@ export function ShotBars({ lines }: { lines: ShotLine[] }) {
               {(
                 [
                   [l.winners, colors.winnerChart],
-                  [l.forced, colors.errorForcedChart],
                   [l.unforced, colors.errorUnforcedChart],
                 ] as Array<[number, string]>
               )

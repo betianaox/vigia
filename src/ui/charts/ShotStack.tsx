@@ -58,6 +58,8 @@ export function ShotStack({
 
   const top = ranked.slice(0, MAX_SHOTS).map(([shot]) => shot);
   const hasOthers = ranked.length > MAX_SHOTS;
+  /** Lo que quedo fuera del podio, sumado: "Otros" tambien tiene que decir cuantos. */
+  const othersTotal = ranked.slice(MAX_SHOTS).reduce((acc, [, n]) => acc + n, 0);
 
   /**
    * La intensidad separa los golpes. El mas usado, el mas solido.
@@ -113,17 +115,30 @@ export function ShotStack({
         })}
       </View>
 
+      {/**
+       * LA LEYENDA TAMBIEN DICE CUANTOS, NO SOLO CUAL.
+       *
+       * Era nombre + color, y con eso el bloque entero se podia mirar sin aprender un solo
+       * numero: se veia que el remate pesa mas que la volea, pero nunca "pegue 40 remates".
+       * Esa es la vista superficial que marco la entrenadora — un grafico contesta "¿voy
+       * mejorando?" y no contesta "¿cuanto?", y las dos preguntas se hacen.
+       *
+       * El total ya estaba calculado aca arriba para rankear los golpes: no habia que sumar
+       * nada nuevo, solo dejar de esconderlo.
+       */}
       <View style={s.legend}>
         {top.map((shot, i) => (
           <View key={shot} style={s.key}>
             <View style={[s.swatch, { backgroundColor: shade(i, segments) }]} />
             <Text style={s.keyText}>{strokeLabels()[shot]}</Text>
+            <Text style={s.keyCount}>{totals[shot] ?? 0}</Text>
           </View>
         ))}
         {hasOthers && (
           <View style={s.key}>
             <View style={[s.swatch, { backgroundColor: shade(segments - 1, segments) }]} />
             <Text style={s.keyText}>{L.stats.otherShots}</Text>
+            <Text style={s.keyCount}>{othersTotal}</Text>
           </View>
         )}
       </View>
@@ -149,6 +164,8 @@ const s = StyleSheet.create({
   key: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   swatch: { width: 9, height: 9, borderRadius: radius.sm },
   keyText: { color: colors.textDim, fontSize: 10, fontWeight: '700' },
+  /** El numero pisa mas fuerte que el nombre: el nombre ya lo dice el color. */
+  keyCount: { color: colors.text, fontSize: 10, fontWeight: '900' },
 
   empty: { color: colors.textFaint, fontSize: 12 },
 });

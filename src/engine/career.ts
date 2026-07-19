@@ -99,12 +99,14 @@ const empty = (id: PlayerId, name: string, team: TeamId): PlayerStats => ({
   forcedErrors: 0,
   unforcedErrors: 0,
   winnersByShot: {},
-  forcedByShot: {},
+
   unforcedByShot: {},
   aces: 0,
   doubleFaults: 0,
   acesAgainst: {},
   doubleFaultsAgainst: {},
+  forcedErrorsCaused: {},
+  forcedErrorsCausedByShot: {},
   acesConceded: 0,
   doubleFaultsForced: 0,
   servePointsPlayed: 0,
@@ -114,6 +116,8 @@ const empty = (id: PlayerId, name: string, team: TeamId): PlayerStats => ({
   secondServePointsWon: 0,
   returnPointsPlayed: 0,
   returnPointsWon: 0,
+  returnErrorsForced: 0,
+  returnErrorsUnforced: 0,
 });
 
 /** Los contadores que se suman sin mas. Los mapas y los strings van aparte. */
@@ -132,6 +136,8 @@ const SUMMED = [
   'secondServePointsWon',
   'returnPointsPlayed',
   'returnPointsWon',
+  'returnErrorsForced',
+  'returnErrorsUnforced',
 ] as const;
 
 /**
@@ -196,13 +202,21 @@ export const career = (
 
     for (const k of SUMMED) totals[k] += mineStats[k];
     totals.winnersByShot = mergeTally(totals.winnersByShot, mineStats.winnersByShot);
-    totals.forcedByShot = mergeTally(totals.forcedByShot, mineStats.forcedByShot);
     totals.unforcedByShot = mergeTally(totals.unforcedByShot, mineStats.unforcedByShot);
     totals.acesAgainst = mergeAgainst(totals.acesAgainst, mineStats.acesAgainst, canon);
     totals.doubleFaultsAgainst = mergeAgainst(
       totals.doubleFaultsAgainst,
       mineStats.doubleFaultsAgainst,
       canon,
+    );
+    totals.forcedErrorsCaused = mergeAgainst(
+      totals.forcedErrorsCaused,
+      mineStats.forcedErrorsCaused,
+      canon,
+    );
+    totals.forcedErrorsCausedByShot = mergeTally(
+      totals.forcedErrorsCausedByShot,
+      mineStats.forcedErrorsCausedByShot,
     );
 
     const mineTeamPoints = stats.teams[team].pointsWon;

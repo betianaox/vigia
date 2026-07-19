@@ -334,19 +334,23 @@ describe('agregados por equipo', () => {
 describe('desglose por golpe', () => {
   const c = baseConfig();
 
+  /**
+   * SOLO WINNERS Y NO FORZADOS: el error forzado no tiene desglose por golpe de este lado —la
+   * hoja pregunta con que golpe FORZO el rival, no con cual fallo quien lo sufrio— asi que el
+   * evento ya no lleva `shot` y no hay nada que cruzar.
+   */
   it('cruza cada golpe con como termino el punto, ordenado por uso', () => {
     const s = computeStats(c, [
       { type: 'WINNER', player: 'a1', shot: { stroke: 'bandeja' } },
       { type: 'ERROR_NO_FORZADO', player: 'a1', shot: { stroke: 'bandeja' } },
       { type: 'ERROR_NO_FORZADO', player: 'a1', shot: { stroke: 'bandeja' } },
-      { type: 'ERROR_FORZADO', player: 'a1', shot: { stroke: 'bandeja' } },
       { type: 'WINNER', player: 'a1', shot: { stroke: 'remate' } },
     ]);
     const lines = shotLines(s.players.a1!);
 
-    // La bandeja se uso 4 veces, el remate 1: va primero.
-    expect(lines[0]).toEqual({ shot: 'bandeja', winners: 1, forced: 1, unforced: 2, total: 4 });
-    expect(lines[1]).toEqual({ shot: 'remate', winners: 1, forced: 0, unforced: 0, total: 1 });
+    // La bandeja se uso 3 veces, el remate 1: va primero.
+    expect(lines[0]).toEqual({ shot: 'bandeja', winners: 1, unforced: 2, total: 3 });
+    expect(lines[1]).toEqual({ shot: 'remate', winners: 1, unforced: 0, total: 1 });
   });
 
   it('los golpes sin tipo cargado no aparecen', () => {
@@ -354,6 +358,75 @@ describe('desglose por golpe', () => {
     expect(shotLines(s.players.a1!)).toEqual([]);
   });
 
+});
+
+describe('falla de recepcion', () => {
+  const c = baseConfig();
+
+  it('un error comun del que resta NO cuenta como falla de recepcion', () => {
+    // Saca a1, resta b1 (ver "estadisticas de saque" arriba). Sin `onReturn`, es un error
+    // no forzado de siempre — puede haber pasado en cualquier momento del peloteo.
+    const s = computeStats(c, [{ type: 'ERROR_NO_FORZADO', player: 'b1' }]);
+    expect(s.players.b1!.unforcedErrors).toBe(1);
+    expect(s.players.b1!.returnErrorsUnforced).toBe(0);
+    expect(s.players.b1!.returnErrorsForced).toBe(0);
+  });
+
+  it('el boton dedicado marca la falla de recepcion, ADEMAS de sumar como error de siempre', () => {
+    const s = computeStats(c, [{ type: 'ERROR_NO_FORZADO', player: 'b1', onReturn: true }]);
+    expect(s.players.b1!.unforcedErrors).toBe(1); // sigue siendo un ENF de toda la vida
+    expect(s.players.b1!.returnErrorsUnforced).toBe(1);
+  });
+
+  it('la falla de recepcion tambien puede ser forzada', () => {
+    const s = computeStats(c, [{ type: 'ERROR_FORZADO', player: 'b1', onReturn: true }]);
+    expect(s.players.b1!.forcedErrors).toBe(1);
+    expect(s.players.b1!.returnErrorsForced).toBe(1);
+  });
+
+  it('cuenta en tipo de golpe exactamente igual que cualquier otro error', () => {
+    const s = computeStats(c, [
+      { type: 'ERROR_NO_FORZADO', player: 'b1', onReturn: true, shot: { stroke: 'volea' } },
+    ]);
+    expect(s.players.b1!.unforcedByShot).toEqual({ volea: 1 });
+  });
+});
+
+describe('quien forzo el error', () => {
+  const c = baseConfig();
+
+  it('sin forcedBy, el error forzado es igual que siempre', () => {
+    const s = computeStats(c, [{ type: 'ERROR_FORZADO', player: 'b1' }]);
+    expect(s.players.b1!.forcedErrors).toBe(1);
+    expect(s.players.a1!.forcedErrorsCaused).toEqual({});
+  });
+
+  it('se anota en la ficha del que fuerza, no del que se equivoca', () => {
+    const s = computeStats(c, [
+      { type: 'ERROR_FORZADO', player: 'b1', forcedBy: 'a1', forcedByShot: { stroke: 'remate' } },
+    ]);
+    expect(s.players.a1!.forcedErrorsCaused).toEqual({ b1: 1 });
+    expect(s.players.a1!.forcedErrorsCausedByShot).toEqual({ remate: 1 });
+    // La ficha de b1 sigue contando SU golpe (si lo hubiera) por su lado: son datos distintos.
+    expect(s.players.b1!.forcedErrorsCaused).toEqual({});
+  });
+
+  it('dos jugadores distintos forzando errores no se mezclan', () => {
+    const s = computeStats(c, [
+      { type: 'ERROR_FORZADO', player: 'b1', forcedBy: 'a1', forcedByShot: { stroke: 'remate' } },
+      { type: 'ERROR_FORZADO', player: 'b2', forcedBy: 'a2', forcedByShot: { stroke: 'bandeja' } },
+    ]);
+    expect(s.players.a1!.forcedErrorsCaused).toEqual({ b1: 1 });
+    expect(s.players.a2!.forcedErrorsCaused).toEqual({ b2: 1 });
+  });
+
+  it('el mismo forzador contra la misma persona dos veces, suma', () => {
+    const s = computeStats(c, [
+      { type: 'ERROR_FORZADO', player: 'b1', forcedBy: 'a1' },
+      { type: 'ERROR_FORZADO', player: 'b1', forcedBy: 'a1' },
+    ]);
+    expect(s.players.a1!.forcedErrorsCaused).toEqual({ b1: 2 });
+  });
 });
 
 describe('las estadisticas son una funcion pura del log', () => {

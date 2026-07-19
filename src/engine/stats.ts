@@ -29,8 +29,15 @@ export interface PlayerStats {
   forcedErrors: number;
   unforcedErrors: number;
 
+  /**
+   * El desglose por golpe existe donde el golpe SE CARGA: el winner y el error no forzado son
+   * actos propios y la hoja pregunta con que se hicieron.
+   *
+   * EL ERROR FORZADO NO TIENE DESGLOSE DE ESTE LADO, y no es un olvido: la hoja pregunta por
+   * el golpe del que FORZO, no por el del que sufrio. Lo que hizo el que fuerza esta en
+   * `forcedErrorsCausedByShot`, en SU ficha.
+   */
   winnersByShot: ShotTally;
-  forcedByShot: ShotTally;
   unforcedByShot: ShotTally;
 
   aces: number;
@@ -49,6 +56,14 @@ export interface PlayerStats {
    */
   acesAgainst: Partial<Record<PlayerId, number>>;
   doubleFaultsAgainst: Partial<Record<PlayerId, number>>;
+  /**
+   * El mismo duelo, para el error forzado: a quien se lo forzaste. Vive del lado del que
+   * FUERZA, igual que el ace vive del lado del que saca — es lo que HIZO, no lo que le
+   * pasa al otro.
+   */
+  forcedErrorsCaused: Partial<Record<PlayerId, number>>;
+  /** Con que golpe forzaste esos errores. Es el dato que se pidio marcar primero en la hoja. */
+  forcedErrorsCausedByShot: ShotTally;
 
   /** Restando: los aces que le hicieron, y las dobles faltas que provoco. */
   acesConceded: number;
@@ -68,6 +83,15 @@ export interface PlayerStats {
   /** Restando: cuantos puntos jugo de resto y cuantos gano. */
   returnPointsPlayed: number;
   returnPointsWon: number;
+
+  /**
+   * Fallas devolviendo el saque, forzada y no forzada. Suman aparte de `forcedErrors` y
+   * `unforcedErrors` — no son un tercer contador, son EL MISMO, marcado con donde paso (ver
+   * `onReturn` en `MatchEvent`). El porcentaje sobre `returnPointsPlayed` es "falla de
+   * recepcion", y solo existe si alguien uso el boton dedicado: nadie lo infiere solo.
+   */
+  returnErrorsForced: number;
+  returnErrorsUnforced: number;
 
   /**
    * EL BREAK NO TIENE DUEÑO, Y POR ESO NO ESTA ACA.
@@ -111,13 +135,20 @@ export interface TeamStats {
   secondServePointsWon: number;
   returnPointsPlayed: number;
   returnPointsWon: number;
+  returnErrorsForced: number;
+  returnErrorsUnforced: number;
 }
 
-/** Como le rindio un golpe: cuantos winners dio y cuantos errores costo. */
+/**
+ * Como le rindio un golpe: cuantos winners dio y cuantos errores no forzados costo.
+ *
+ * SIN COLUMNA DE FORZADOS: ese desglose no existe mas (ver `PlayerStats`). La hoja pregunta
+ * con que golpe FORZO el que gano el punto, no con cual fallo el que lo sufrio, asi que
+ * dibujar una columna de forzados por golpe seria una columna condenada a estar vacia.
+ */
 export interface ShotLine {
   shot: Stroke;
   winners: number;
-  forced: number;
   unforced: number;
   total: number;
 }
@@ -128,19 +159,17 @@ export interface ShotLine {
  * alguien, desde afuera, haya juzgado cada punto.
  */
 export const shotLines = (
-  p: Pick<PlayerStats, 'winnersByShot' | 'forcedByShot' | 'unforcedByShot'>,
+  p: Pick<PlayerStats, 'winnersByShot' | 'unforcedByShot'>,
 ): ShotLine[] => {
   const shots = new Set<Stroke>([
     ...(Object.keys(p.winnersByShot) as Stroke[]),
-    ...(Object.keys(p.forcedByShot) as Stroke[]),
     ...(Object.keys(p.unforcedByShot) as Stroke[]),
   ]);
   return [...shots]
     .map((shot) => {
       const winners = p.winnersByShot[shot] ?? 0;
-      const forced = p.forcedByShot[shot] ?? 0;
       const unforced = p.unforcedByShot[shot] ?? 0;
-      return { shot, winners, forced, unforced, total: winners + forced + unforced };
+      return { shot, winners, unforced, total: winners + unforced };
     })
     .sort((a, b) => b.total - a.total);
 };
@@ -168,6 +197,16 @@ export const winnerErrorRatio = (p: PlayerStats): number | null =>
 export const pct = (won: number, played: number): number | null =>
   played === 0 ? null : (won / played) * 100;
 
+/**
+ * El total de un duelo: la suma de lo que se le hizo a cada rival.
+ *
+ * Vive en el motor y no en una pantalla porque lo usan las dos —la ficha del partido y el
+ * acumulado— y tienen que dar el mismo numero. Dos copias de la misma cuenta es como empiezan
+ * a diferir.
+ */
+export const totalDuels = (against: Partial<Record<PlayerId, number>>): number =>
+  Object.values(against).reduce<number>((acc, n) => acc + (n ?? 0), 0);
+
 /** El golpe suma por su nombre paraguas: la vibora suma como bandeja, el x3 como remate. */
 const bump = (t: ShotTally, shot: Shot | undefined): void => {
   if (!shot) return;
@@ -188,12 +227,14 @@ const emptyPlayer = (id: PlayerId, name: string, team: TeamId): PlayerStats => (
   forcedErrors: 0,
   unforcedErrors: 0,
   winnersByShot: {},
-  forcedByShot: {},
+
   unforcedByShot: {},
   aces: 0,
   doubleFaults: 0,
   acesAgainst: {},
   doubleFaultsAgainst: {},
+  forcedErrorsCaused: {},
+  forcedErrorsCausedByShot: {},
   acesConceded: 0,
   doubleFaultsForced: 0,
   servePointsPlayed: 0,
@@ -203,6 +244,8 @@ const emptyPlayer = (id: PlayerId, name: string, team: TeamId): PlayerStats => (
   secondServePointsWon: 0,
   returnPointsPlayed: 0,
   returnPointsWon: 0,
+  returnErrorsForced: 0,
+  returnErrorsUnforced: 0,
 });
 
 const emptyTeam = (team: TeamId): TeamStats => ({
@@ -228,6 +271,8 @@ const emptyTeam = (team: TeamId): TeamStats => ({
   secondServePointsWon: 0,
   returnPointsPlayed: 0,
   returnPointsWon: 0,
+  returnErrorsForced: 0,
+  returnErrorsUnforced: 0,
 });
 
 /** Los agregados del equipo son la suma de sus dos jugadores. */
@@ -246,6 +291,8 @@ const AGGREGATED = [
   'secondServePointsWon',
   'returnPointsPlayed',
   'returnPointsWon',
+  'returnErrorsForced',
+  'returnErrorsUnforced',
 ] as const;
 
 /**
@@ -317,7 +364,20 @@ export const computeStats = (config: MatchConfig, events: MatchEvent[]): MatchSt
       case 'ERROR_FORZADO': {
         const p = players[e.player]!;
         p.forcedErrors += 1;
-        bump(p.forcedByShot, e.shot);
+        /**
+         * SIN DESGLOSE POR GOLPE DEL LADO DE QUIEN ERRO, a proposito: la hoja ya no lo
+         * pregunta. En un error forzado el golpe que importa es el del que FORZO —eso es lo
+         * que esa persona hizo— y el del que lo sufrio no dice casi nada: te obligaron, y
+         * pegaste lo que pudiste. Vive en `forcedErrorsCausedByShot`, del otro lado.
+         */
+        if (e.onReturn) p.returnErrorsForced += 1;
+        // El otro lado del duelo: quien lo forzo, y con que. Vive en SU ficha, no en la de
+        // quien erro — es lo que el hizo, igual que un ace vive en la ficha de quien saco.
+        if (e.forcedBy) {
+          const forcer = players[e.forcedBy]!;
+          forcer.forcedErrorsCaused[e.player] = (forcer.forcedErrorsCaused[e.player] ?? 0) + 1;
+          bump(forcer.forcedErrorsCausedByShot, e.forcedByShot);
+        }
         pointTo = otherTeam(teamOfPlayer(e.player, config.teams));
         break;
       }
@@ -325,6 +385,7 @@ export const computeStats = (config: MatchConfig, events: MatchEvent[]): MatchSt
         const p = players[e.player]!;
         p.unforcedErrors += 1;
         bump(p.unforcedByShot, e.shot);
+        if (e.onReturn) p.returnErrorsUnforced += 1;
         pointTo = otherTeam(teamOfPlayer(e.player, config.teams));
         break;
       }

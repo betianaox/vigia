@@ -132,7 +132,14 @@ export function simulate(config: MatchConfig, opts: SimOptions = {}): MatchEvent
     } else if (how < 0.75) {
       push({ type: 'ERROR_NO_FORZADO', player: pick(pair(loser)), shot: shot() });
     } else {
-      push({ type: 'ERROR_FORZADO', player: pick(pair(loser)), shot: shot() });
+      /* El error forzado no lleva el golpe del que erro: lleva QUIEN lo forzo y CON QUE, que
+         es lo unico que la hoja pregunta. El que fuerza sale de la pareja que gano el punto. */
+      push({
+        type: 'ERROR_FORZADO',
+        player: pick(pair(loser)),
+        forcedBy: pick(pair(winner)),
+        forcedByShot: shot(),
+      });
     }
   }
 

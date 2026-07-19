@@ -5,7 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { CareerPoint, CareerStats } from '../engine/career';
-import { pct } from '../engine/stats';
+import { pct, totalDuels } from '../engine/stats';
 import { L } from '../i18n';
 import { Brand } from './Brand';
 import { useRoster } from './roster';
@@ -81,14 +81,6 @@ const metrics = () =>
       format: (v: number) => `${Math.round(v)}%`,
     },
     {
-      key: 'resto',
-      label: L.stats.wonReturning,
-      color: colors.aceChart,
-      of: (p: CareerPoint) => pct(p.stats.returnPointsWon, p.stats.returnPointsPlayed),
-      total: (c: CareerStats) => pct(c.totals.returnPointsWon, c.totals.returnPointsPlayed),
-      format: (v: number) => `${Math.round(v)}%`,
-    },
-    {
       key: 'enf',
       label: L.stats.unforcedErrors,
       color: colors.worse,
@@ -110,6 +102,10 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
   );
 
   const first = pct(stats.totals.firstServesIn, stats.totals.servePointsPlayed);
+  /** Las dos fallas de devolucion suman una: lo que cambia es como se fallo, no que se fallo. */
+  const careerReturnErrors =
+    stats.totals.returnErrorsForced + stats.totals.returnErrorsUnforced;
+  const careerForcedCaused = totalDuels(stats.totals.forcedErrorsCaused);
   const share = pct(stats.teamPointsWon, stats.totalPoints);
 
   /**
@@ -135,20 +131,23 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
     const total = (t: Record<string, number | undefined>) =>
       Object.values(t).reduce<number>((n, v) => n + (v ?? 0), 0);
 
+    /**
+     * SIN LOS FORZADOS: no hay desglose por golpe de ese lado y no lo va a haber (ver
+     * `PlayerStats`). El grafico existia porque el motor guardaba con que golpe habia fallado
+     * el que sufrio el error; desde que la hoja pregunta por el golpe del que FORZA, ese dato
+     * no se captura, y el grafico quedaria vacio para siempre.
+     *
+     * Y la escala la fijan los dos que quedan: si siguiera contando una categoria que ya no
+     * tiene datos, las barras se dibujarian contra un techo inexistente.
+     */
     let scale = 0;
     for (const p of stats.timeline) {
-      scale = Math.max(
-        scale,
-        total(p.stats.winnersByShot),
-        total(p.stats.forcedByShot),
-        total(p.stats.unforcedByShot),
-      );
+      scale = Math.max(scale, total(p.stats.winnersByShot), total(p.stats.unforcedByShot));
     }
 
     return {
       scale,
       winners: stats.timeline.map((p) => ({ at: p.at, byShot: p.stats.winnersByShot })),
-      forced: stats.timeline.map((p) => ({ at: p.at, byShot: p.stats.forcedByShot })),
       unforced: stats.timeline.map((p) => ({ at: p.at, byShot: p.stats.unforcedByShot })),
     };
   }, [stats.timeline]);
@@ -280,6 +279,18 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
                 <Stat label={L.stats.unforcedShort} value={`${stats.totals.unforcedErrors}`} />
               </View>
 
+              {/* Los que provoco, en su propia celda: la misma que la ficha del partido, para
+                  que las dos pantallas digan lo mismo con el mismo nombre. Sin "contra quien":
+                  en un acumulado de dos temporadas esa lista no termina mas. */}
+              <View style={s.grid}>
+                <Stat
+                  label={L.stats.forcedErrorsCaused}
+                  value={careerForcedCaused > 0 ? `${careerForcedCaused}` : '—'}
+                />
+                <View style={s.statCell} />
+                <View style={s.statCell} />
+              </View>
+
               <View style={s.divider} />
               <Text style={s.blockLabel}>{L.stats.serving}</Text>
 
@@ -289,12 +300,24 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
                   value={num(first, '%')}
                   sub={`${stats.totals.firstServesIn}/${stats.totals.servePointsPlayed}`}
                 />
+                {/**
+                 * LA FRACCION VA SIEMPRE, Y ACA MAS QUE EN UN PARTIDO.
+                 *
+                 * Un 62% de 12 saques y un 62% de 340 son la misma cifra y no dicen lo mismo:
+                 * sin el denominador no se sabe si el numero es una tendencia o una casualidad
+                 * de un dia. En un partido el volumen se intuye; en dos temporadas, no.
+                 *
+                 * Y hay una razon del propio motor: el acumulado NO promedia porcentajes, suma
+                 * contadores y recien ahi divide (§7 bis). Mostrar los contadores es lo que
+                 * hace visible ese trabajo — estaba bien calculado y no se veia.
+                 */}
                 <Stat
                   label={L.stats.wonWithFirst}
                   value={num(
                     pct(stats.totals.firstServePointsWon, stats.totals.firstServesIn),
                     '%',
                   )}
+                  sub={`${stats.totals.firstServePointsWon}/${stats.totals.firstServesIn}`}
                 />
                 <Stat
                   label={L.stats.wonWithSecond}
@@ -302,6 +325,7 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
                     pct(stats.totals.secondServePointsWon, stats.totals.secondServePointsPlayed),
                     '%',
                   )}
+                  sub={`${stats.totals.secondServePointsWon}/${stats.totals.secondServePointsPlayed}`}
                 />
               </View>
 
@@ -314,13 +338,30 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
               <View style={s.divider} />
               <Text style={s.blockLabel}>{L.stats.returning}</Text>
 
+              {/* SIN "GANA RESTANDO": el punto que se gana restando lo definen cuatro, y el log
+                  sabe quien resto, no quien lo termino. Es un dato del EQUIPO en la ficha de una
+                  persona — la misma razon por la que el break no tiene dueno. Lo que se queria
+                  saber de ahi ya lo dicen los breaks. El contador sigue en el motor por si
+                  alguna vez hace falta a nivel equipo: lo que se fue es la vista. */}
+              {/* LA FALLA EN RESTO VA PRIMERA: es el dato mas importante del bloque —lo pidio la
+                  entrenadora— y es ademas el unico que mide algo que la persona HIZO. Los otros
+                  dos cuentan lo que le hicieron o lo que fallo el rival. El orden de lectura es
+                  jerarquia: lo primero de la fila es lo que hay que mirar. */}
               <View style={s.grid}>
                 <Stat
-                  label={L.stats.wonReturning}
-                  value={num(
-                    pct(stats.totals.returnPointsWon, stats.totals.returnPointsPlayed),
-                    '%',
-                  )}
+                  label={L.stats.returnErrorPct}
+                  /* Guion y no cero cuando nunca se uso el boton dedicado: un cero diria "no
+                     fallo ninguna" y lo que pasa es que no se sabe. Igual que en el partido. */
+                  value={
+                    careerReturnErrors > 0
+                      ? num(pct(careerReturnErrors, stats.totals.returnPointsPlayed), '%')
+                      : '—'
+                  }
+                  sub={
+                    careerReturnErrors > 0
+                      ? `${careerReturnErrors}/${stats.totals.returnPointsPlayed}`
+                      : undefined
+                  }
                 />
                 <Stat label={L.stats.acesConceded} value={`${stats.totals.acesConceded}`} />
                 <Stat label={L.stats.doubleFaultsForced} value={`${stats.totals.doubleFaultsForced}`} />
@@ -346,14 +387,14 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
                   />
                 </Section>
 
-                <Section title={L.stats.forcedErrors} subtitle={L.stats.byShot}>
-                  <ShotStack
-                    columns={shots.forced}
-                    color={colors.errorForcedChart}
-                    scale={shots.scale}
-                  />
-                </Section>
+                {/* NO HAY SECCION DE ERRORES FORZADOS POR GOLPE, y no es un recorte: no hay
+                    con que dibujarla. La hoja pregunta con que golpe FORZO el que gano el
+                    punto, no con cual fallo el que lo sufrio — asi que el desglose de este
+                    lado no se captura. Un grafico vacio no es neutro: promete un dato que
+                    la app no tiene.
 
+                    El total de errores forzados sigue estando, en "Juego", y la evolucion
+                    en el tantito de arriba. Lo que se fue es el por-golpe. */}
                 <Section title={L.stats.unforcedErrors} subtitle={L.stats.byShot}>
                   <ShotStack
                     columns={shots.unforced}

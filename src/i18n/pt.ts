@@ -15,6 +15,9 @@ export const pt: Dict = {
     chiquita: 'Chiquita',
     /** El portugues tiene el suyo, y no es el castellano: se dice "saída", no "salida". */
     salida_de_pared: 'Saída de parede',
+    /** "S." de saida: "Parede" sozinha e a parede, nao o golpe que sai dela. */
+    salida_pared_ofensiva: 'S. Parede ofensiva',
+    salida_pared_defensiva: 'S. Parede defensiva',
     fondo: 'Fundo',
     globo: 'Globo',
     dejada: 'Dejada',
@@ -127,6 +130,13 @@ export const pt: Dict = {
     firstServe: '1.º SERVIÇO',
     secondServe: '2.º SERVIÇO',
     returning: 'RECEBE',
+
+    returnRow: 'Resto',
+    returnFail: 'FALHA',
+
+    forcedByTitle: 'Quem forçou?',
+    forcedByShotTitle: (name: string) => `Com que golpe é que ${name} forçou?`,
+    forcedByOmit: 'Saltar',
 
     goldenPoint: 'PONTO DE OURO',
     goldenPointChoose: 'PONTO DE OURO — ESCOLHE QUEM RECEBE',
@@ -241,7 +251,9 @@ export const pt: Dict = {
     doubleFaults: 'Duplas faltas',
     wonReturning: 'Ganha a receber',
     acesConceded: 'Aces sofridos',
-    doubleFaultsForced: 'Duplas provocadas',
+    doubleFaultsForced: 'Duplas do rival',
+    returnErrorPct: 'Falha no resto',
+    forcedErrorsCaused: 'Erros provocados',
 
     winnersOverErrors: 'W / ENF',
 

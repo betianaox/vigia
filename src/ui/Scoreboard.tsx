@@ -66,7 +66,13 @@ const nameFontSize = (
   const nameW = boxW - b.padH * 2 - b.ballSlot - colsW - b.gap * (cols + 1);
   const longest = Math.max(...names.map((n) => n.length), 1);
 
-  return Math.max(10, Math.min(b.names, fitWidth(longest, nameW, CHAR.semiLower)));
+  /**
+   * SE MIDE CON ANCHO DE MAYUSCULA porque el tanteador escribe los nombres en mayuscula (ver
+   * `s.name`). Una mayuscula ocupa bastante mas que una minuscula —0.72 contra 0.56— asi que
+   * medir con el ancho viejo daria una fuente demasiado grande y los nombres se cortarian con
+   * puntos suspensivos justo en la pieza que existe para leerse de lejos.
+   */
+  return Math.max(10, Math.min(b.names, fitWidth(longest, nameW, CHAR.boldCaps)));
 };
 
 /**
@@ -396,9 +402,23 @@ const makeStyles = (m: Metrics) => {
      * parte de la caja; al centrar la caja en la fila, los glifos quedan corridos y la
      * pelotita —que si esta centrada— parece alta. Apagandolo, la caja es el texto.
      */
+    /**
+     * MAYUSCULA, Y SOLO ACA.
+     *
+     * En el resto de la app los nombres van como se escribieron: la mayuscula sostenida se lee
+     * mas lento —se pierde la silueta de la palabra, que es parte de como se reconoce— y ademas
+     * es mas ancha, asi que donde el ancho aprieta cuesta tamaño. Por eso en la hoja de golpes
+     * se descarto.
+     *
+     * El tanteador es el unico lugar donde ninguna de las dos objeciones aplica: hay espacio
+     * lateral de sobra, y no se LEE — se reconoce de un vistazo y de lejos, que es justo lo que
+     * la mayuscula favorece. Es un pedido de la entrenadora, y aca el argumento en contra no
+     * existe. Ver `nameFontSize`: la medida se hace con ancho de mayuscula.
+     */
     name: {
       flex: 1,
       fontWeight: '700',
+      textTransform: 'uppercase',
       lineHeight: b.nameLine,
       includeFontPadding: false,
       textAlignVertical: 'center',

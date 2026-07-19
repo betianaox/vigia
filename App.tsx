@@ -153,7 +153,17 @@ function Vigia({ onLanguage }: { onLanguage: () => void }) {
     setScreen({ name: 'match' });
   };
 
+  /**
+   * Retomar un partido. SIEMPRE lo marca como "el que esta en curso" — no solo cuando venia
+   * de la tarjeta del inicio, tambien cuando se elige uno viejo desde el historial. El log es
+   * la unica verdad (`reduce` es puro): cualquier partido guardado se puede seguir jugando,
+   * este a medias desde hace un minuto o desde hace tres semanas.
+   *
+   * Si habia OTRO partido en curso, deja de estarlo — pero no se pierde nada: sigue guardado,
+   * sigue "sin terminar" en el historial, y se puede retomar despues por el mismo camino.
+   */
   const resume = (m: SavedMatch) => {
+    void setCurrentId(m.id);
     setMatch(m);
     setResumable(null);
     setScreen({ name: 'match' });
@@ -249,6 +259,7 @@ function Vigia({ onLanguage }: { onLanguage: () => void }) {
           onBack={() => setScreen({ name: 'setup' })}
           onOpen={(m) => setScreen({ name: 'archive', match: m })}
           onCareer={(p) => openCareer(p, 'history')}
+          onResume={resume}
         />
       ) : screen.name === 'players' ? (
         <PlayersScreen

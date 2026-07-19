@@ -78,11 +78,15 @@ export function HistoryScreen({
   onBack,
   onOpen,
   onCareer,
+  onResume,
 }: {
   onBack: () => void;
   onOpen: (m: SavedMatch) => void;
   /** Ver el acumulado y la evolucion de una persona. */
   onCareer: (player: Player) => void;
+  /** Seguir jugando un partido sin terminar. El log es la unica verdad: cualquiera es
+      retomable, tenga un minuto o tres semanas. */
+  onResume: (m: SavedMatch) => void;
 }) {
   // El plantel sale del contexto: una sola fuente, y un renombre se ve en todas las pantallas.
   const { players: roster, all: everyone, canon, reload: reloadRoster } = useRoster();
@@ -249,6 +253,12 @@ export function HistoryScreen({
     if (saved) onOpen(saved);
   };
 
+  const resumeMatch = async (m: MatchSummary) => {
+    tick();
+    const saved = await loadMatch(m.id);
+    if (saved) onResume(saved);
+  };
+
   const remove = async (m: MatchSummary) => {
     await deleteMatch(m.id);
     setAll(await loadIndex());
@@ -373,6 +383,7 @@ export function HistoryScreen({
             m={item}
             resolve={resolve}
             onPress={() => void open(item)}
+            onResume={() => void resumeMatch(item)}
             onDelete={() => {
               tick();
               setDeleting(item);
@@ -509,11 +520,13 @@ function Row({
   m,
   resolve,
   onPress,
+  onResume,
   onDelete,
 }: {
   m: MatchSummary;
   resolve: (id: PlayerId) => string | undefined;
   onPress: () => void;
+  onResume: () => void;
   onDelete: () => void;
 }) {
   const line = (t: TeamId) => {
@@ -586,6 +599,23 @@ function Row({
 
       <View style={s.actions}>
         <MaterialIcons name="bar-chart" size={22} color={colors.textDim} />
+
+        {/* SOLO EN LOS QUE QUEDARON A MEDIAS. El log es la unica verdad: cualquier partido
+            guardado se puede seguir jugando, y esta es la unica fila donde eso tiene sentido
+            —uno terminado no se "sigue", se mira—. Va en el verde de "Empezar": es la misma
+            familia de accion, entrar a jugar, y ese verde no se usa en ningun otro lado del
+            historial, asi que no compite con nada. Su propio Pressable: el toque no tiene que
+            llegar al de abajo (que abre las estadisticas de solo lectura). */}
+        {!m.finished && (
+          <Pressable
+            style={({ pressed: pr }) => [s.resume, pr && s.trashOn]}
+            android_ripple={{ ...ripple, borderless: true }}
+            onPress={onResume}
+            hitSlop={8}
+          >
+            <MaterialIcons name="play-circle-outline" size={22} color={colors.cta} />
+          </Pressable>
+        )}
 
         {/* Su propio Pressable adentro de la fila: el toque no llega al de abajo. Va apagado —
             no compite con abrir el partido, que es lo que se hace el 99% de las veces. */}
@@ -783,6 +813,7 @@ const s = StyleSheet.create({
   /** Los dos iconos juntos, en fila. */
   actions: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
   /** Apagado: abrir el partido es lo que se hace siempre, borrarlo casi nunca. */
+  resume: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   trash: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginRight: -6 },
   trashOn: { opacity: 0.6 },
 

@@ -135,21 +135,28 @@ const BASE = {
    * Es un TECHO, no una promesa: el tamaño real lo decide tambien el ancho, contra el golpe de
    * nombre mas largo (ver `strokeFont`). En un telefono angosto manda el ancho.
    */
-  sheetLabel: 16,
+  /**
+   * Subio de 18 a 20 cuando las teclas bajaron de un cuarto del ancho a un quinto (ver `keyW`
+   * en MatchScreen): mientras las teclas se llevaban la mitad de la hoja, mandaba el ancho y
+   * este numero no hacia nada. Al liberar ese aire, el techo volvio a ser el que manda — y por
+   * eso se pudo levantar.
+   */
+  sheetLabel: 20,
   sheetRow: 56,
   sheetClose: 44,
   sheetCloseIcon: 24,
 } as const;
 
 /**
- * Las filas de la hoja de golpes: 5 golpes con lado + la fila sin lado (dejada y recuperacion)
+ * Las filas de la hoja de golpes: 6 golpes con lado + la fila sin lado (dejada y recuperacion)
  * + bandeja + remate.
  *
- * Eran 9. La hoja ahora se abre en CADA punto —el golpe dejo de estar detras de un gesto
- * invisible— asi que se paga en tiempo de lectura, no solo en espacio: cada fila que sobra es
- * medio segundo mirando la pantalla en vez de la cancha.
+ * Eran 5 con lado, no 6: la salida de pared se dividio en ofensiva y defensiva (dos filas,
+ * cada una con sus estadisticas propias — pedido explicito, no una variante mas). Subio de 8
+ * a 9 por eso, y por nada mas: la hoja se abre en CADA punto, asi que cada fila que sobra se
+ * paga en tiempo de lectura, no solo en espacio, y no se agrega otra sin sacar algo.
  */
-const SHEET_ROWS = 8;
+const SHEET_ROWS = 9;
 
 /** Una linea de texto ocupa algo mas que su tamano de fuente. */
 export const LINE = 1.35;

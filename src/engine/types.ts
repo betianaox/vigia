@@ -67,7 +67,17 @@ export type Stroke =
   // Con lado.
   | 'recuperacion'
   | 'fondo'
+  /**
+   * SIN BOTON PROPIO DESDE QUE SE DIVIDIO EN OFENSIVA/DEFENSIVA (ver las dos de abajo). Se
+   * queda en el tipo por lo mismo que x3/x4/traerla siguen en `Variant`: los partidos ya
+   * jugados con este golpe tienen que poder seguir leyendose. Ningun boton la escribe de aca
+   * en mas.
+   */
   | 'salida_de_pared'
+  /** La salida de pared jugada para atacar: sale distinta a la defensiva y se cuenta aparte. */
+  | 'salida_pared_ofensiva'
+  /** La salida de pared jugada para sostener el punto, sin buscar nada mas que seguir viva. */
+  | 'salida_pared_defensiva'
   | 'globo'
   | 'chiquita'
   | 'dejada'
@@ -157,8 +167,34 @@ export type MatchEvent = (
   | { type: 'FALTA' }
   | { type: 'ACE' }
   | { type: 'WINNER'; player: PlayerId; shot?: Shot }
-  | { type: 'ERROR_NO_FORZADO'; player: PlayerId; shot?: Shot }
-  | { type: 'ERROR_FORZADO'; player: PlayerId; shot?: Shot }
+  | {
+      type: 'ERROR_NO_FORZADO';
+      player: PlayerId;
+      shot?: Shot;
+      /** Paso devolviendo el saque: alimenta "% falla de recepcion", ademas de sumar como
+          error no forzado de siempre. Lo pone SOLO el boton dedicado de la cancha — un error
+          en medio de un peloteo largo no es esto, aunque lo haya cometido el que resta. */
+      onReturn?: boolean;
+    }
+  | {
+      type: 'ERROR_FORZADO';
+      player: PlayerId;
+      onReturn?: boolean;
+      /**
+       * ESTE EVENTO NO LLEVA `shot`, Y ES LA DECISION QUE LO DEFINE.
+       *
+       * Un error forzado es el unico que tiene responsable de los dos lados, y de esos dos
+       * golpes solo uno dice algo: el del que FORZO. El del que lo sufrio no aporta —te
+       * obligaron, y pegaste lo que pudiste—, y preguntarlo costaba un toque mas en la unica
+       * pantalla que se opera entre dos puntos.
+       *
+       * Asi que la hoja pregunta quien forzo y con que, y ahi termina. El desglose por golpe
+       * vive en la ficha del que fuerza (`forcedErrorsCausedByShot`); el que lo sufrio se
+       * queda con su EF, sin desglose.
+       */
+      forcedBy?: PlayerId;
+      forcedByShot?: Shot;
+    }
   /** En punto de oro, el equipo que resta elige el cuadro. */
   | { type: 'ELECCION_CUADRO'; box: Box }
   /** Al empezar un set, cada equipo puede reordenar sus sacadores. */

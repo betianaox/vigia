@@ -56,7 +56,13 @@ export const STROKES_CON_LADO: Stroke[] = [
   'chiquita',
   'globo',
   'fondo',
-  'salida_de_pared',
+  /**
+   * Reemplaza a `salida_de_pared` (ver el comentario en `Stroke`): la ofensiva primero, la
+   * defensiva al final de todo — es la mas defensiva de las dos, y ahi es donde ya estaba el
+   * ancla de "no hay nada mas atras".
+   */
+  'salida_pared_ofensiva',
+  'salida_pared_defensiva',
 ];
 
 /**

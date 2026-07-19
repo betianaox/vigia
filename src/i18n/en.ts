@@ -28,6 +28,9 @@ export const en: Dict = {
      * en la hoja sin saber castellano.
      */
     salida_de_pared: 'Off the glass',
+    /** Kept short on purpose: see the note in es.ts — the longest word sets the sheet's font size. */
+    salida_pared_ofensiva: 'Glass attack',
+    salida_pared_defensiva: 'Glass defense',
     fondo: 'Groundstroke',
     globo: 'Lob',
     dejada: 'Drop shot',
@@ -149,6 +152,13 @@ export const en: Dict = {
     secondServe: '2ND SERVE',
     returning: 'RETURNS',
 
+    returnRow: 'Return',
+    returnFail: 'MISS',
+
+    forcedByTitle: 'Who forced it?',
+    forcedByShotTitle: (name: string) => `What shot did ${name} force it with?`,
+    forcedByOmit: 'Skip',
+
     goldenPoint: 'GOLDEN POINT',
     goldenPointChoose: 'GOLDEN POINT — PICK THE RETURNER',
     boxRight: 'Deuce',
@@ -262,7 +272,9 @@ export const en: Dict = {
     doubleFaults: 'Double faults',
     wonReturning: 'Won returning',
     acesConceded: 'Aces against',
-    doubleFaultsForced: 'Doubles forced',
+    doubleFaultsForced: 'Their doubles',
+    returnErrorPct: 'Return miss',
+    forcedErrorsCaused: 'Errors forced',
 
     winnersOverErrors: 'W / UE',
 

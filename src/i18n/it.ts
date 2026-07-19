@@ -15,6 +15,9 @@ export const it: Dict = {
     chiquita: 'Chiquita',
     /** El italiano SI tiene nombre propio, y es uno de sus ocho golpes fundamentales. */
     salida_de_pared: 'Uscita di parete',
+    /** "U." di uscita: "Parete" da sola e il muro, non il colpo che ne esce. */
+    salida_pared_ofensiva: 'U. Parete offensiva',
+    salida_pared_defensiva: 'U. Parete difensiva',
     fondo: 'Fondo',
     globo: 'Pallonetto',
     dejada: 'Smorzata',
@@ -127,6 +130,13 @@ export const it: Dict = {
     firstServe: '1° SERVIZIO',
     secondServe: '2° SERVIZIO',
     returning: 'RISPONDE',
+
+    returnRow: 'Risposta',
+    returnFail: 'ERRORE',
+
+    forcedByTitle: 'Chi l’ha forzato?',
+    forcedByShotTitle: (name: string) => `Con che colpo l’ha forzato ${name}?`,
+    forcedByOmit: 'Salta',
 
     goldenPoint: 'PUNTO D’ORO',
     goldenPointChoose: 'PUNTO D’ORO — SCEGLI CHI RISPONDE',
@@ -241,7 +251,9 @@ export const it: Dict = {
     doubleFaults: 'Doppi falli',
     wonReturning: 'Vince in risposta',
     acesConceded: 'Ace subiti',
-    doubleFaultsForced: 'Doppi provocati',
+    doubleFaultsForced: 'Doppi avversari',
+    returnErrorPct: 'Errore in risposta',
+    forcedErrorsCaused: 'Errori provocati',
 
     winnersOverErrors: 'W / ENF',
 

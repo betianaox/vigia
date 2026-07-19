@@ -208,6 +208,42 @@ export function MatchScreen({
   };
 
   /**
+   * El boton dedicado del que resta: "fallo la devolucion", forzado o no. A diferencia del
+   * toque corto de siempre, ESTE SIEMPRE ABRE LA HOJA — no depende de la preferencia de como
+   * se cargan los golpes, porque el boton entero existe para poder decir con que golpe se
+   * fallo el resto. `onReturn` es lo que separa este error de cualquier otro en las
+   * estadisticas (ver `computeStats`): sin la marca, es indistinguible de un error a mitad
+   * de un peloteo largo.
+   */
+  const registerReturnError = (type: 'ERROR_FORZADO' | 'ERROR_NO_FORZADO', player: PlayerId) => {
+    thud();
+    setShotFor(events.length);
+    push({ type, player, onReturn: true });
+  };
+
+  /**
+   * El otro lado del error forzado: quien lo forzo, y con que golpe. Se escribe DE UNA, junto
+   * con el golpe — no en dos pasos separados — porque preguntar "¿quien?" y dejar "¿con que
+   * golpe?" pendiente es un estado a medias que despues hay que resolver igual.
+   *
+   * Y ACA TERMINA LA HOJA: no se pregunta despues con que golpe fallo el que erro. En un error
+   * forzado el golpe que importa es el del que FORZO —es lo que esa persona hizo— y el del que
+   * lo sufrio no dice casi nada: te obligaron, pegaste lo que pudiste. Al que se lo hicieron le
+   * queda su EF, sin desglose por golpe; el desglose vive del lado del que forzo (ver
+   * `forcedErrorsCausedByShot` en stats.ts). Preguntar los dos golpes era cobrar dos toques por
+   * un dato que no se iba a mirar.
+   */
+  const setForcedByAndShot = (player: PlayerId, shot: Shot) => {
+    tick();
+    onEvents(
+      events.map((e, i) =>
+        i === shotFor && e.type === 'ERROR_FORZADO' ? { ...e, forcedBy: player, forcedByShot: shot } : e,
+      ),
+    );
+    setShotFor(null);
+  };
+
+  /**
    * De que punto habla la hoja. El punto YA se registro con el long press: sin esto, la
    * hoja pregunta "¿con que golpe?" sin decir de quien ni de que, y con un segundo de
    * distraccion no sabes a que le estas poniendo el golpe.
@@ -222,8 +258,27 @@ export function MatchScreen({
           config.teams.A.reves === pendingEvent.player
             ? 'A'
             : 'B') as TeamId,
+          /** Solo tiene sentido en ERROR_FORZADO: si ya se sabe quien lo forzo. */
+          forcedBy: pendingEvent.type === 'ERROR_FORZADO' ? pendingEvent.forcedBy : undefined,
         }
       : null;
+
+  /** Los dos del equipo QUE NO COMETIO el error: candidatos a haberlo forzado. */
+  const opponentsOf = (team: TeamId): Array<{ id: PlayerId; position: Position; name: string }> => {
+    const rival = team === 'A' ? 'B' : 'A';
+    const t = config.teams[rival];
+    /**
+     * EL REVES A LA IZQUIERDA Y EL DRIVE A LA DERECHA. Es el mismo orden que la hoja de golpes
+     * (REVES | DERECHA), que a su vez espeja el cuerpo de una jugadora diestra. No es una
+     * preferencia de esta pantalla: es UNA CONVENCION DE LA APP, y una convencion solo rinde
+     * si no tiene excepciones — la primera vez que se invierte, deja de poder incorporarse y
+     * hay que volver a leer cada vez.
+     */
+    return [
+      { id: t.reves, position: 'reves', name: nameOf(t.reves, config.players[t.reves]?.name) },
+      { id: t.drive, position: 'drive', name: nameOf(t.drive, config.players[t.drive]?.name) },
+    ];
+  };
 
   // Giro de 180 grados de la cancha: los equipos cambian de fila.
   const mirrored = state.endsSwapped !== rotated;
@@ -336,6 +391,8 @@ export function MatchScreen({
                   tick();
                   push({ type: 'LET' });
                 }}
+                onReturnErrorForced={() => registerReturnError('ERROR_FORZADO', p)}
+                onReturnErrorUnforced={() => registerReturnError('ERROR_NO_FORZADO', p)}
               />
             ))}
 
@@ -495,6 +552,18 @@ export function MatchScreen({
           m={m}
           onPick={setShot}
           onSkip={() => setShotFor(null)}
+          forcing={
+            pending.action === 'ERROR_FORZADO' && pending.forcedBy === undefined
+              ? {
+                  opponents: opponentsOf(pending.team),
+                  onPick: setForcedByAndShot,
+                  /* "No se quien fue": cierra, porque no hay paso siguiente al que seguir de
+                     largo (ver `setForcedByAndShot`). El punto YA quedo registrado con el
+                     toque en la cancha; esto solo se saltea el dato opcional. */
+                  onOmit: () => setShotFor(null),
+                }
+              : undefined
+          }
         />
       )}
 
@@ -519,6 +588,8 @@ function PlayerCard(props: {
   onFalta: () => void;
   onAce: () => void;
   onLet: () => void;
+  onReturnErrorForced: () => void;
+  onReturnErrorUnforced: () => void;
 }) {
   const { s, m } = props;
   const c = teamColor(props.team);
@@ -552,6 +623,33 @@ function PlayerCard(props: {
     </Pressable>
   );
 
+  /**
+   * El fallo de devolucion. Mismo alto y misma caja que un boton de saque, pero con las DOS
+   * lineas del semaforo: el titulo dice que fue una falla y la descripcion si fue forzada o
+   * no. Lo que cambia entre los dos botones es solo la segunda linea — y el color, y la
+   * columna en la que caen.
+   */
+  const returnBtn = (color: string, desc: string, onPress: () => void) => (
+    <Pressable
+      style={({ pressed: p }) => [
+        s.serveBtn,
+        { backgroundColor: alpha(color, 0.16), borderColor: alpha(color, 0.55) },
+        p && s.pressed,
+      ]}
+      android_ripple={ripple}
+      onPress={onPress}
+    >
+      <FixedText style={[s.returnTitle, { color }]} numberOfLines={1}>
+        {L.court.returnFail}
+      </FixedText>
+      {/* Una linea y si no entra se corta, igual que la del semaforo: se elige por el titulo
+          y por la columna, la descripcion solo confirma. */}
+      <FixedText style={[s.rallyDesc, { color: alpha(color, 0.8) }]} numberOfLines={1}>
+        {desc}
+      </FixedText>
+    </Pressable>
+  );
+
   return (
     <View style={[s.card, props.serving && s.cardServing]}>
       {/* Las acciones de saque solo existen para el que saca. Que la tarjeta sea
@@ -564,6 +662,45 @@ function PlayerCard(props: {
           {serveBtn(second ? L.court.double : L.court.fault, colors.falta, props.onFalta, true)}
           {serveBtn(L.court.ace, colors.ace, props.onAce)}
           {serveBtn(L.court.let, colors.let, props.onLet)}
+        </View>
+      ) : props.receiving ? (
+        /* EL FALLO DE DEVOLUCION: dos botones y un slot vacio adelante, para que caigan en
+           la misma columna que su par de abajo — el de la izquierda sobre EF, el de la
+           derecha sobre ENF.
+
+           EL SLOT DE LA IZQUIERDA NO ES UN BOTON: ES EL ROTULO DE LA FILA. Dice "Resto", que
+           es de lo que habla toda la fila, y por eso los botones no tienen que repetirlo. Se
+           nota que no se toca porque no tiene ni borde ni fondo —los 14 botones de la cancha
+           tienen los dos— y va en gris apagado, en la voz de los titulos de seccion.
+
+           LOS BOTONES LLEVAN LA MISMA FORMA QUE EL SEMAFORO: titulo arriba, descripcion abajo.
+           El titulo dice QUE paso (una falla) y la descripcion dice COMO (forzada o no), que
+           es el mismo reparto de los botones de abajo — y la segunda linea es literalmente el
+           mismo texto que ellos.
+
+           Se dice FALLA y no "resto" porque "resto forzado" se puede leer como un buen resto:
+           hay que decir que es un ERROR. Y falla es la palabra que la app ya usa para esto en
+           estadisticas ("Falla de recepcion"), asi que el boton y el numero se enseñan entre si.
+
+           Entran en el alto de siempre (`k.serve`): titulo a `serveFont` y descripcion a
+           `rallyDesc` suman menos que la franja, asi que las cuatro tarjetas siguen alineadas
+           sin tocar nada.
+
+           Y van EXACTAMENTE EN EL MISMO COLOR que su par de abajo, no en una variante apagada.
+           Se probo con la variante chart y sobraba: apagarlos servia mientras la fila no se
+           entendia —era la unica forma de que no compitieran— pero desde que el rotulo dice
+           "Resto" y la columna los emparenta, el color ya no tiene que disimular nada. Al
+           contrario: un error forzado es un error forzado, se haya cometido restando o en
+           mitad del peloteo, y el mismo amarillo lo dice sin una palabra. Lo que los separa
+           es DONDE estan, no de que color son. */
+        <View style={s.row}>
+          <View style={s.returnLabel}>
+            <FixedText style={s.returnLabelText} numberOfLines={1}>
+              {L.court.returnRow}
+            </FixedText>
+          </View>
+          {returnBtn(colors.errorForced, L.court.forced, props.onReturnErrorForced)}
+          {returnBtn(colors.errorUnforced, L.court.unforced, props.onReturnErrorUnforced)}
         </View>
       ) : (
         <View style={s.serveRowEmpty} />
@@ -709,6 +846,19 @@ function ShotSheet(props: {
   m: Metrics;
   onPick: (shot: Shot) => void;
   onSkip: () => void;
+  /**
+   * SOLO EN ERROR_FORZADO, Y SOLO HASTA QUE SE SEPA QUIEN LO FORZO.
+   *
+   * Mientras esto exista, la hoja no pregunta por el golpe del que se equivoco: pregunta por
+   * el del que lo forzo, que es el dato nuevo y el mas importante de los dos. Una vez resuelto
+   * (`pending.forcedBy` deja de ser `undefined`, ver mas arriba), esta prop deja de llegar y la
+   * hoja vuelve a ser la de siempre — la del golpe propio, sin ningun cambio.
+   */
+  forcing?: {
+    opponents: Array<{ id: PlayerId; position: Position; name: string }>;
+    onPick: (player: PlayerId, shot: Shot) => void;
+    onOmit: () => void;
+  };
 }) {
   const { s, m } = props;
   /** La misma inicial y el mismo color del boton que se acaba de tocar. */
@@ -719,10 +869,126 @@ function ShotSheet(props: {
   const sides = sideLabels();
   const variantName = variantLabels();
 
+  /**
+   * A QUIEN SE LE ESTA PREGUNTANDO EL GOLPE, dentro del paso "quien lo forzo".
+   *
+   * Vive ACA, local, y no en MatchScreen: la hoja entera se remonta cada vez que se abre un
+   * punto nuevo (nace de `{pending && <ShotSheet/>}`, sin key), asi que no hace falta
+   * resetearlo a mano — un punto nuevo es, para React, un componente nuevo.
+   */
+  const [who, setWho] = useState<{ id: PlayerId; name: string } | null>(null);
+
   const pick = (shot: Shot) => {
     tick();
     props.onPick(shot);
   };
+
+  const pickForcing = (shot: Shot) => {
+    if (!who) return;
+    tick();
+    props.forcing?.onPick(who.id, shot);
+  };
+
+  /**
+   * LA GRILLA DE GOLPES, EN UNA SOLA FUNCION, PORQUE SE DIBUJA DOS VECES.
+   *
+   * Una vez para "con que golpe lo forzo" y otra para "con que golpe se equivoco". Es la MISMA
+   * grilla, el mismo orden, el mismo tamaño de letra: dos teclados que se vieran distinto
+   * enseñarian dos cosas donde hay una sola. Lo unico que cambia entre las dos llamadas es a
+   * donde va el toque.
+   */
+  const grid = (onPickShot: (shot: Shot) => void) => (
+    <>
+      <View style={s.sheetRow}>
+        {STROKES_POR_ALTO.map(({ stroke, variants }) => (
+          <Fragment key={stroke}>
+            <Pressable
+              style={({ pressed: p }) => [s.sheetBase, p && s.pressed]}
+              android_ripple={ripple}
+              onPress={() => onPickShot({ stroke })}
+            >
+              <Text style={s.sheetBaseText} numberOfLines={1} adjustsFontSizeToFit>
+                {strokes[stroke]}
+              </Text>
+            </Pressable>
+
+            {variants.map((variant) => (
+              <Pressable
+                key={variant}
+                style={({ pressed: p }) => [s.sheetVariant, p && s.pressed]}
+                android_ripple={ripple}
+                onPress={() => onPickShot({ stroke, variant })}
+              >
+                <Text style={s.sheetVariantText} numberOfLines={1} adjustsFontSizeToFit>
+                  {variantName[variant]}
+                </Text>
+              </Pressable>
+            ))}
+          </Fragment>
+        ))}
+      </View>
+
+      <View style={s.keyHead}>
+        <Text style={s.keyHeadText} numberOfLines={1} adjustsFontSizeToFit>
+          {sides[LEFT].toUpperCase()}
+        </Text>
+        <View style={s.keyName} />
+        <Text style={s.keyHeadText} numberOfLines={1} adjustsFontSizeToFit>
+          {sides[RIGHT].toUpperCase()}
+        </Text>
+      </View>
+
+      {STROKES_CON_LADO.map((stroke) => {
+        const anchor = stroke === ANCHOR;
+        return (
+          <View key={stroke} style={s.keyRow}>
+            <Pressable
+              style={({ pressed: p }) => [s.key, anchor && s.keyAnchor, p && s.pressed]}
+              android_ripple={ripple}
+              onPress={() => onPickShot({ stroke, side: LEFT })}
+            >
+              <View style={[s.keyDot, anchor && s.keyDotAnchor]} />
+            </Pressable>
+
+            <Text style={s.keyName} numberOfLines={1}>
+              {strokes[stroke]}
+            </Text>
+
+            <Pressable
+              style={({ pressed: p }) => [s.key, anchor && s.keyAnchor, p && s.pressed]}
+              android_ripple={ripple}
+              onPress={() => onPickShot({ stroke, side: RIGHT })}
+            >
+              <View style={[s.keyDot, anchor && s.keyDotAnchor]} />
+            </Pressable>
+          </View>
+        );
+      })}
+
+      <View style={[s.sheetRow, s.sheetRowApart]}>
+        {STROKES_SIN_LADO.map((stroke) => {
+          const anchor = stroke === ANCHOR_BAJO;
+          return (
+            <Pressable
+              key={stroke}
+              style={({ pressed: p }) => [s.sheetCell, anchor && s.keyAnchor, p && s.pressed]}
+              android_ripple={ripple}
+              onPress={() => onPickShot({ stroke })}
+            >
+              <Text style={[s.sheetCellName, anchor && s.sheetCellNameOn]} numberOfLines={1}>
+                {strokes[stroke]}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </>
+  );
+
+  /** Todavia no se eligio A QUIEN: se ven los dos botones D/R. */
+  const pickingWho = Boolean(props.forcing) && !who;
+  /** Ya se eligio a quien: ahora la grilla pregunta por SU golpe, no por el del que erro. */
+  const pickingForcingShot = Boolean(props.forcing) && Boolean(who);
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={props.onSkip}>
@@ -734,17 +1000,29 @@ function ShotSheet(props: {
 
         <View style={s.sheet}>
           {/* La X va a la derecha, del lado del pulgar. Igual no es el unico modo de salir:
-              tocar el fondo (un objetivo enorme) y el boton de atras tambien cierran. */}
+              tocar el fondo (un objetivo enorme) y el boton de atras tambien cierran. Y ACA
+              TAMBIEN CIERRA TODO, no solo el paso de "quien lo forzo" — omitir ESE paso solo
+              tiene su propio link, mas abajo. */}
           <View style={s.sheetTop}>
-            {/* Solo la inicial y el nombre: "W Ana Ruiz". Nada de "Winner de ...", que hay que
-                traducir y que con un nombre largo empuja al nombre fuera de la pantalla.
-
-                Los dos colores hacen el trabajo de las palabras que sacamos: la inicial va
-                del color de la accion (el mismo boton que se acaba de tocar) y el nombre del
-                color del equipo, igual que en la cancha y en el tanteador. */}
             <Text style={s.sheetTitle} numberOfLines={1}>
-              <Text style={{ color: action.color }}>{action.label}</Text>{' '}
-              <Text style={{ color: teamColor(props.team) }}>{props.playerName}</Text>
+              {pickingWho ? (
+                <Text style={{ color: colors.textDim }}>{L.court.forcedByTitle}</Text>
+              ) : pickingForcingShot ? (
+                /* EL NOMBRE DE QUIEN LO FORZO, NO EL DEL QUE SE EQUIVOCO. Es la misma grilla
+                   que se usa mas abajo para el golpe propio, y sin este cartel nada avisa que
+                   ahora el golpe es de la OTRA persona — se elegiria a ciegas. */
+                <Text style={{ color: teamColor(props.team === 'A' ? 'B' : 'A') }}>
+                  {L.court.forcedByShotTitle(who!.name)}
+                </Text>
+              ) : (
+                /* Solo la inicial y el nombre: "W Ana Ruiz". Nada de "Winner de ...", que hay
+                   que traducir y que con un nombre largo empuja al nombre fuera de la
+                   pantalla. Los dos colores hacen el trabajo de las palabras que sacamos. */
+                <>
+                  <Text style={{ color: action.color }}>{action.label}</Text>{' '}
+                  <Text style={{ color: teamColor(props.team) }}>{props.playerName}</Text>
+                </>
+              )}
             </Text>
             {/* Blanca, no roja: cerrar sin elegir golpe no es destructivo ni es un error — el
                 punto ya quedo registrado. Un rojo diria "cuidado", y aca no hay cuidado. */}
@@ -758,127 +1036,65 @@ function ShotSheet(props: {
             </Pressable>
           </View>
 
-          {/* LOS GOLPES QUE DEFINEN EL PUNTO, PRIMEROS Y JUNTOS: remate, bandeja y las dos
-              variantes de la bandeja. Son los que mas se van a tocar, asi que van donde el ojo
-              aterriza y donde el pulgar llega sin buscar.
-
-              El boton base es el golpe mismo: se toca REMATE y es un remate. No hay ningun boton
-              que se llame "normal", que no significa nada. Las variantes van al lado, en un solo
-              tap: si marcar una vibora costara dos toques, el que sabe dejaria de usarlas. */}
-          {/* Los cuatro en UNA fila plana, sin agrupar. Agrupados, "Bandeja + sus variantes"
-              se repartia el 75% del ancho y adentro la bandeja se quedaba con la mitad: la
-              vibora y el gancho terminaban en un quinto de fila cada uno, con la palabra
-              apretada contra los bordes. Los cuatro son teclas, y las teclas se reparten el
-              ancho casi parejo; los dos golpes base pesan un poco mas porque son los que se
-              tocan sin pensar. */}
-          <View style={s.sheetRow}>
-            {STROKES_POR_ALTO.map(({ stroke, variants }) => (
-              <Fragment key={stroke}>
+          {pickingWho ? (
+            /* LOS DOS CANDIDATOS: la pareja QUE GANO el punto, la unica que pudo haberlo
+               forzado. D/R sin nombre, igual que la marca de agua de la tarjeta — es el mismo
+               vocabulario en toda la cancha, y con dos botones grandes no hace falta mas. */
+            <View style={s.forcingRow}>
+              {props.forcing!.opponents.map((o) => (
                 <Pressable
-                  style={({ pressed: p }) => [s.sheetBase, p && s.pressed]}
+                  key={o.id}
+                  style={({ pressed: p }) => [
+                    s.forcingPick,
+                    /* El color del equipo, pero al 50% como el resto de los bordes de la
+                       cancha: dice de quien es sin encender la pantalla. */
+                    { borderColor: alpha(teamColor(props.team === 'A' ? 'B' : 'A'), 0.5) },
+                    p && s.pressed,
+                  ]}
                   android_ripple={ripple}
-                  onPress={() => pick({ stroke })}
+                  onPress={() => {
+                    tick();
+                    setWho({ id: o.id, name: o.name });
+                  }}
                 >
-                  {/* En minusculas, como todos los golpes. Iban en mayusculas cuando eran la
-                      CABECERA de un grupo (el golpe base, con sus variantes colgando). Ya no
-                      encabezan nada: son cuatro teclas de la misma fila. Lo unico que las
-                      distingue —que son el golpe y no una variante— lo dice el relleno. */}
-                  <Text style={s.sheetBaseText} numberOfLines={1} adjustsFontSizeToFit>
-                    {strokes[stroke]}
-                  </Text>
-                </Pressable>
-
-                {variants.map((variant) => (
-                  <Pressable
-                    key={variant}
-                    style={({ pressed: p }) => [s.sheetVariant, p && s.pressed]}
-                    android_ripple={ripple}
-                    onPress={() => pick({ stroke, variant })}
-                  >
-                    <Text style={s.sheetVariantText} numberOfLines={1} adjustsFontSizeToFit>
-                      {variantName[variant]}
-                    </Text>
-                  </Pressable>
-                ))}
-              </Fragment>
-            ))}
-          </View>
-
-          {/* EL TECLADO. El nombre del golpe se escribe UNA vez y a la derecha estan sus dos
-              teclas — antes cada fila decia "Fondo" dos veces, una por boton: el doble de texto
-              para un dato que es uno solo, en una hoja que ahora se abre en cada punto.
-
-              Y el lado del golpe se llama DERECHA, no "drive": drive en esta app es de que lado
-              de la cancha juega la PERSONA, y usar la misma palabra para las dos cosas las
-              confunde. Ademas en España a la derecha le dicen derecha (ver `SIDE_LABELS`). */}
-          {/* UNA LINEA, Y SI NO ENTRA SE ACHICA — NUNCA SE PARTE. Son las dos palabras mas largas
-              de la hoja ("BACKHAND", "FOREHAND", "IZQUIERDA") metidas en la caja mas angosta, que
-              es el ancho de una tecla. Con la letra del sistema en grande se partian en dos
-              renglones y el segundo quedaba cortado por el borde: se leia "BACKHA…". Que se
-              achiquen es correcto: son un rotulo de columna, no algo que se toque. */}
-          <View style={s.keyHead}>
-            <Text style={s.keyHeadText} numberOfLines={1} adjustsFontSizeToFit>
-              {sides[LEFT].toUpperCase()}
-            </Text>
-            <View style={s.keyName} />
-            <Text style={s.keyHeadText} numberOfLines={1} adjustsFontSizeToFit>
-              {sides[RIGHT].toUpperCase()}
-            </Text>
-          </View>
-
-          {STROKES_CON_LADO.map((stroke) => {
-            const anchor = stroke === ANCHOR;
-            return (
-              <View key={stroke} style={s.keyRow}>
-                <Pressable
-                  style={({ pressed: p }) => [s.key, anchor && s.keyAnchor, p && s.pressed]}
-                  android_ripple={ripple}
-                  onPress={() => pick({ stroke, side: LEFT })}
-                >
-                  <View style={[s.keyDot, anchor && s.keyDotAnchor]} />
-                </Pressable>
-
-                <Text style={s.keyName} numberOfLines={1}>
-                  {strokes[stroke]}
-                </Text>
-
-                <Pressable
-                  style={({ pressed: p }) => [s.key, anchor && s.keyAnchor, p && s.pressed]}
-                  android_ripple={ripple}
-                  onPress={() => pick({ stroke, side: RIGHT })}
-                >
-                  <View style={[s.keyDot, anchor && s.keyDotAnchor]} />
-                </Pressable>
-              </View>
-            );
-          })}
-
-          {/* La dejada y la recuperacion, abajo de todo y sin lado: el lado en ellas no dice
-              nada (una recuperacion es un manotazo) y no valen dos botones cada una.
-
-              Con MAS aire arriba: no son la sexta fila del teclado, son otra cosa. El espacio es
-              lo que dice que ahi termina un bloque y empieza otro — sin el, el ojo las lee como
-              si fueran parte de la grilla. */}
-          <View style={[s.sheetRow, s.sheetRowApart]}>
-            {STROKES_SIN_LADO.map((stroke) => {
-              const anchor = stroke === ANCHOR_BAJO;
-              return (
-                <Pressable
-                  key={stroke}
-                  style={({ pressed: p }) => [s.sheetCell, anchor && s.keyAnchor, p && s.pressed]}
-                  android_ripple={ripple}
-                  onPress={() => pick({ stroke })}
-                >
+                  {/* LAS DOS COSAS: la posicion y el nombre. La letra sola era la marca de agua
+                      de la tarjeta, y ahi funciona porque esta PEGADA a la cara de la persona;
+                      suelta en una hoja, obliga a acordarse de quien es la D — justo el trabajo
+                      que la app existe para no hacerte hacer. El nombre desambigua y la letra
+                      sigue siendo lo que se ve primero, que es como se los busca en la cancha. */}
                   <Text
-                    style={[s.sheetCellName, anchor && s.sheetCellNameOn]}
-                    numberOfLines={1}
+                    style={[
+                      s.forcingPickText,
+                      { color: teamColor(props.team === 'A' ? 'B' : 'A') },
+                    ]}
                   >
-                    {strokes[stroke]}
+                    {o.position === 'drive' ? 'D' : 'R'}
+                  </Text>
+                  <Text style={s.forcingPickName} numberOfLines={1}>
+                    {o.name}
                   </Text>
                 </Pressable>
-              );
-            })}
-          </View>
+              ))}
+            </View>
+          ) : (
+            grid(pickingForcingShot ? pickForcing : pick)
+          )}
+
+          {/* "No lo se": cierra sin decir quien forzo. Hace lo mismo que la X y esta bien que
+              este igual — la X es una cruz gris arriba a la derecha, y esto DICE lo que pasa
+              si la tocas. Solo existe mientras existe el paso. */}
+          {props.forcing && (
+            <Pressable
+              style={({ pressed: p }) => [s.forcingOmit, p && s.pressed]}
+              android_ripple={ripple}
+              onPress={() => {
+                tick();
+                props.forcing!.onOmit();
+              }}
+            >
+              <Text style={s.forcingOmitText}>{L.court.forcedByOmit}</Text>
+            </Pressable>
+          )}
         </View>
       </View>
     </Modal>
@@ -892,6 +1108,14 @@ function ShotSheet(props: {
  */
 const longestStroke = (): number =>
   Math.max(...STROKES_CON_LADO.map((st) => strokeLabels()[st].length));
+
+/**
+ * El mas largo de los que van en celda (dejada, recuperacion). Se mide APARTE del de arriba
+ * porque vive en otro ancho: estos ocupan media hoja cada uno, los de arriba la columna del
+ * medio del teclado. Medir los dos con la misma vara era el bug — ver `strokeFont`.
+ */
+const longestCellStroke = (): number =>
+  Math.max(...STROKES_SIN_LADO.map((st) => strokeLabels()[st].length));
 
 /**
  * El contorno de los botones de la hoja: mas marcado que un borde de superficie, para que
@@ -922,23 +1146,46 @@ const makeStyles = (m: Metrics) => {
   const sideW = sideFont;
 
   /**
-   * El ancho de una tecla. Un cuarto del ancho util, con un piso: una tecla que no se acierta
-   * con el pulgar —apurado, mirando la cancha— no es una tecla, es una trampa.
+   * El ancho de una tecla, con un piso: una tecla que no se acierta con el pulgar —apurado,
+   * mirando la cancha— no es una tecla, es una trampa.
+   *
+   * Era un cuarto del ancho util, o sea que las dos teclas se llevaban LA MITAD DE LA HOJA
+   * para dibujar dos puntos. Ese aire no era gratis: el nombre del golpe se quedaba con lo
+   * que sobraba, y como los nueve comparten tamano y se miden contra el mas largo (ver
+   * `strokeFont`), la etiqueta mas larga le bajaba la letra a TODAS las demas.
+   *
+   * Al quinto, la tecla sigue midiendo bastante mas que el piso tactil —lo que se achica es
+   * el aire, no el objetivo— y lo que se recupera va a la unica parte de la fila que hay que
+   * leer. Lo que hace facil apuntar aca es el ALTO de la fila, y ese no se toca.
    */
-  const keyW = Math.max(TOUCH_MIN, Math.round((m.availW - h.pad * 2) * 0.25));
+  const keyW = Math.max(TOUCH_MIN, Math.round((m.availW - h.pad * 2) * 0.2));
+
+  /** La columna del medio del teclado: lo que sobra despues de las dos teclas y sus gaps. */
+  const nameW = m.availW - h.pad * 2 - keyW * 2 - h.gap * 2;
 
   /**
    * El nombre del golpe queda en segundo plano: sirve para recorrer la lista con la vista de
    * arriba a abajo, no para elegir entre los dos botones de una fila.
    *
-   * Se mide contra el mas largo de todos, y los nueve comparten tamano: si cada uno se
-   * achicara por su cuenta, "Volea" quedaria enorme al lado de "Salida de pared".
+   * TODA LA HOJA COMPARTE UN TAMANO —si cada nombre se achicara por su cuenta, "Volea"
+   * quedaria enorme al lado de "S. Pared defensiva"— pero cada uno se mide contra el ancho
+   * DONDE VIVE, y esa es la parte que estaba mal.
+   *
+   * Antes se median todos contra `cellW`, que es media hoja: el ancho de las celdas de dejada
+   * y recuperacion. O sea que se le exigia a "S. Pared defensiva" entrar en una celda donde
+   * ese texto NO SE MUESTRA NUNCA — vive en la columna del medio del teclado, que es mas
+   * ancha. La hoja entera quedaba chica por una restriccion inventada, y por eso ensanchar
+   * esa columna (ver `keyW`) no movia la letra: nadie la estaba midiendo.
+   *
+   * Ahora son dos medidas y manda la menor. La fila de arriba (remate, bandeja, vibora,
+   * gancho) no entra en la cuenta a proposito: se achica sola con `adjustsFontSizeToFit`.
    */
   const strokeFont = Math.max(
     12,
     Math.min(
       h.label,
-      fitWidth(longestStroke(), cellW - cellPad * 2 - sideW - h.gap, CHAR.semiLower),
+      fitWidth(longestStroke(), nameW, CHAR.semiLower),
+      fitWidth(longestCellStroke(), cellW - cellPad * 2 - sideW - h.gap, CHAR.semiLower),
     ),
   );
   /** La descripcion vive en una linea exacta, siempre. */
@@ -991,6 +1238,23 @@ const makeStyles = (m: Metrics) => {
       paddingHorizontal: k.btnPadH,
     },
     serveText: { fontWeight: '900', fontSize: k.serveFont, letterSpacing: 0.5 },
+
+    /** El titulo del fallo de devolucion: la voz del semaforo, en la caja del saque. */
+    returnTitle: { fontWeight: '900', fontSize: k.serveFont, letterSpacing: 0.5, textAlign: 'center' },
+
+    /**
+     * EL ROTULO DE LA FILA, NO UN BOTON. Ocupa un tercio como los otros dos para que la
+     * columna cierre, pero sin borde ni fondo: en esta pantalla todo lo que se toca los
+     * tiene, asi que su ausencia ya dice "esto no se toca".
+     */
+    returnLabel: { flex: 1, height: k.serve, alignItems: 'center', justifyContent: 'center' },
+    returnLabelText: {
+      fontWeight: '800',
+      fontSize: k.rallyDesc,
+      letterSpacing: 1,
+      textTransform: 'uppercase',
+      color: colors.textFaint,
+    },
 
     identity: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: k.gap },
 
@@ -1115,11 +1379,19 @@ const makeStyles = (m: Metrics) => {
       backgroundColor: colors.surface,
       padding: h.pad,
       /**
-       * El Modal se ancla al borde FISICO: sin esto, la ultima fila queda debajo de la barra de
-       * navegacion del sistema. Pero el aire de la barra YA es aire — sumarle encima el padding
-       * de la hoja dejaba un hueco muerto abajo de todo. Se toma el mayor de los dos, no la suma.
+       * El Modal se ancla al borde FISICO: sin el inset, la ultima fila queda debajo de la barra
+       * de navegacion del sistema.
+       *
+       * ERA `max(pad, insetBottom)` Y ESTABA MAL. La idea era que el aire de la barra ya contaba
+       * como aire, pero con la barra de tres botones el inset le gana siempre al padding (46 dp
+       * contra 12): la hoja se quedaba sin NADA propio y la ultima fila terminaba justo donde
+       * arranca la barra, pegada. Una barra opaca no es aire — es una barra.
+       *
+       * Son dos cosas distintas y por eso se SUMAN: el inset es lo que hay que RESERVAR para no
+       * quedar tapado, y el padding es el aire que la hoja quiere tener. Con gestos (inset chico)
+       * la suma tampoco molesta, porque ahi el que manda es el padding.
        */
-      paddingBottom: Math.max(h.pad, m.insetBottom),
+      paddingBottom: m.insetBottom + h.pad,
       gap: h.gap,
       borderTopLeftRadius: radius.lg,
       borderTopRightRadius: radius.lg,
@@ -1253,6 +1525,44 @@ const makeStyles = (m: Metrics) => {
       paddingHorizontal: 2,
     },
     sheetVariantText: { color: colors.textDim, fontSize: strokeFont, fontWeight: '700' },
+
+    /**
+     * Los dos candidatos a haber forzado el error. Ocupan el lugar de la grilla entera —son
+     * el unico contenido del primer paso— asi que pueden ser grandes: dos botones grandes se
+     * aciertan sin mirar, que es exactamente lo que hace falta reaccionando a un punto que ya
+     * paso.
+     */
+    /**
+     * ALTO PROPIO, NO `flex: 1`. Tenia flex y quedaba en DOS RAYAS de unos pocos pixeles: la
+     * hoja no tiene alto propio —crece con lo que le pongas adentro— y un `flex: 1` contra un
+     * padre sin alto resuelve a cero. Los dos botones existian y no se podian tocar.
+     *
+     * ES UNA FILA DE LA HOJA, NO UN CARTEL. Al arreglarlo quedaron dos cajas del doble de alto,
+     * con la letra enorme y un borde de 2 px: gritaban mas que cualquier otra cosa de la app,
+     * para un paso que es OPCIONAL. Ahora usan el molde que ya existe —la celda de la hoja, la
+     * misma de dejada y recuperacion— y por eso no hay nada nuevo que aprender a mirar.
+     */
+    forcingRow: { height: h.row, flexDirection: 'row', gap: h.gap },
+    forcingPick: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: h.gap,
+      paddingHorizontal: cellPad,
+      borderRadius: radius.sm,
+      borderWidth: 1,
+      backgroundColor: colors.surfaceAlt,
+    },
+    /** La letra manda —es como se los busca— pero en el cuerpo de la hoja, no en titular. */
+    forcingPickText: { fontSize: strokeFont, fontWeight: '900' },
+    forcingPickName: { color: colors.text, fontSize: strokeFont, fontWeight: '700' },
+
+    /** "No se quien fue": cierra la hoja. Un link, no un boton — no es la accion principal,
+        es la salida rapida de un paso opcional. El PUNTO ya esta cargado desde la cancha:
+        salir de aca no pierde nada, solo deja el dato fino sin completar. */
+    forcingOmit: { alignItems: 'center', paddingVertical: k.gap },
+    forcingOmitText: { color: colors.textFaint, fontSize: h.label, fontWeight: '700' },
 
     /**
      * Cubre la cancha y NADA MAS: el tanteador queda arriba (con el resultado) y la barra

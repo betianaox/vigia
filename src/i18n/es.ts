@@ -33,7 +33,19 @@ export const es = {
     bandeja: 'Bandeja',
     volea: 'Volea',
     chiquita: 'Chiquita',
+    /** Sin boton propio: la escriben partidos viejos, de antes de dividirla (ver `Stroke`). */
     salida_de_pared: 'Salida de pared',
+    /**
+     * Las dos de ahora. CORTAS A PROPOSITO: "salida de pared" ya es el nombre mas largo de la
+     * hoja y fija el tamaño de letra de las once —era once, ahora son doce— filas (ver
+     * `strokeFont` en MatchScreen). Escribir el nombre entero en las dos ("Salida de pared
+     * ofensiva/defensiva") las volveria las mas largas de lejos y encogeria la letra de TODA
+     * la hoja por dos botones — justo lo contrario de lo que se pidio. "Pared" alcanza: al
+     * lado de "Salida de pared" nadie lee otra cosa.
+     */
+    /** "S." de salida: "Pared" sola es la pared, no el golpe que sale de ella. */
+    salida_pared_ofensiva: 'S. Pared ofensiva',
+    salida_pared_defensiva: 'S. Pared defensiva',
     fondo: 'Fondo',
     globo: 'Globo',
     dejada: 'Dejada',
@@ -145,7 +157,7 @@ export const es = {
     },
 
     remembered: 'La app recuerda esto para el próximo partido.',
-    start: 'Empezar',
+    start: 'Comenzar',
 
     history: 'Historial',
     players: 'Jugadores',
@@ -172,6 +184,25 @@ export const es = {
     firstServe: '1ER SAQUE',
     secondServe: '2DO SAQUE',
     returning: 'RESTA',
+
+    /**
+     * Los dos botones del que resta, arriba de su tarjeta — el espejo de FALTA/ACE/LET del
+     * que saca. Reusan las siglas EF/ENF que ya se conocen de los botones de abajo, con RESTO
+     * al lado: dicen lo mismo que esos, acotado a un solo momento del punto. A proposito NO
+     * se llaman igual que esos —"EF" solo— para que se lean como otra cosa a simple vista,
+     * aunque compartan la abreviatura.
+     */
+    /** El rotulo de la fila del fallo de devolucion. NO es un boton (ver MatchScreen). */
+    returnRow: 'Resto',
+    /** El titulo de los dos botones. Dice que fue un ERROR: "resto forzado" se leeria como un
+        buen resto. Es la misma palabra que usa `returnErrorPct` en estadisticas. */
+    returnFail: 'FALLA',
+
+    /** El duelo del error forzado: quien lo forzo, y con que golpe. Solo en ESE error. */
+    forcedByTitle: '¿Quién lo forzó?',
+    /** El nombre de QUIEN LO FORZO, no del que se equivoco: sin esto, se elegiria a ciegas. */
+    forcedByShotTitle: (name: string) => `¿Con qué golpe forzó ${name}?`,
+    forcedByOmit: 'Omitir',
 
     goldenPoint: 'PUNTO DE ORO',
     goldenPointChoose: 'PUNTO DE ORO — ELIGE EL QUE RESTA',
@@ -339,7 +370,19 @@ export const es = {
     doubleFaults: 'Dobles faltas',
     wonReturning: 'Gana restando',
     acesConceded: 'Aces recibidos',
-    doubleFaultsForced: 'Dobles provocadas',
+    /** NO "provocadas": eso afirma que vos las causaste, y la app no lo sabe. Dice el hecho
+        —el rival hizo dobles mientras vos restabas— y la lectura queda para el entrenador. */
+    doubleFaultsForced: 'Dobles del rival',
+    /** Solo aparece si se uso el boton dedicado de la cancha: ver `onReturn` en el motor. */
+    /**
+     * NO se llama parecido a nada del equipo, a proposito. Estuvo a punto de ser "falla
+     * restando", en paralelo con "gana restando" — y eran categorias distintas: aquella era
+     * del equipo, esta es de la persona. Un nombre simetrico entre dos cosas que no lo son
+     * induce a leerlas como las dos caras de lo mismo.
+     */
+    returnErrorPct: 'Falla en resto',
+    /** Los errores forzados que ESTA persona provoco. El par de `forcedErrors`, del otro lado. */
+    forcedErrorsCaused: 'Errores provocados',
 
     /**
      * Winners contra errores no forzados, los dos crudos: "22/14". El par no tiene umbral

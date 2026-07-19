@@ -10,7 +10,6 @@ import { colors, space } from '../theme';
 /** Lo que rindio UN golpe en las manos de UNA persona. */
 interface Cell {
   winners: number;
-  forced: number;
   unforced: number;
 }
 
@@ -28,15 +27,12 @@ export interface GridRow {
 
 /** Si no tiene UN solo golpe cargado en todo el partido, no hay nada que contar. */
 const tagged = (p: PlayerStats): boolean =>
-  Object.keys(p.winnersByShot).length > 0 ||
-  Object.keys(p.forcedByShot).length > 0 ||
-  Object.keys(p.unforcedByShot).length > 0;
+  Object.keys(p.winnersByShot).length > 0 || Object.keys(p.unforcedByShot).length > 0;
 
 const cellOf = (p: PlayerStats, shot: Stroke): Cell | null =>
   tagged(p)
     ? {
         winners: p.winnersByShot[shot] ?? 0,
-        forced: p.forcedByShot[shot] ?? 0,
         unforced: p.unforcedByShot[shot] ?? 0,
       }
     : null;
@@ -109,7 +105,6 @@ export function ShotGrid({
       <View style={s.legend}>
         {[
           [L.stats.winners, colors.winnerChart],
-          [L.stats.forcedShort, colors.errorForcedChart],
           [L.stats.unforcedLegend, colors.errorUnforcedChart],
         ].map(([label, color]) => (
           <View key={label} style={s.legendItem}>
@@ -142,7 +137,6 @@ export function ShotGrid({
               ) : (
                 <>
                   <Text style={[s.n, { color: colors.winnerChart }]}>{c.winners}</Text>
-                  <Text style={[s.n, { color: colors.errorForcedChart }]}>{c.forced}</Text>
                   <Text style={[s.n, { color: colors.errorUnforcedChart }]}>{c.unforced}</Text>
                 </>
               )}

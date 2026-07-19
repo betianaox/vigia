@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { computeStats, pct, shotLines } from '../engine/stats';
+import { computeStats, pct, shotLines, totalDuels } from '../engine/stats';
 import type { MatchStats, PlayerStats } from '../engine/stats';
 import type { MatchConfig, MatchEvent, MatchState, PlayerId, TeamId } from '../engine';
 import { L } from '../i18n';
@@ -372,7 +372,9 @@ function PlayerCard({
   const first = pct(p.firstServesIn, p.servePointsPlayed);
   const won1 = pct(p.firstServePointsWon, p.firstServesIn);
   const won2 = pct(p.secondServePointsWon, p.secondServePointsPlayed);
-  const returning = pct(p.returnPointsWon, p.returnPointsPlayed);
+  /** Las dos fallas de devolucion suman una sola: lo que cambia es como se fallo, no que se fallo. */
+  const returnErrors = p.returnErrorsForced + p.returnErrorsUnforced;
+  const forcedCaused = totalDuels(p.forcedErrorsCaused);
 
   return (
     <View style={s.player}>
@@ -399,6 +401,32 @@ function PlayerCard({
         <Stat label={L.stats.winners} value={`${p.winners}`} />
         <Stat label={L.stats.forcedShort} value={`${p.forcedErrors}`} />
         <Stat label={L.stats.unforcedShort} value={`${p.unforcedErrors}`} />
+      </View>
+
+      {/**
+       * LOS QUE FORZO, EN SU PROPIA CELDA.
+       *
+       * Estaba colgado como subtitulo de "E. forzados" y ahi contaba DOS COSAS OPUESTAS en el
+       * mismo lugar: el numero grande eran los errores que la persona SUFRIO (algo malo) y el
+       * subtitulo los que CAUSO (su merito). Se veia "0" con un "2 a Ana" debajo — dos hechos
+       * contrarios, un solo casillero, y el mismo rotulo queriendo decir cosas distintas segun
+       * la ficha.
+       *
+       * Son dos hechos y van en dos celdas. Este es el par del error forzado: el unico error
+       * que tiene un responsable de los DOS lados, asi que el log lo cuenta dos veces —una de
+       * cada lado— y ninguna de las dos pisa a la otra. El duelo abajo (contra quien) es el
+       * mismo tratamiento que ya tienen el ace y la doble falta.
+       */}
+      <View style={s.grid}>
+        {/* Guion y no cero, igual que la falla en resto: si nadie cargo quien forzo, no es que
+            no provoco ninguno — es que no se sabe. Cero es un dato; nada es otra cosa. */}
+        <Stat
+          label={L.stats.forcedErrorsCaused}
+          value={forcedCaused > 0 ? `${forcedCaused}` : '—'}
+          sub={duels(p.forcedErrorsCaused, names)}
+        />
+        <View style={s.statCell} />
+        <View style={s.statCell} />
       </View>
 
       <View style={s.divider} />
@@ -429,11 +457,38 @@ function PlayerCard({
       <View style={s.divider} />
       <Text style={s.blockLabel}>{L.stats.returning}</Text>
 
+      {/**
+       * SE FUE "GANA RESTANDO", Y NO ES UN RECORTE: ERA UN DATO DEL EQUIPO EN LA FICHA DE UNA
+       * PERSONA. El punto que se gana restando lo definen cuatro jugadores; el log sabe quien
+       * RESTO, no quien lo termino. Ponerle a alguien "gana restando 62%" le atribuye puntos
+       * que pudo haber definido su companero. Es exactamente la razon por la que el break no
+       * tiene dueno (ver el log del 2026-07-13): la app dice el hecho y se calla.
+       *
+       * LA FALLA EN RESTO SI ES DE LA PERSONA, y por eso se queda: fallar la devolucion es un
+       * acto individual y observable —la pelota la devolvia ella y no entro—, no el resultado
+       * de un punto de a cuatro. Es el dato que pidio la entrenadora.
+       *
+       * Y por eso tampoco se llaman parecido. Estuvieron a punto de ser "gana restando" y
+       * "falla restando", que las hacia leer como las dos caras de una misma moneda cuando son
+       * de categorias distintas: una del equipo, otra de la persona. Un nombre simetrico entre
+       * dos cosas que no lo son es una trampa de interpretacion.
+       */}
       <View style={s.grid}>
         <Stat
-          label={L.stats.wonReturning}
-          value={num(returning, '%')}
-          sub={`${p.returnPointsWon}/${p.returnPointsPlayed}`}
+          label={L.stats.returnErrorPct}
+          /**
+           * GUION, NO CERO, cuando nunca se uso el boton dedicado. Un cero diria "no fallo
+           * ninguna devolucion" y lo que pasa es que NO SE SABE — nadie infiere una falla de
+           * recepcion de un error suelto en medio de un peloteo (ver `onReturn` en el motor).
+           * Es la misma regla de la tarjeta compartible: cero no es lo mismo que nada.
+           *
+           * La celda va SIEMPRE, aunque este vacia: si apareciera y desapareciera, el bloque
+           * cambiaria de forma entre un jugador y otro de la misma pantalla.
+           */
+          value={
+            returnErrors > 0 ? num(pct(returnErrors, p.returnPointsPlayed), '%') : '—'
+          }
+          sub={returnErrors > 0 ? `${returnErrors}/${p.returnPointsPlayed}` : undefined}
         />
         <Stat label={L.stats.acesConceded} value={`${p.acesConceded}`} />
         <Stat label={L.stats.doubleFaultsForced} value={`${p.doubleFaultsForced}`} />
