@@ -60,7 +60,12 @@ export const es = {
 
   variants: {
     vibora: 'Víbora',
-    gancho: 'Gancho',
+    /**
+     * "Rulo" es como se le dice en la cancha; la clave sigue siendo `gancho`. Es exactamente
+     * para esto que la etiqueta esta separada del dato: cambia el cartel, no el evento, y los
+     * partidos ya jugados se siguen leyendo igual. En los otros idiomas se dice gancho.
+     */
+    gancho: 'Rulo',
     x3: 'x3',
     x4: 'x4',
     traerla: 'Traerla',
