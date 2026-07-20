@@ -9,7 +9,7 @@ import { alpha, colors, pressed, radius, ripple, space } from './theme';
 
 const tick = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-const BG = require('../../assets/bg-home.png');
+const BG = require('../../assets/bg-home.webp');
 const LOGO = require('../../assets/logo-home.png');
 /** 398 x 299 px del archivo real. De ahi sale el ancho: nadie tiene que acordarse del numero. */
 const LOGO_RATIO = 398 / 299;
