@@ -21,7 +21,9 @@ import {
 } from './src/store/matches';
 import { CareerScreen } from './src/ui/CareerScreen';
 import { HistoryScreen } from './src/ui/HistoryScreen';
+import { HomeScreen } from './src/ui/HomeScreen';
 import { PlayersScreen } from './src/ui/PlayersScreen';
+import { ResumeScreen } from './src/ui/ResumeScreen';
 import { RosterProvider, useRoster } from './src/ui/roster';
 import { MatchScreen } from './src/ui/MatchScreen';
 import { ScoreboardPreview } from './src/ui/ScoreboardPreview';
@@ -46,7 +48,13 @@ const PREVIEW = false;
 void SplashScreen.preventAutoHideAsync();
 
 type Screen =
+  /** La raiz: el fondo de marca y las tres puertas. Solo se muestra cuando NO hay un partido
+      en curso — si lo hay, la raiz es 'resume' (ver `home()`). */
+  | { name: 'home' }
+  /** El formulario de partido nuevo. Ya no es la raiz: se llega desde 'home'. */
   | { name: 'setup' }
+  /** El partido a medias, solo, sobre fondo negro. Es la otra raiz posible. */
+  | { name: 'resume' }
   | { name: 'match' }
   /** Las estadisticas del partido que se esta jugando. */
   | { name: 'stats' }
@@ -112,7 +120,13 @@ export default function App() {
  */
 function Vigia({ onLanguage }: { onLanguage: () => void }) {
   const { canon } = useRoster();
-  const [screen, setScreen] = useState<Screen>({ name: 'setup' });
+  /**
+   * Arranca en 'home'. Si al leer el disco aparece un partido sin terminar, la pantalla salta
+   * sola a 'resume' — pero SOLO si nadie se movio de 'home' mientras tanto (ver el efecto de
+   * abajo): la lectura es asincronica, y no hay que arrancarle a alguien de una pantalla a la
+   * que ya navego por su cuenta en ese hueco.
+   */
+  const [screen, setScreen] = useState<Screen>({ name: 'home' });
   const [match, setMatch] = useState<SavedMatch | null>(null);
   /** El partido a medias que quedo de la vez pasada, para poder ofrecer retomarlo. */
   const [resumable, setResumable] = useState<SavedMatch | null>(null);
@@ -123,8 +137,10 @@ function Vigia({ onLanguage }: { onLanguage: () => void }) {
       const id = await getCurrentId();
       if (!id) return;
       const saved = await loadMatch(id);
-      if (saved) setResumable(saved);
-      else await setCurrentId(null); // el archivo no esta: no dejar un puntero colgado
+      if (saved) {
+        setResumable(saved);
+        setScreen((s) => (s.name === 'home' ? { name: 'resume' } : s));
+      } else await setCurrentId(null); // el archivo no esta: no dejar un puntero colgado
     })();
   }, []);
 
@@ -171,44 +187,49 @@ function Vigia({ onLanguage }: { onLanguage: () => void }) {
 
   /**
    * Terminar el partido a medias. NO lo borra: sigue guardado y aparece en el historial como
-   * "sin terminar", con las estadisticas de lo que se jugo. Solo deja de ofrecerse.
+   * "sin terminar", con las estadisticas de lo que se jugo. Solo deja de ofrecerse — y con eso
+   * deja de haber una razon para estar en 'resume': se vuelve a la raiz de verdad.
    */
   const closePending = () => {
     void setCurrentId(null);
     setResumable(null);
+    setScreen({ name: 'home' });
   };
 
   /**
-   * Volver al inicio. Si el partido quedo a medias, sigue siendo el partido en curso.
+   * Volver a la raiz. Si el partido quedo a medias, sigue siendo el partido en curso — y la
+   * raiz, mientras tanto, es 'resume', no 'home'. Empezar uno nuevo con uno a medias obligaria
+   * a decidir que hacer con el viejo, y esa decision no se toma desde las tres puertas.
    *
    * El partido YA ESTA EN MEMORIA: se lo pasa directo, sin volver a leerlo del disco. Leerlo
-   * es asincrono, y en ese hueco el inicio se dibujaba creyendo que no habia nada — mostraba
-   * el formulario y despues, cuando el disco contestaba, aparecia la tarjeta. Preguntarle al
-   * disco algo que uno ya sabe siempre se paga con un parpadeo.
+   * es asincrono, y en ese hueco se dibujaria creyendo que no habia nada. Preguntarle al disco
+   * algo que uno ya sabe siempre se paga con un parpadeo.
    */
   const home = () => {
     const unfinished = match && !reduce(match.config, match.events).finished;
     setResumable(unfinished ? match : null);
     setMatch(null);
-    setScreen({ name: 'setup' });
+    setScreen(unfinished ? { name: 'resume' } : { name: 'home' });
   };
 
   /**
-   * El back de Android, en UN solo lugar. Cada pantalla vuelve a la que la abrio; el inicio
-   * es la raiz y ahi si sale de la app, que es lo que el usuario espera.
+   * El back de Android, en UN solo lugar. Cada pantalla vuelve a la que la abrio; 'home' y
+   * 'resume' son las dos raices posibles y ahi si sale de la app, que es lo que se espera.
    */
   useBackHandler(
-    screen.name === 'setup'
+    screen.name === 'home' || screen.name === 'resume'
       ? null
-      : screen.name === 'match'
-        ? home
-        : screen.name === 'stats'
-          ? () => setScreen({ name: 'match' })
-          : screen.name === 'archive'
-            ? () => setScreen({ name: 'history' })
-            : screen.name === 'career'
-              ? () => setScreen(screen.from === 'players' ? { name: 'players' } : { name: 'history' })
-              : () => setScreen({ name: 'setup' }),
+      : screen.name === 'setup'
+        ? () => setScreen({ name: 'home' })
+        : screen.name === 'match'
+          ? home
+          : screen.name === 'stats'
+            ? () => setScreen({ name: 'match' })
+            : screen.name === 'archive'
+              ? () => setScreen({ name: 'history' })
+              : screen.name === 'career'
+                ? () => setScreen(screen.from === 'players' ? { name: 'players' } : { name: 'history' })
+                : () => setScreen({ name: 'home' }),
   );
 
   /**
@@ -256,14 +277,14 @@ function Vigia({ onLanguage }: { onLanguage: () => void }) {
         />
       ) : screen.name === 'history' ? (
         <HistoryScreen
-          onBack={() => setScreen({ name: 'setup' })}
+          onBack={() => setScreen({ name: 'home' })}
           onOpen={(m) => setScreen({ name: 'archive', match: m })}
           onCareer={(p) => openCareer(p, 'history')}
           onResume={resume}
         />
       ) : screen.name === 'players' ? (
         <PlayersScreen
-          onBack={() => setScreen({ name: 'setup' })}
+          onBack={() => setScreen({ name: 'home' })}
           onOpen={(p) => openCareer(p, 'players')}
         />
       ) : screen.name === 'career' ? (
@@ -281,16 +302,20 @@ function Vigia({ onLanguage }: { onLanguage: () => void }) {
           finishedEarly
           onClose={() => setScreen({ name: 'history' })}
         />
-      ) : (
+      ) : screen.name === 'resume' && resumable ? (
+        <ResumeScreen match={resumable} onResume={resume} onEnd={closePending} />
+      ) : screen.name === 'setup' ? (
         <SetupScreen
-          resumable={resumable}
-          onResume={resume}
-          onClosePending={closePending}
           onStart={start}
-          onHistory={() => setScreen({ name: 'history' })}
-          onPlayers={() => setScreen({ name: 'players' })}
+          onBack={() => setScreen({ name: 'home' })}
           /* El formulario ya cambio el diccionario; esto es lo que hace que React se entere. */
           onLanguage={onLanguage}
+        />
+      ) : (
+        <HomeScreen
+          onNewMatch={() => setScreen({ name: 'setup' })}
+          onHistory={() => setScreen({ name: 'history' })}
+          onPlayers={() => setScreen({ name: 'players' })}
         />
       )}
     </SafeAreaProvider>
