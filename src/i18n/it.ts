@@ -226,6 +226,9 @@ export const it: Dict = {
     myGame: 'Gioco',
     evolution: 'Evoluzione',
     evolutionSub: 'una partita, una barra',
+    blockRange: (from: number, to: number, total: number) => `Partite ${from}-${to} di ${total}`,
+    beforeAfter: 'Prima e ora',
+    beforeAfterSub: (n: number) => `prime ${n} contro ultime ${n}`,
     byShot: 'per colpo, partita per partita',
 
     pointsWon: 'Punti vinti',

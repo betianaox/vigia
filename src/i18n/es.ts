@@ -344,6 +344,11 @@ export const es = {
     myGame: 'Juego',
     evolution: 'Evolución',
     evolutionSub: 'un partido, una barra',
+    /** El rango del bloque que se esta mirando: "partidos 11-20 de 47". */
+    blockRange: (from: number, to: number, total: number) => `Partidos ${from}-${to} de ${total}`,
+    /** La comparacion del final: donde estaba y donde esta, metrica por metrica. */
+    beforeAfter: 'Antes y ahora',
+    beforeAfterSub: (n: number) => `primeros ${n} contra últimos ${n}`,
     byShot: 'por golpe, partido a partido',
 
     /** El global del partido. */

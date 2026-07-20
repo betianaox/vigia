@@ -247,6 +247,9 @@ export const en: Dict = {
     myGame: 'Game',
     evolution: 'Progress',
     evolutionSub: 'one match, one bar',
+    blockRange: (from: number, to: number, total: number) => `Matches ${from}-${to} of ${total}`,
+    beforeAfter: 'Then and now',
+    beforeAfterSub: (n: number) => `first ${n} vs last ${n}`,
     byShot: 'by shot, match by match',
 
     pointsWon: 'Points won',

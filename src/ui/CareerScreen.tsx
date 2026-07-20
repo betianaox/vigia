@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { CareerPoint, CareerStats } from '../engine/career';
 import { pct, totalDuels } from '../engine/stats';
+import type { PlayerStats } from '../engine/stats';
 import { L } from '../i18n';
 import { Brand } from './Brand';
 import { useRoster } from './roster';
@@ -20,11 +21,6 @@ const num = (n: number | null, suffix = ''): string =>
 
 /**
  * Las metricas que se pueden seguir en el tiempo.
- *
- * `of` saca el numero de UN partido (para las barras). `total` lo saca del acumulado, sumando
- * contadores — nunca promediando las barras. Son dos cuentas distintas a proposito: la linea
- * del promedio tiene que ser el acumulado de verdad, no el promedio de lo dibujado, que
- * mentiria a favor de los partidos cortos.
  *
  * EL COLOR NO CAMBIA CON LA METRICA. Antes cada una traia el suyo —verde el ratio, celeste el
  * saque— y eso era decoracion pura: la metrica ya esta escrita en el chip de arriba, el color
@@ -44,62 +40,134 @@ const num = (n: number | null, suffix = ''): string =>
  * ahi mas es PEOR. Una barra que sube se lee como que vas bien; si son errores, vas mal. El
  * cambio de color es el aviso de que cambio la regla.
  */
-const metrics = () =>
-  [
-    {
-      key: 'ratio',
-      label: L.stats.winnersPerError,
-      color: colors.ballChart,
-      of: (p: CareerPoint) =>
-        p.stats.unforcedErrors === 0
-          ? p.stats.winners === 0
-            ? null
-            : p.stats.winners
-          : p.stats.winners / p.stats.unforcedErrors,
-      total: (c: CareerStats) =>
-        c.totals.unforcedErrors === 0
-          ? c.totals.winners === 0
-            ? null
-            : c.totals.winners
-          : c.totals.winners / c.totals.unforcedErrors,
-      format: (v: number) => v.toFixed(1),
+/**
+ * UNA SOLA CUENTA POR METRICA, QUE SIRVE PARA CUALQUIER CONJUNTO DE PARTIDOS.
+ *
+ * Antes habia dos: `of` para un partido y `total` para la carrera. Con eso alcanzaba mientras
+ * lo unico que se miraba era "un partido" o "todos", pero ahora hay bloques de diez, primeros
+ * N y ultimos N — y cada corte nuevo hubiera pedido su propia funcion, con su propia
+ * oportunidad de calcularse distinto.
+ *
+ * `from` toma los partidos que sean y SUMA LOS CONTADORES antes de dividir. Eso no es un
+ * detalle de implementacion: es la unica forma correcta. Un bloque con 2 saques al 100% y otro
+ * con 40 al 50% promedian 75% y la verdad es 52% — los porcentajes no se promedian nunca
+ * (§7 bis). Con una sola funcion, esa regla se cumple en todos los cortes o en ninguno.
+ */
+const sum = (ps: CareerPoint[], f: (s: PlayerStats) => number): number =>
+  ps.reduce((n, p) => n + f(p.stats), 0);
+
+export interface Metric {
+  key: string;
+  label: string;
+  color: string;
+  from: (ps: CareerPoint[]) => number | null;
+  format: (v: number) => string;
+  /** En estas, bajar es mejorar: el color del delta se da vuelta. */
+  lowerIsBetter?: boolean;
+}
+
+const metrics = (): Metric[] => [
+  {
+    key: 'ratio',
+    label: L.stats.winnersPerError,
+    color: colors.ballChart,
+    from: (ps) => {
+      const w = sum(ps, (s) => s.winners);
+      const e = sum(ps, (s) => s.unforcedErrors);
+      return e === 0 ? (w === 0 ? null : w) : w / e;
     },
-    {
-      key: 'primero',
-      label: L.stats.firstServeIn,
-      color: colors.aceChart,
-      of: (p: CareerPoint) => pct(p.stats.firstServesIn, p.stats.servePointsPlayed),
-      total: (c: CareerStats) => pct(c.totals.firstServesIn, c.totals.servePointsPlayed),
-      format: (v: number) => `${Math.round(v)}%`,
+    format: (v) => v.toFixed(1),
+  },
+  {
+    key: 'primero',
+    label: L.stats.firstServeIn,
+    color: colors.aceChart,
+    from: (ps) => pct(sum(ps, (s) => s.firstServesIn), sum(ps, (s) => s.servePointsPlayed)),
+    format: (v) => `${Math.round(v)}%`,
+  },
+  {
+    key: 'gana1',
+    label: L.stats.wonWithFirstLong,
+    color: colors.ballChart,
+    from: (ps) =>
+      pct(sum(ps, (s) => s.firstServePointsWon), sum(ps, (s) => s.firstServesIn)),
+    format: (v) => `${Math.round(v)}%`,
+  },
+  {
+    /** Por partido, no en bruto: un bloque de diez y uno de tres no se comparan en total. */
+    key: 'enf',
+    label: L.stats.unforcedErrors,
+    color: colors.worse,
+    from: (ps) => (ps.length === 0 ? null : sum(ps, (s) => s.unforcedErrors) / ps.length),
+    format: (v) => v.toFixed(1),
+    lowerIsBetter: true,
+  },
+  {
+    key: 'resto',
+    label: L.stats.returnErrorPct,
+    color: colors.worse,
+    from: (ps) => {
+      const fallas = sum(ps, (s) => s.returnErrorsForced + s.returnErrorsUnforced);
+      // Guion, no cero: si nunca se uso el boton dedicado, no se sabe (ver StatsScreen).
+      return fallas === 0 ? null : pct(fallas, sum(ps, (s) => s.returnPointsPlayed));
     },
-    {
-      key: 'gana1',
-      label: L.stats.wonWithFirstLong,
-      color: colors.ballChart,
-      of: (p: CareerPoint) => pct(p.stats.firstServePointsWon, p.stats.firstServesIn),
-      total: (c: CareerStats) => pct(c.totals.firstServePointsWon, c.totals.firstServesIn),
-      format: (v: number) => `${Math.round(v)}%`,
-    },
-    {
-      key: 'enf',
-      label: L.stats.unforcedErrors,
-      color: colors.worse,
-      of: (p: CareerPoint) => p.stats.unforcedErrors,
-      total: (c: CareerStats) =>
-        c.matches === 0 ? null : c.totals.unforcedErrors / c.matches,
-      format: (v: number) => v.toFixed(1),
-    },
-  ] as const;
+    format: (v) => `${Math.round(v)}%`,
+    lowerIsBetter: true,
+  },
+];
 
 export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: () => void }) {
   const { nameOf } = useRoster();
   const [metric, setMetric] = useState<ReturnType<typeof metrics>[number]['key']>('ratio');
   const m = metrics().find((x) => x.key === metric)!;
 
+  /**
+   * LOS BLOQUES SE CUENTAN DESDE EL ULTIMO PARTIDO HACIA ATRAS.
+   *
+   * `block` 0 son los ultimos diez, 1 los diez anteriores, y asi. Va en ese sentido y no al
+   * reves por una razon: el bloque que se mira siempre —el actual— tiene que estar COMPLETO,
+   * porque es contra el que se compara todo. Contando desde el principio, el incompleto seria
+   * el ultimo, justo el que mas se usa.
+   *
+   * Se agrupa por cantidad de partidos y no por mes a proposito: el mes asume una regularidad
+   * que la app no conoce. Alguien que juega tres veces en marzo y quince en abril tendria dos
+   * filas que no se pueden comparar, y el numero mas grande seria el del mes con mas partidos,
+   * no el de la mejor racha.
+   */
+  const BLOCK = 10;
+  const [block, setBlock] = useState(0);
+
+  const blocks = useMemo(() => {
+    const t = stats.timeline;
+    const out: CareerPoint[][] = [];
+    for (let end = t.length; end > 0; end -= BLOCK) out.push(t.slice(Math.max(0, end - BLOCK), end));
+    return out;
+  }, [stats.timeline]);
+
+  /** Si se borra un partido y quedan menos bloques, no puede quedar mirando uno que ya no existe. */
+  const blockIndex = Math.min(block, Math.max(0, blocks.length - 1));
+  const current = blocks[blockIndex] ?? [];
+
   const points: TrendPoint[] = useMemo(
-    () => stats.timeline.map((p) => ({ at: p.at, value: m.of(p) })),
-    [stats.timeline, m],
+    () => current.map((p) => ({ at: p.at, value: m.from([p]) })),
+    [current, m],
   );
+
+  /**
+   * ANTES Y AHORA: los primeros N partidos contra los ultimos N, sin solaparse nunca.
+   *
+   * N es el bloque entero cuando hay historial de sobra, y se achica solo cuando no lo hay
+   * —con siete partidos son tres contra tres— porque una comparacion chica es peor que
+   * ninguna solo si finge no serlo. Por eso la tabla muestra CUANTOS partidos hay de cada
+   * lado: un salto entre dos muestras de tres es ruido, y tiene que poder verse que lo es.
+   *
+   * Con menos de cuatro partidos no aparece: ahi no hay dos grupos, hay uno partido al medio.
+   */
+  const compare = useMemo(() => {
+    const t = stats.timeline;
+    const n = Math.min(BLOCK, Math.floor(t.length / 2));
+    return n < 2 ? null : { n, before: t.slice(0, n), after: t.slice(t.length - n) };
+  }, [stats.timeline]);
 
   const first = pct(stats.totals.firstServesIn, stats.totals.servePointsPlayed);
   /** Las dos fallas de devolucion suman una: lo que cambia es como se fallo, no que se fallo. */
@@ -260,12 +328,78 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
                 ))}
               </View>
 
-              <Trend
-                points={points}
-                average={m.total(stats)}
-                format={m.format}
-                color={m.color}
-              />
+              {/**
+               * La linea de promedio es la del BLOQUE que se esta mirando, no la de toda la
+               * carrera: si fuera la global, al ir hacia atras las barras se moverian y la
+               * referencia no, y se leeria como que ese bloque fue peor cuando lo que cambio
+               * es contra que se lo mide. Cada bloque se juzga contra si mismo.
+               */}
+              <Trend points={points} average={m.from(current)} format={m.format} color={m.color} />
+
+              {/* La navegacion entre bloques. Va DEBAJO del grafico: primero se ve, despues se
+                  decide moverse. Y dice el rango en partidos, que es la unidad de los bloques. */}
+              <View style={s.blockNav}>
+                <Pressable
+                  style={({ pressed: p }) => [s.blockArrow, p && pressed]}
+                  android_ripple={{ ...ripple, borderless: true }}
+                  disabled={blockIndex >= blocks.length - 1}
+                  onPress={() => {
+                    tick();
+                    setBlock(blockIndex + 1);
+                  }}
+                  hitSlop={10}
+                >
+                  <MaterialIcons
+                    name="chevron-left"
+                    size={26}
+                    color={blockIndex >= blocks.length - 1 ? colors.textFaint : colors.text}
+                  />
+                </Pressable>
+
+                <Text style={s.blockLabelText}>
+                  {L.stats.blockRange(
+                    stats.timeline.length - blockIndex * BLOCK - current.length + 1,
+                    stats.timeline.length - blockIndex * BLOCK,
+                    stats.timeline.length,
+                  )}
+                </Text>
+
+                <Pressable
+                  style={({ pressed: p }) => [s.blockArrow, p && pressed]}
+                  android_ripple={{ ...ripple, borderless: true }}
+                  disabled={blockIndex === 0}
+                  onPress={() => {
+                    tick();
+                    setBlock(blockIndex - 1);
+                  }}
+                  hitSlop={10}
+                >
+                  <MaterialIcons
+                    name="chevron-right"
+                    size={26}
+                    color={blockIndex === 0 ? colors.textFaint : colors.text}
+                  />
+                </Pressable>
+              </View>
+
+              {/* LOS NUMEROS DEL BLOQUE, no solo su forma. El grafico contesta "¿voy mejorando?"
+                  y no contesta "¿cuanto?" — y las dos preguntas se hacen. Cada fila es una
+                  metrica sobre ESTE bloque, sumando contadores (ver `from`). */}
+              <View style={s.blockTable}>
+                {metrics().map((x) => (
+                  <View key={x.key} style={s.blockRow}>
+                    <Text style={s.blockRowLabel} numberOfLines={1}>
+                      {x.label}
+                    </Text>
+                    <Text style={s.blockRowValue}>
+                      {(() => {
+                        const v = x.from(current);
+                        return v === null ? '—' : x.format(v);
+                      })()}
+                    </Text>
+                  </View>
+                ))}
+              </View>
             </Section>
 
             <Section title={L.stats.myGame} subtitle={L.stats.pointsPlayed(stats.totalPoints)}>
@@ -404,6 +538,33 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
                 </Section>
               </>
             )}
+
+            {/**
+             * ANTES Y AHORA, AL FINAL DE TODO. Es la pieza que contesta la pregunta que trae al
+             * entrenador: sin conocer al jugador, que hay que trabajar.
+             *
+             * Y la contesta SIN OPINAR, que es la condicion. La app no ordena las metricas por
+             * urgencia ni escribe "mejorar el segundo saque": dibuja cada una contra si misma,
+             * antes y ahora, y la fila cuya linea no se movio salta a la vista sola. El hecho lo
+             * pone la app; la conclusion la saca quien mira. Es la misma regla que impide
+             * interpretar drive contra reves.
+             *
+             * Cada fila tiene SU PROPIA ESCALA. Nunca se normalizan entre si: un porcentaje de
+             * saque y un ratio de winners no comparten unidad, y ponerlos en un eje comun
+             * —un radar, por ejemplo— dibuja una forma cuya area no significa nada.
+             */}
+            {compare && (
+              <Section title={L.stats.beforeAfter} subtitle={L.stats.beforeAfterSub(compare.n)}>
+                {metrics().map((x) => (
+                  <Delta
+                    key={x.key}
+                    metric={x}
+                    before={x.from(compare.before)}
+                    after={x.from(compare.after)}
+                  />
+                ))}
+              </Section>
+            )}
           </>
         )}
       </ScrollView>
@@ -433,6 +594,59 @@ function Big({
       </Text>
       <Text style={s.bigLabel} numberOfLines={1} adjustsFontSizeToFit>
         {label}
+      </Text>
+    </View>
+  );
+}
+
+/**
+ * UNA METRICA, ANTES Y AHORA, EN UNA LINEA.
+ *
+ * Dos puntos unidos por una barra: donde estaba y donde esta. Lo que se lee no es cada numero
+ * sino EL LARGO DE LA BARRA — y por eso la fila que no se movio, que es la que hay que
+ * trabajar, se encuentra sin leer nada.
+ *
+ * La escala es de la fila, no de la tabla: el minimo y el maximo son los dos valores de ESTA
+ * metrica. Compartir escala entre un porcentaje y un ratio no significaria nada.
+ *
+ * Y el color del delta respeta la regla de siempre: en las metricas donde mas es peor
+ * (`lowerIsBetter`) bajar es mejorar, asi que el verde va para el signo negativo. Sin eso, la
+ * unica fila que se lee al reves que las demas seria justo la de los errores.
+ */
+function Delta({
+  metric,
+  before,
+  after,
+}: {
+  metric: Metric;
+  before: number | null;
+  after: number | null;
+}) {
+  const known = before !== null && after !== null;
+  const diff = known ? after - before : 0;
+  /** Sin cambio real no hay color: un delta de cero no es ni bueno ni malo. */
+  const better = metric.lowerIsBetter ? diff < 0 : diff > 0;
+  const flat = !known || Math.abs(diff) < 1e-9;
+  const tone = flat ? colors.textDim : better ? colors.winnerChart : colors.errorUnforcedChart;
+
+  /** La barra ocupa lo que cambio, sobre el mayor de los dos: la fila quieta queda corta. */
+  const span = known ? Math.max(Math.abs(before), Math.abs(after), 1e-9) : 1;
+  const width = known ? Math.min(1, Math.abs(diff) / span) : 0;
+
+  return (
+    <View style={s.deltaRow}>
+      <Text style={s.deltaLabel} numberOfLines={1}>
+        {metric.label}
+      </Text>
+
+      <Text style={s.deltaBefore}>{before === null ? '—' : metric.format(before)}</Text>
+
+      <View style={s.deltaTrack}>
+        <View style={[s.deltaFill, { width: `${Math.round(width * 100)}%`, backgroundColor: tone }]} />
+      </View>
+
+      <Text style={[s.deltaAfter, { color: tone }]}>
+        {after === null ? '—' : metric.format(after)}
       </Text>
     </View>
   );
@@ -570,4 +784,35 @@ const s = StyleSheet.create({
   empty: { color: colors.textFaint, fontSize: 13, lineHeight: 19, padding: space.md },
   /** La frase que reemplaza la grilla de ceros: mismo tono que la de la evolucion. */
   noData: { color: colors.textFaint, fontSize: 13, lineHeight: 19 },
+
+  /** La navegacion de bloques: dos flechas y el rango, centrado entre ellas. */
+  blockNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: space.sm,
+  },
+  blockArrow: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  blockLabelText: { color: colors.textDim, fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
+
+  /** Los numeros del bloque: una fila por metrica, el nombre a la izquierda y el valor a la derecha. */
+  blockTable: { marginTop: space.sm, gap: 2 },
+  blockRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+    borderTopWidth: 1,
+    borderTopColor: alpha(colors.text, 0.06),
+  },
+  blockRowLabel: { flex: 1, color: colors.textDim, fontSize: 13, fontWeight: '600' },
+  blockRowValue: { color: colors.text, fontSize: 15, fontWeight: '900' },
+
+  /** Antes y ahora. El ancho de la barra ES el dato: la fila quieta queda visiblemente corta. */
+  deltaRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingVertical: 7 },
+  deltaLabel: { width: '32%', color: colors.textDim, fontSize: 12, fontWeight: '600' },
+  deltaBefore: { width: 42, textAlign: 'right', color: colors.textFaint, fontSize: 12, fontWeight: '700' },
+  deltaTrack: { flex: 1, height: 6, borderRadius: 3, backgroundColor: alpha(colors.text, 0.08) },
+  deltaFill: { height: '100%', borderRadius: 3, minWidth: 3 },
+  deltaAfter: { width: 46, textAlign: 'right', fontSize: 14, fontWeight: '900' },
 });
