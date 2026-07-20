@@ -11,6 +11,8 @@ export const pt: Dict = {
   shots: {
     remate: 'Remate',
     bandeja: 'Bandeja',
+    vibora: 'Víbora',
+    rulo: 'Gancho',
     volea: 'Voleio',
     chiquita: 'Chiquita',
     /** El portugues tiene el suyo, y no es el castellano: se dice "saída", no "salida". */
@@ -22,14 +24,6 @@ export const pt: Dict = {
     globo: 'Globo',
     dejada: 'Dejada',
     recuperacion: 'Recuperação',
-  },
-
-  variants: {
-    vibora: 'Víbora',
-    gancho: 'Gancho',
-    x3: 'x3',
-    x4: 'x4',
-    traerla: 'Traerla',
   },
 
   sides: {

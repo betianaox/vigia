@@ -31,6 +31,9 @@ export const es = {
   shots: {
     remate: 'Remate',
     bandeja: 'Bandeja',
+    /** Golpes propios, no variantes de la bandeja: se pegan distinto y se cuentan aparte. */
+    vibora: 'Víbora',
+    rulo: 'Rulo',
     volea: 'Volea',
     chiquita: 'Chiquita',
     /** Sin boton propio: la escriben partidos viejos, de antes de dividirla (ver `Stroke`). */
@@ -56,19 +59,6 @@ export const es = {
      * No es un golpe defensivo cualquiera, y por eso no se traduce como tal.
      */
     recuperacion: 'Recuperación',
-  },
-
-  variants: {
-    vibora: 'Víbora',
-    /**
-     * "Rulo" es como se le dice en la cancha; la clave sigue siendo `gancho`. Es exactamente
-     * para esto que la etiqueta esta separada del dato: cambia el cartel, no el evento, y los
-     * partidos ya jugados se siguen leyendo igual. En los otros idiomas se dice gancho.
-     */
-    gancho: 'Rulo',
-    x3: 'x3',
-    x4: 'x4',
-    traerla: 'Traerla',
   },
 
   /**

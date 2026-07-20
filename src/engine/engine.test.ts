@@ -576,7 +576,7 @@ describe('el motor es una funcion pura del log', () => {
       { type: 'ACE' },
       { type: 'LET' },
       { type: 'ERROR_NO_FORZADO', player: 'b2', shot: { stroke: 'bandeja' } },
-      { type: 'WINNER', player: 'a2', shot: { stroke: 'bandeja', variant: 'vibora' } },
+      { type: 'WINNER', player: 'a2', shot: { stroke: 'bandeja' } },
       { type: 'ERROR_FORZADO', player: 'a1', forcedBy: 'b1', forcedByShot: { stroke: 'remate' } },
     ];
     expect(reduce(c, evs)).toEqual(reduce(c, evs));

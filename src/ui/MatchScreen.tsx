@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useKeepAwake } from 'expo-keep-awake';
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -43,7 +43,6 @@ import {
   STROKES_CON_LADO,
   STROKES_POR_ALTO,
   STROKES_SIN_LADO,
-  variantLabels,
 } from './shots';
 import { alpha, colors, pressed, radius, ripple, space, teamColor } from './theme';
 
@@ -867,7 +866,6 @@ function ShotSheet(props: {
   /** Los nombres, leidos al dibujar: si cambia el idioma, cambia la hoja. */
   const strokes = strokeLabels();
   const sides = sideLabels();
-  const variantName = variantLabels();
 
   /**
    * A QUIEN SE LE ESTA PREGUNTANDO EL GOLPE, dentro del paso "quien lo forzo".
@@ -900,31 +898,21 @@ function ShotSheet(props: {
   const grid = (onPickShot: (shot: Shot) => void) => (
     <>
       <View style={s.sheetRow}>
-        {STROKES_POR_ALTO.map(({ stroke, variants }) => (
-          <Fragment key={stroke}>
-            <Pressable
-              style={({ pressed: p }) => [s.sheetBase, p && s.pressed]}
-              android_ripple={ripple}
-              onPress={() => onPickShot({ stroke })}
-            >
-              <Text style={s.sheetBaseText} numberOfLines={1} adjustsFontSizeToFit>
-                {strokes[stroke]}
-              </Text>
-            </Pressable>
-
-            {variants.map((variant) => (
-              <Pressable
-                key={variant}
-                style={({ pressed: p }) => [s.sheetVariant, p && s.pressed]}
-                android_ripple={ripple}
-                onPress={() => onPickShot({ stroke, variant })}
-              >
-                <Text style={s.sheetVariantText} numberOfLines={1} adjustsFontSizeToFit>
-                  {variantName[variant]}
-                </Text>
-              </Pressable>
-            ))}
-          </Fragment>
+        {/* CUATRO BOTONES IGUALES. Antes dos eran "el golpe" y dos eran "variantes de la
+            bandeja", y se dibujaban distinto —el base solido, la variante fantasma— para
+            decir esa jerarquia. La jerarquia ya no existe: son cuatro golpes, se cuentan por
+            separado, y por eso se ven iguales. */}
+        {STROKES_POR_ALTO.map((stroke) => (
+          <Pressable
+            key={stroke}
+            style={({ pressed: p }) => [s.sheetBase, p && s.pressed]}
+            android_ripple={ripple}
+            onPress={() => onPickShot({ stroke })}
+          >
+            <Text style={s.sheetBaseText} numberOfLines={1} adjustsFontSizeToFit>
+              {strokes[stroke]}
+            </Text>
+          </Pressable>
         ))}
       </View>
 
@@ -1507,24 +1495,6 @@ const makeStyles = (m: Metrics) => {
      */
     sheetBaseText: { color: colors.text, fontSize: strokeFont, fontWeight: '900' },
 
-    /**
-     * Las variantes cuelgan del base: un solo tap, y con el MISMO peso visual que los golpes
-     * de la grilla de arriba. Estuvieron un rato como fantasmas, sin relleno, y quedaban tan
-     * apagadas que parecian deshabilitadas — el que sabe no las iba a tocar nunca.
-     *
-     * La jerarquia la sigue marcando el boton base, que es el unico solido y en blanco.
-     */
-    sheetVariant: {
-      flex: 1,
-      borderRadius: radius.sm,
-      borderWidth: 1,
-      borderColor: SHEET_BORDER,
-      backgroundColor: colors.surfaceAlt,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: 2,
-    },
-    sheetVariantText: { color: colors.textDim, fontSize: strokeFont, fontWeight: '700' },
 
     /**
      * Los dos candidatos a haber forzado el error. Ocupan el lugar de la grilla entera —son

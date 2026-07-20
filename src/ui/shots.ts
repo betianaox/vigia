@@ -1,4 +1,4 @@
-import type { Side, Stroke, Variant } from '../engine';
+import type { Side, Stroke } from '../engine';
 import { L } from '../i18n';
 
 /**
@@ -30,7 +30,6 @@ export const strokeLabels = (): Record<Stroke, string> => L.shots;
  */
 export const sideLabels = (): Record<Side, string> => L.sides;
 
-export const variantLabels = (): Record<Variant, string> => L.variants;
 
 /**
  * Los golpes que se juegan de derecha o de reves. En la hoja son un teclado: el nombre una vez,
@@ -78,25 +77,19 @@ export const STROKES_CON_LADO: Stroke[] = [
 export const STROKES_SIN_LADO: Stroke[] = ['dejada', 'recuperacion'];
 
 /**
- * Los golpes por alto (no existe una bandeja de reves), y las variantes que sobrevivieron.
+ * Los golpes por alto: no existe una bandeja de reves, asi que no llevan lado.
  *
  * Van al final de la hoja, sin ningun titulo que los agrupe: son golpes de red, y la lista
  * ya viene bajando desde el fondo hacia la red. Se distinguen solos porque no tienen las dos
  * columnas de lado.
  *
- * Las variantes van DESPLEGADAS al lado de su golpe base, nunca en un submenu: si marcar una
- * vibora costara dos toques, el que sabe dejaria de usarlas. Y el boton base es el golpe
- * mismo — se toca "Remate" y es un remate. No hay ningun boton que se llame "normal", que no
- * significa nada.
+ * LOS CUATRO SON GOLPES, NO UN GOLPE CON VARIANTES. La vibora y el rulo colgaban de la bandeja
+ * como refinamientos opcionales: en la hoja ya eran botones propios, pero el motor los sumaba
+ * como bandeja, asi que en estadisticas no existian — no habia forma de preguntar cuantas
+ * viboras pego alguien. El mecanismo protegia un historial que todavia no existe, asi que se
+ * fue entero y cada uno cuenta por su cuenta.
  *
- * SE FUERON x3, x4 Y TRAERLA. Eran tres botones —de veinte, en una hoja que ahora se abre en
- * cada punto— para distinguir tres maneras de rematar que el motor suma igual como REMATE. No se
- * rompe ninguna estadistica: se recupera un tercio del renglon.
- *
- * `VARIANT_LABELS` las conserva igual: los partidos ya cargados con un x3 tienen que seguir
- * diciendo "x3" en las estadisticas. Sacar el boton no borra la historia.
+ * SE FUERON x3, x4 Y TRAERLA con el. Eran tres maneras de rematar que el motor sumaba igual
+ * como remate, ya sin boton desde que la hoja se abre en cada punto.
  */
-export const STROKES_POR_ALTO: Array<{ stroke: Stroke; variants: Variant[] }> = [
-  { stroke: 'remate', variants: [] },
-  { stroke: 'bandeja', variants: ['vibora', 'gancho'] },
-];
+export const STROKES_POR_ALTO: Stroke[] = ['remate', 'bandeja', 'vibora', 'rulo'];

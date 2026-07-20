@@ -59,15 +59,15 @@ describe('atribucion de acciones', () => {
    * la vibora se contara aparte, "cuantas bandejas pego" no se podria contestar sin sumar
    * casilleros a mano — y el modo simple y el completo dejarian de ser comparables.
    */
-  it('la variante suma en el golpe que la agrupa: la vibora es una bandeja, el x3 un remate', () => {
+  it('la vibora y el rulo cuentan aparte de la bandeja: son golpes, no variantes', () => {
     const s = computeStats(c, [
       { type: 'WINNER', player: 'a1', shot: { stroke: 'bandeja' } },
-      { type: 'WINNER', player: 'a1', shot: { stroke: 'bandeja', variant: 'vibora' } },
-      { type: 'WINNER', player: 'a1', shot: { stroke: 'bandeja', variant: 'gancho' } },
-      { type: 'WINNER', player: 'a1', shot: { stroke: 'remate', variant: 'x3' } },
-      { type: 'WINNER', player: 'a1', shot: { stroke: 'remate', variant: 'traerla' } },
+      { type: 'WINNER', player: 'a1', shot: { stroke: 'vibora' } },
+      { type: 'WINNER', player: 'a1', shot: { stroke: 'rulo' } },
+      { type: 'WINNER', player: 'a1', shot: { stroke: 'remate' } },
+      { type: 'WINNER', player: 'a1', shot: { stroke: 'remate' } },
     ]);
-    expect(s.players.a1!.winnersByShot).toEqual({ bandeja: 3, remate: 2 });
+    expect(s.players.a1!.winnersByShot).toEqual({ bandeja: 1, vibora: 1, rulo: 1, remate: 2 });
   });
 
   /** El mismo golpe de los dos lados sigue siendo el mismo golpe. */

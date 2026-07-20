@@ -133,7 +133,7 @@ describe('el vocabulario del padel es español', () => {
     for (const dict of Object.values(LOCALES)) {
       expect(dict.shots.bandeja).toBe('Bandeja');
       expect(dict.shots.chiquita).toBe('Chiquita');
-      expect(dict.variants.vibora).toBe('Víbora');
+      expect(dict.shots.vibora).toBe('Víbora');
     }
   });
 });

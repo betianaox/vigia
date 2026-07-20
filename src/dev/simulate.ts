@@ -6,7 +6,6 @@ import type {
   Shot,
   Stroke,
   TeamId,
-  Variant,
 } from '../engine';
 
 /**
@@ -41,10 +40,8 @@ const STROKES_CON_LADO: Stroke[] = [
   'recuperacion',
   'volea',
 ];
-const POR_ALTO: Array<{ stroke: Stroke; variants: Variant[] }> = [
-  { stroke: 'bandeja', variants: ['vibora', 'gancho'] },
-  { stroke: 'remate', variants: ['x3', 'x4', 'traerla'] },
-];
+/** Los cuatro por alto, cada uno su propio golpe: ya no hay variantes que agrupar. */
+const POR_ALTO: Stroke[] = ['bandeja', 'vibora', 'rulo', 'remate'];
 
 /** Un tope de seguridad: si el motor nunca termina, es un bug del motor y prefiero enterarme. */
 const MAX_EVENTS = 4000;
@@ -74,11 +71,8 @@ export function simulate(config: MatchConfig, opts: SimOptions = {}): MatchEvent
 
   const shot = (): Shot | undefined => {
     if (rand() > shotRate) return undefined; // el golpe es OPCIONAL: no siempre se carga
-    if (rand() < 0.25) {
-      const { stroke, variants } = pick(POR_ALTO);
-      // La variante refina, no siempre esta.
-      return rand() < 0.4 ? { stroke, variant: pick(variants) } : { stroke };
-    }
+    // Los por alto no llevan lado: no existe una bandeja de reves.
+    if (rand() < 0.25) return { stroke: pick(POR_ALTO) };
     return { stroke: pick(STROKES_CON_LADO), side: rand() < 0.6 ? 'drive' : 'reves' };
   };
 

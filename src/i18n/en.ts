@@ -12,6 +12,8 @@ export const en: Dict = {
   shots: {
     remate: 'Smash',
     bandeja: 'Bandeja',
+    vibora: 'Víbora',
+    rulo: 'Gancho',
     volea: 'Volley',
     chiquita: 'Chiquita',
     /**
@@ -43,14 +45,6 @@ export const en: Dict = {
      * descripcion se dice en el idioma de cada uno.
      */
     recuperacion: 'Retrieval',
-  },
-
-  variants: {
-    vibora: 'Víbora',
-    gancho: 'Gancho',
-    x3: 'x3',
-    x4: 'x4',
-    traerla: 'Traerla',
   },
 
   sides: {

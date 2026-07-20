@@ -11,6 +11,8 @@ export const it: Dict = {
   shots: {
     remate: 'Smash',
     bandeja: 'Bandeja',
+    vibora: 'Víbora',
+    rulo: 'Gancho',
     volea: 'Volée',
     chiquita: 'Chiquita',
     /** El italiano SI tiene nombre propio, y es uno de sus ocho golpes fundamentales. */
@@ -22,14 +24,6 @@ export const it: Dict = {
     globo: 'Pallonetto',
     dejada: 'Smorzata',
     recuperacion: 'Recupero',
-  },
-
-  variants: {
-    vibora: 'Víbora',
-    gancho: 'Gancho',
-    x3: 'x3',
-    x4: 'x4',
-    traerla: 'Traerla',
   },
 
   sides: {
