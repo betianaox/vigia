@@ -93,3 +93,20 @@ export const STROKES_SIN_LADO: Stroke[] = ['dejada', 'recuperacion'];
  * como remate, ya sin boton desde que la hoja se abre en cada punto.
  */
 export const STROKES_POR_ALTO: Stroke[] = ['remate', 'bandeja', 'vibora', 'rulo'];
+
+/**
+ * LA MISMA LISTA DE `STROKES_CON_LADO`, PARTIDA EN DOS. La pantalla de "con que golpe forzo /
+ * con que erro" del error forzado (ver `MatchScreen`) no pregunta por cualquier golpe: separa
+ * los que se pegan yendo a la red de los que se pegan defendiendola, porque son exactamente las
+ * dos preguntas de esa pantalla — el que fuerza ataca, el que sufre defiende. Dejada y
+ * recuperacion quedan afuera de las dos: no son ni una cosa ni la otra.
+ *
+ * El orden y el conjunto vienen de `STROKES_CON_LADO`, no se repiten a mano: si el dia de
+ * mañana ese orden cambia, estas dos lo siguen solas.
+ */
+export const STROKES_OFENSIVOS_CON_LADO: Stroke[] = STROKES_CON_LADO.filter(
+  (s) => s === 'volea' || s === 'salida_pared_ofensiva',
+);
+export const STROKES_DEFENSIVOS_CON_LADO: Stroke[] = STROKES_CON_LADO.filter(
+  (s) => s === 'chiquita' || s === 'globo' || s === 'fondo' || s === 'salida_pared_defensiva',
+);

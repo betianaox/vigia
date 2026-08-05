@@ -2,7 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useEffect, useMemo, useState } from 'react';
-import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { reduce, undo } from '../engine';
@@ -41,6 +41,8 @@ import {
   sideLabels,
   strokeLabels,
   STROKES_CON_LADO,
+  STROKES_DEFENSIVOS_CON_LADO,
+  STROKES_OFENSIVOS_CON_LADO,
   STROKES_POR_ALTO,
   STROKES_SIN_LADO,
 } from './shots';
@@ -207,36 +209,40 @@ export function MatchScreen({
   };
 
   /**
-   * El boton dedicado del que resta: "fallo la devolucion", forzado o no. A diferencia del
-   * toque corto de siempre, ESTE SIEMPRE ABRE LA HOJA — no depende de la preferencia de como
-   * se cargan los golpes, porque el boton entero existe para poder decir con que golpe se
-   * fallo el resto. `onReturn` es lo que separa este error de cualquier otro en las
-   * estadisticas (ver `computeStats`): sin la marca, es indistinguible de un error a mitad
-   * de un peloteo largo.
+   * El boton dedicado del que resta: "fallo la devolucion". YA NO PREGUNTA NADA — antes se
+   * elegia forzado o no forzado y, si era forzado, con que golpe y quien lo forzo. Pero una
+   * falla de recepcion SIEMPRE es forzada (nadie devuelve mal un saque por decision propia) y
+   * el que la fuerza SIEMPRE es el que esta sacando, con el golpe que es siempre el mismo: el
+   * saque. No hay nada que preguntar porque no hay nada que decidir; por eso este boton no abre
+   * la hoja, a diferencia de cualquier otro error de la cancha.
+   *
+   * `onReturn` es lo que separa este error de cualquier otro en las estadisticas (ver
+   * `computeStats`): sin la marca, es indistinguible de un error a mitad de un peloteo largo.
    */
-  const registerReturnError = (type: 'ERROR_FORZADO' | 'ERROR_NO_FORZADO', player: PlayerId) => {
+  const registerReturnFail = (player: PlayerId) => {
     thud();
-    setShotFor(events.length);
-    push({ type, player, onReturn: true });
+    push({
+      type: 'ERROR_FORZADO',
+      player,
+      onReturn: true,
+      forcedBy: state.server,
+      forcedByShot: { stroke: 'saque' },
+    });
   };
 
   /**
-   * El otro lado del error forzado: quien lo forzo, y con que golpe. Se escribe DE UNA, junto
-   * con el golpe — no en dos pasos separados — porque preguntar "¿quien?" y dejar "¿con que
-   * golpe?" pendiente es un estado a medias que despues hay que resolver igual.
-   *
-   * Y ACA TERMINA LA HOJA: no se pregunta despues con que golpe fallo el que erro. En un error
-   * forzado el golpe que importa es el del que FORZO —es lo que esa persona hizo— y el del que
-   * lo sufrio no dice casi nada: te obligaron, pegaste lo que pudiste. Al que se lo hicieron le
-   * queda su EF, sin desglose por golpe; el desglose vive del lado del que forzo (ver
-   * `forcedErrorsCausedByShot` en stats.ts). Preguntar los dos golpes era cobrar dos toques por
-   * un dato que no se iba a mirar.
+   * LOS TRES DATOS DEL ERROR FORZADO, DE UNA SOLA VEZ: quien lo forzo, con que, y con que
+   * respondio el que lo sufrio. Se escriben juntos y no en pasos que se van guardando —el
+   * bloque de tres pantallas de `ShotSheet` los junta antes de llamar aca— porque un estado a
+   * medias (se sabe quien forzo pero no el resto) es un caso que despues hay que resolver
+   * igual, y closing en cualquiera de los tres pasos cancela los tres (ver el bloque de la
+   * hoja): no tiene sentido guardar dos de tres.
    */
-  const setForcedByAndShot = (player: PlayerId, shot: Shot) => {
+  const completeForcedError = (forcedBy: PlayerId, forcedByShot: Shot, shot: Shot) => {
     tick();
     onEvents(
       events.map((e, i) =>
-        i === shotFor && e.type === 'ERROR_FORZADO' ? { ...e, forcedBy: player, forcedByShot: shot } : e,
+        i === shotFor && e.type === 'ERROR_FORZADO' ? { ...e, forcedBy, forcedByShot, shot } : e,
       ),
     );
     setShotFor(null);
@@ -390,8 +396,7 @@ export function MatchScreen({
                   tick();
                   push({ type: 'LET' });
                 }}
-                onReturnErrorForced={() => registerReturnError('ERROR_FORZADO', p)}
-                onReturnErrorUnforced={() => registerReturnError('ERROR_NO_FORZADO', p)}
+                onReturnFail={() => registerReturnFail(p)}
               />
             ))}
 
@@ -555,11 +560,7 @@ export function MatchScreen({
             pending.action === 'ERROR_FORZADO' && pending.forcedBy === undefined
               ? {
                   opponents: opponentsOf(pending.team),
-                  onPick: setForcedByAndShot,
-                  /* "No se quien fue": cierra, porque no hay paso siguiente al que seguir de
-                     largo (ver `setForcedByAndShot`). El punto YA quedo registrado con el
-                     toque en la cancha; esto solo se saltea el dato opcional. */
-                  onOmit: () => setShotFor(null),
+                  onComplete: completeForcedError,
                 }
               : undefined
           }
@@ -587,8 +588,7 @@ function PlayerCard(props: {
   onFalta: () => void;
   onAce: () => void;
   onLet: () => void;
-  onReturnErrorForced: () => void;
-  onReturnErrorUnforced: () => void;
+  onReturnFail: () => void;
 }) {
   const { s, m } = props;
   const c = teamColor(props.team);
@@ -663,43 +663,28 @@ function PlayerCard(props: {
           {serveBtn(L.court.let, colors.let, props.onLet)}
         </View>
       ) : props.receiving ? (
-        /* EL FALLO DE DEVOLUCION: dos botones y un slot vacio adelante, para que caigan en
-           la misma columna que su par de abajo — el de la izquierda sobre EF, el de la
-           derecha sobre ENF.
+        /* EL FALLO DE DEVOLUCION: un solo boton, alineado a la izquierda (dos slots vacios lo
+           siguen para que ocupe un tercio, no la fila entera, e igual de alto que sus pares).
+           Antes eran dos botones —EF y ENF— y antes de eso todavia el que forzo y el golpe se
+           preguntaban en una hoja aparte. Los tres pasos se fueron: una falla de recepcion es
+           siempre forzada (nadie devuelve mal un saque por gusto) y siempre la fuerza el que
+           saca, con el saque. No hay eleccion que hacer, asi que no hay nada que ofrecer para
+           elegir.
 
-           EL SLOT DE LA IZQUIERDA NO ES UN BOTON: ES EL ROTULO DE LA FILA. Dice "Resto", que
-           es de lo que habla toda la fila, y por eso los botones no tienen que repetirlo. Se
-           nota que no se toca porque no tiene ni borde ni fondo —los 14 botones de la cancha
-           tienen los dos— y va en gris apagado, en la voz de los titulos de seccion.
+           LLEVA LA MISMA FORMA QUE EL SEMAFORO: titulo arriba, descripcion abajo. El titulo
+           dice QUE paso (una falla) y la descripcion dice DE QUE FILA es ("Resto"), que es la
+           unica informacion que la fila de abajo no repite. Se dice FALLA y no "resto" porque
+           "resto forzado" se puede leer como un buen resto: hay que decir que es un ERROR. Y
+           falla es la palabra que la app ya usa para esto en estadisticas ("Falla de
+           recepcion"), asi que el boton y el numero se enseñan entre si.
 
-           LOS BOTONES LLEVAN LA MISMA FORMA QUE EL SEMAFORO: titulo arriba, descripcion abajo.
-           El titulo dice QUE paso (una falla) y la descripcion dice COMO (forzada o no), que
-           es el mismo reparto de los botones de abajo — y la segunda linea es literalmente el
-           mismo texto que ellos.
-
-           Se dice FALLA y no "resto" porque "resto forzado" se puede leer como un buen resto:
-           hay que decir que es un ERROR. Y falla es la palabra que la app ya usa para esto en
-           estadisticas ("Falla de recepcion"), asi que el boton y el numero se enseñan entre si.
-
-           Entran en el alto de siempre (`k.serve`): titulo a `serveFont` y descripcion a
-           `rallyDesc` suman menos que la franja, asi que las cuatro tarjetas siguen alineadas
-           sin tocar nada.
-
-           Y van EXACTAMENTE EN EL MISMO COLOR que su par de abajo, no en una variante apagada.
-           Se probo con la variante chart y sobraba: apagarlos servia mientras la fila no se
-           entendia —era la unica forma de que no compitieran— pero desde que el rotulo dice
-           "Resto" y la columna los emparenta, el color ya no tiene que disimular nada. Al
-           contrario: un error forzado es un error forzado, se haya cometido restando o en
-           mitad del peloteo, y el mismo amarillo lo dice sin una palabra. Lo que los separa
-           es DONDE estan, no de que color son. */
+           Va en el mismo amarillo que el EF de abajo, no en una variante apagada: es, ni mas
+           ni menos, un error forzado — el mismo dato, solo que este ya viene con el forzador y
+           el golpe resueltos de antemano. */
         <View style={s.row}>
-          <View style={s.returnLabel}>
-            <FixedText style={s.returnLabelText} numberOfLines={1}>
-              {L.court.returnRow}
-            </FixedText>
-          </View>
-          {returnBtn(colors.errorForced, L.court.forced, props.onReturnErrorForced)}
-          {returnBtn(colors.errorUnforced, L.court.unforced, props.onReturnErrorUnforced)}
+          {returnBtn(colors.errorForced, L.court.returnRow, props.onReturnFail)}
+          <View style={s.returnSpacer} />
+          <View style={s.returnSpacer} />
         </View>
       ) : (
         <View style={s.serveRowEmpty} />
@@ -835,7 +820,10 @@ function PlayerCard(props: {
  * se pierde un punto por venir aca, y salir sin elegir nada no cuesta nada.
  *
  * Un solo tap elige golpe Y lado: el lado es una columna de la matriz, no un paso mas.
- * Y no scrollea — las filas se achican hasta que todo entre (ver `sheet` en layout.ts).
+ * NO SCROLLEA PARA UN GOLPE SUELTO — las filas se achican hasta que todo entre (ver `sheet`
+ * en layout.ts). El bloque de tres pasos del error forzado (`ForcingBlock`) es mas alto que
+ * eso, y ESE SI scrollea (`sheetScroll`, mas abajo): es una red de seguridad para telefonos
+ * chicos, no el camino esperado — se apunta a que entre entero sin tocarla.
  */
 function ShotSheet(props: {
   action: RallyAction;
@@ -848,15 +836,15 @@ function ShotSheet(props: {
   /**
    * SOLO EN ERROR_FORZADO, Y SOLO HASTA QUE SE SEPA QUIEN LO FORZO.
    *
-   * Mientras esto exista, la hoja no pregunta por el golpe del que se equivoco: pregunta por
-   * el del que lo forzo, que es el dato nuevo y el mas importante de los dos. Una vez resuelto
-   * (`pending.forcedBy` deja de ser `undefined`, ver mas arriba), esta prop deja de llegar y la
-   * hoja vuelve a ser la de siempre — la del golpe propio, sin ningun cambio.
+   * Mientras esto exista, la hoja no es la de siempre —un golpe, un toque— sino el bloque de
+   * tres pasos de `ForcingBlock`: quien forzo, con que forzo, y con que respondio el que lo
+   * sufrio. Una vez resuelto (`pending.forcedBy` deja de ser `undefined`, ver mas arriba), esta
+   * prop deja de llegar y la hoja vuelve a ser la de siempre — la del golpe propio, sin ningun
+   * cambio.
    */
   forcing?: {
     opponents: Array<{ id: PlayerId; position: Position; name: string }>;
-    onPick: (player: PlayerId, shot: Shot) => void;
-    onOmit: () => void;
+    onComplete: (forcedBy: PlayerId, forcedByShot: Shot, shot: Shot) => void;
   };
 }) {
   const { s, m } = props;
@@ -867,33 +855,16 @@ function ShotSheet(props: {
   const strokes = strokeLabels();
   const sides = sideLabels();
 
-  /**
-   * A QUIEN SE LE ESTA PREGUNTANDO EL GOLPE, dentro del paso "quien lo forzo".
-   *
-   * Vive ACA, local, y no en MatchScreen: la hoja entera se remonta cada vez que se abre un
-   * punto nuevo (nace de `{pending && <ShotSheet/>}`, sin key), asi que no hace falta
-   * resetearlo a mano — un punto nuevo es, para React, un componente nuevo.
-   */
-  const [who, setWho] = useState<{ id: PlayerId; name: string } | null>(null);
-
   const pick = (shot: Shot) => {
     tick();
     props.onPick(shot);
   };
 
-  const pickForcing = (shot: Shot) => {
-    if (!who) return;
-    tick();
-    props.forcing?.onPick(who.id, shot);
-  };
-
   /**
-   * LA GRILLA DE GOLPES, EN UNA SOLA FUNCION, PORQUE SE DIBUJA DOS VECES.
-   *
-   * Una vez para "con que golpe lo forzo" y otra para "con que golpe se equivoco". Es la MISMA
-   * grilla, el mismo orden, el mismo tamaño de letra: dos teclados que se vieran distinto
-   * enseñarian dos cosas donde hay una sola. Lo unico que cambia entre las dos llamadas es a
-   * donde va el toque.
+   * LA GRILLA DE GOLPES COMPLETA: winner y error no forzado, sin cambios. El error forzado ya
+   * no la usa —tiene su propio bloque de tres pasos, `ForcingBlock`, con dos subconjuntos de
+   * esta misma grilla (ofensivos y defensivos)— pero winner y ENF siguen preguntando por
+   * cualquier golpe, dejada y recuperacion incluidas.
    */
   const grid = (onPickShot: (shot: Shot) => void) => (
     <>
@@ -973,11 +944,6 @@ function ShotSheet(props: {
     </>
   );
 
-  /** Todavia no se eligio A QUIEN: se ven los dos botones D/R. */
-  const pickingWho = Boolean(props.forcing) && !who;
-  /** Ya se eligio a quien: ahora la grilla pregunta por SU golpe, no por el del que erro. */
-  const pickingForcingShot = Boolean(props.forcing) && Boolean(who);
-
   return (
     <Modal visible transparent animationType="slide" onRequestClose={props.onSkip}>
       {/* El fondo es un HERMANO de la hoja, no su padre. Cuando era el padre, cualquier
@@ -988,29 +954,18 @@ function ShotSheet(props: {
 
         <View style={s.sheet}>
           {/* La X va a la derecha, del lado del pulgar. Igual no es el unico modo de salir:
-              tocar el fondo (un objetivo enorme) y el boton de atras tambien cierran. Y ACA
-              TAMBIEN CIERRA TODO, no solo el paso de "quien lo forzo" — omitir ESE paso solo
-              tiene su propio link, mas abajo. */}
+              tocar el fondo (un objetivo enorme) y el boton de atras tambien cierran. En el
+              bloque de tres pasos del error forzado, cierra los TRES —no hay paso a medias que
+              guardar (ver `completeForcedError` en MatchScreen). */}
           <View style={s.sheetTop}>
             <Text style={s.sheetTitle} numberOfLines={1}>
-              {pickingWho ? (
-                <Text style={{ color: colors.textDim }}>{L.court.forcedByTitle}</Text>
-              ) : pickingForcingShot ? (
-                /* EL NOMBRE DE QUIEN LO FORZO, NO EL DEL QUE SE EQUIVOCO. Es la misma grilla
-                   que se usa mas abajo para el golpe propio, y sin este cartel nada avisa que
-                   ahora el golpe es de la OTRA persona — se elegiria a ciegas. */
-                <Text style={{ color: teamColor(props.team === 'A' ? 'B' : 'A') }}>
-                  {L.court.forcedByShotTitle(who!.name)}
-                </Text>
-              ) : (
-                /* Solo la inicial y el nombre: "W Ana Ruiz". Nada de "Winner de ...", que hay
-                   que traducir y que con un nombre largo empuja al nombre fuera de la
-                   pantalla. Los dos colores hacen el trabajo de las palabras que sacamos. */
-                <>
-                  <Text style={{ color: action.color }}>{action.label}</Text>{' '}
-                  <Text style={{ color: teamColor(props.team) }}>{props.playerName}</Text>
-                </>
-              )}
+              {/* Solo la inicial y el nombre: "W Ana Ruiz". Nada de "Winner de ...", que hay
+                  que traducir y que con un nombre largo empuja al nombre fuera de la pantalla.
+                  Los dos colores hacen el trabajo de las palabras que sacamos. En el error
+                  forzado esta cabecera queda IGUAL —dice quien lo sufrio—: los tres pasos que
+                  siguen abajo son los que van cambiando, no este titulo. */}
+              <Text style={{ color: action.color }}>{action.label}</Text>{' '}
+              <Text style={{ color: teamColor(props.team) }}>{props.playerName}</Text>
             </Text>
             {/* Blanca, no roja: cerrar sin elegir golpe no es destructivo ni es un error — el
                 punto ya quedo registrado. Un rojo diria "cuidado", y aca no hay cuidado. */}
@@ -1024,68 +979,226 @@ function ShotSheet(props: {
             </Pressable>
           </View>
 
-          {pickingWho ? (
-            /* LOS DOS CANDIDATOS: la pareja QUE GANO el punto, la unica que pudo haberlo
-               forzado. D/R sin nombre, igual que la marca de agua de la tarjeta — es el mismo
-               vocabulario en toda la cancha, y con dos botones grandes no hace falta mas. */
-            <View style={s.forcingRow}>
-              {props.forcing!.opponents.map((o) => (
-                <Pressable
-                  key={o.id}
-                  style={({ pressed: p }) => [
-                    s.forcingPick,
-                    /* El color del equipo, pero al 50% como el resto de los bordes de la
-                       cancha: dice de quien es sin encender la pantalla. */
-                    { borderColor: alpha(teamColor(props.team === 'A' ? 'B' : 'A'), 0.5) },
-                    p && s.pressed,
-                  ]}
-                  android_ripple={ripple}
-                  onPress={() => {
-                    tick();
-                    setWho({ id: o.id, name: o.name });
-                  }}
-                >
-                  {/* LAS DOS COSAS: la posicion y el nombre. La letra sola era la marca de agua
-                      de la tarjeta, y ahi funciona porque esta PEGADA a la cara de la persona;
-                      suelta en una hoja, obliga a acordarse de quien es la D — justo el trabajo
-                      que la app existe para no hacerte hacer. El nombre desambigua y la letra
-                      sigue siendo lo que se ve primero, que es como se los busca en la cancha. */}
-                  <Text
-                    style={[
-                      s.forcingPickText,
-                      { color: teamColor(props.team === 'A' ? 'B' : 'A') },
-                    ]}
-                  >
-                    {o.position === 'drive' ? 'D' : 'R'}
-                  </Text>
-                  <Text style={s.forcingPickName} numberOfLines={1}>
-                    {o.name}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          ) : (
-            grid(pickingForcingShot ? pickForcing : pick)
-          )}
-
-          {/* "No lo se": cierra sin decir quien forzo. Hace lo mismo que la X y esta bien que
-              este igual — la X es una cruz gris arriba a la derecha, y esto DICE lo que pasa
-              si la tocas. Solo existe mientras existe el paso. */}
-          {props.forcing && (
-            <Pressable
-              style={({ pressed: p }) => [s.forcingOmit, p && s.pressed]}
-              android_ripple={ripple}
-              onPress={() => {
-                tick();
-                props.forcing!.onOmit();
-              }}
-            >
-              <Text style={s.forcingOmitText}>{L.court.forcedByOmit}</Text>
-            </Pressable>
-          )}
+          {/* `sheetScroll` tiene un techo (ver `makeStyles`): mientras el contenido entre —el
+              caso de siempre, incluida esta misma hoja para winner/ENF— no se nota que es un
+              ScrollView, se ve identica a una hoja fija. Solo cuando el bloque de tres pasos
+              no entra (telefonos chicos) aparece el deslizamiento, como red de seguridad. */}
+          <ScrollView
+            style={s.sheetScroll}
+            contentContainerStyle={s.sheetScrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {props.forcing ? (
+              <ForcingBlock
+                s={s}
+                m={m}
+                erringTeam={props.team}
+                erringName={props.playerName}
+                opponents={props.forcing.opponents}
+                onComplete={props.forcing.onComplete}
+              />
+            ) : (
+              grid(pick)
+            )}
+          </ScrollView>
         </View>
       </View>
     </Modal>
+  );
+}
+
+/**
+ * LOS TRES PASOS DEL ERROR FORZADO, EN UNA SOLA VISTA. Antes eran dos pantallas que se
+ * reemplazaban (quien forzo -> con que forzo); ahora son tres bloques apilados en la misma
+ * hoja, LOS TRES COMPLETOS DESDE QUE SE ABRE — mismo look que la hoja de golpes de siempre,
+ * nada aparece ni desaparece. Lo que cambia es cual RESPONDE al toque: el que todavia no
+ * corresponde esta apagado y no reacciona (`pointerEvents="none"`), y eso solo, sin acomodar
+ * ni ocultar nada, ya da la sensacion de wizard. Cerrar en cualquier punto (la X, o "No lo se"
+ * del primer bloque) cancela los tres — no hay guardado parcial.
+ *
+ * LOS GOLPES DE CADA PASO SON DISTINTOS A PROPOSITO. El que fuerza estaba atacando: sus
+ * opciones son los golpes de ataque (`STROKES_POR_ALTO` + los ofensivos con lado). El que
+ * sufrio estaba defendiendo: las suyas son los golpes de defensa. Ninguno de los dos pasos
+ * ofrece dejada ni recuperacion — no son ni ataque ni defensa clara, y esta pantalla solo
+ * pregunta por las dos mitades que sí lo son.
+ */
+function ForcingBlock(props: {
+  s: ReturnType<typeof makeStyles>;
+  m: Metrics;
+  /** El equipo de quien SUFRIO el forzado. Los candidatos a haberlo forzado son del rival. */
+  erringTeam: TeamId;
+  erringName: string;
+  opponents: Array<{ id: PlayerId; position: Position; name: string }>;
+  onComplete: (forcedBy: PlayerId, forcedByShot: Shot, shot: Shot) => void;
+}) {
+  const { s } = props;
+  const strokes = strokeLabels();
+  const sides = sideLabels();
+  const forcerTeam: TeamId = props.erringTeam === 'A' ? 'B' : 'A';
+
+  const [who, setWho] = useState<{ id: PlayerId; name: string } | null>(null);
+  const [forcedShot, setForcedShot] = useState<Shot | null>(null);
+
+  const pickWho = (o: { id: PlayerId; name: string }) => {
+    tick();
+    setWho(o);
+  };
+  const pickForcedShot = (shot: Shot) => {
+    tick();
+    setForcedShot(shot);
+  };
+  const pickErredShot = (shot: Shot) => {
+    if (!who || !forcedShot) return;
+    tick();
+    props.onComplete(who.id, forcedShot, shot);
+  };
+
+  /**
+   * Cuatro botones iguales, sin lado: remate, bandeja, vibora, rulo. `selected` resalta el que
+   * ya se eligio en ESTE bloque — se sigue mostrando entero, resaltado, aunque el bloque ya
+   * este resuelto y desactivado (ver `pointerEvents` en cada bloque, mas abajo).
+   */
+  const porAltoRow = (onPickShot: (shot: Shot) => void, selected: Shot | null) => (
+    <View style={s.sheetRow}>
+      {STROKES_POR_ALTO.map((stroke) => (
+        <Pressable
+          key={stroke}
+          style={({ pressed: p }) => [
+            s.sheetBase,
+            selected?.stroke === stroke && s.sheetBaseSelected,
+            p && s.pressed,
+          ]}
+          android_ripple={ripple}
+          onPress={() => onPickShot({ stroke })}
+        >
+          <Text style={s.sheetBaseText} numberOfLines={1} adjustsFontSizeToFit>
+            {strokes[stroke]}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+
+  /** El teclado D/R para un subconjunto de golpes con lado — la misma pieza que usa `grid`. */
+  const sideKeys = (strokesArr: Stroke[], onPickShot: (shot: Shot) => void, selected: Shot | null) => (
+    <>
+      <View style={s.keyHead}>
+        <Text style={s.keyHeadText} numberOfLines={1} adjustsFontSizeToFit>
+          {sides[LEFT].toUpperCase()}
+        </Text>
+        <View style={s.keyName} />
+        <Text style={s.keyHeadText} numberOfLines={1} adjustsFontSizeToFit>
+          {sides[RIGHT].toUpperCase()}
+        </Text>
+      </View>
+      {strokesArr.map((stroke) => {
+        const anchor = stroke === ANCHOR;
+        const selLeft = selected?.stroke === stroke && selected.side === LEFT;
+        const selRight = selected?.stroke === stroke && selected.side === RIGHT;
+        return (
+          <View key={stroke} style={s.keyRow}>
+            <Pressable
+              style={({ pressed: p }) => [
+                s.key,
+                anchor && s.keyAnchor,
+                selLeft && s.keySelected,
+                p && s.pressed,
+              ]}
+              android_ripple={ripple}
+              onPress={() => onPickShot({ stroke, side: LEFT })}
+            >
+              <View style={[s.keyDot, anchor && s.keyDotAnchor, selLeft && s.keyDotSelected]} />
+            </Pressable>
+            <Text style={s.keyName} numberOfLines={1}>
+              {strokes[stroke]}
+            </Text>
+            <Pressable
+              style={({ pressed: p }) => [
+                s.key,
+                anchor && s.keyAnchor,
+                selRight && s.keySelected,
+                p && s.pressed,
+              ]}
+              android_ripple={ripple}
+              onPress={() => onPickShot({ stroke, side: RIGHT })}
+            >
+              <View style={[s.keyDot, anchor && s.keyDotAnchor, selRight && s.keyDotSelected]} />
+            </Pressable>
+          </View>
+        );
+      })}
+    </>
+  );
+
+  return (
+    <>
+      {/* PASO 1: quien lo forzo. Los dos candidatos son la pareja QUE GANO el punto — la unica
+          que pudo haberlo forzado. LOS TRES BLOQUES VAN COMPLETOS DESDE EL PRINCIPIO, con el
+          mismo look de la hoja de golpes de siempre: lo que los distingue no es que aparezcan
+          o desaparezcan, es que los que todavia no corresponden se ven apagados y no responden
+          al toque (`pointerEvents="none"`, ver los bloques 2 y 3) — la sensacion de wizard sin
+          dejar de parecerse a la hoja que ya se conoce. */}
+      <View style={s.stepBlock}>
+        <Text style={[s.stepTitle, !who && s.stepTitleActive]} numberOfLines={1}>
+          {L.court.forcedByTitle}
+        </Text>
+        {/* Una vez elegido, el bloque se apaga solo (no hace falta `stepBlockOff`: ya eligio,
+            no hace falta seguir invitando al toque) pero se sigue viendo entero, con el elegido
+            resaltado — asi la respuesta queda a la vista mientras se contesta lo que sigue. */}
+        <View style={s.forcingRow} pointerEvents={who ? 'none' : 'auto'}>
+          {props.opponents.map((o) => (
+            <Pressable
+              key={o.id}
+              style={({ pressed: p }) => [
+                s.forcingPick,
+                { borderColor: alpha(teamColor(forcerTeam), 0.5) },
+                who?.id === o.id && s.forcingPickSelected,
+                p && s.pressed,
+              ]}
+              android_ripple={ripple}
+              onPress={() => pickWho(o)}
+            >
+              <Text style={[s.forcingPickText, { color: teamColor(forcerTeam) }]}>
+                {o.position === 'drive' ? 'D' : 'R'}
+              </Text>
+              <Text style={s.forcingPickName} numberOfLines={1}>
+                {o.name}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+
+      {/* La linea entre bloques: el unico separador de toda la hoja, porque es la unica hoja
+          con mas de una pregunta. Marca donde termina un paso y empieza el siguiente sin
+          agregar una palabra mas. */}
+      <View style={[s.stepDivider, s.stepGap]} />
+
+      {/* PASO 2: con que forzo. Apagado (opacidad) hasta que el paso 1 tenga respuesta; sin
+          respuesta propia todavia, tampoco responde al toque. */}
+      <View style={[s.stepBlock, !who && s.stepBlockOff]}>
+        <Text style={[s.stepTitle, who && !forcedShot && s.stepTitleActive]} numberOfLines={1}>
+          {L.court.forcedByShotTitle(who?.name ?? '…')}
+        </Text>
+        <View pointerEvents={who && !forcedShot ? 'auto' : 'none'}>
+          {porAltoRow(pickForcedShot, forcedShot)}
+          {sideKeys(STROKES_OFENSIVOS_CON_LADO, pickForcedShot, forcedShot)}
+        </View>
+      </View>
+
+      <View style={[s.stepDivider, s.stepGap]} />
+
+      {/* PASO 3: con que respondio el que lo sufrio. Apagado hasta que el paso 2 tenga
+          respuesta. Elegir aca cierra los tres pasos de una: ver `pickErredShot`. */}
+      <View style={[s.stepBlock, !forcedShot && s.stepBlockOff]}>
+        <Text style={[s.stepTitle, forcedShot && s.stepTitleActive]} numberOfLines={1}>
+          {L.court.erredByShotTitle(props.erringName)}
+        </Text>
+        <View pointerEvents={forcedShot ? 'auto' : 'none'}>
+          {sideKeys(STROKES_DEFENSIVOS_CON_LADO, pickErredShot, null)}
+        </View>
+      </View>
+    </>
   );
 }
 
@@ -1179,6 +1292,15 @@ const makeStyles = (m: Metrics) => {
   /** La descripcion vive en una linea exacta, siempre. */
   const descLine = Math.round(k.rallyDesc * 1.35);
 
+  /**
+   * EL TECHO DEL SCROLL DE LA HOJA (`sheetScroll`): el alto util menos la barra del titulo y
+   * el inset de abajo. Descontaba ademas el gap y el padding entero de la hoja, y quedaba
+   * corto — sobraba fondo visible arriba de la hoja mientras las dos (la grilla de siempre y
+   * el bloque de tres pasos) ya scrolleaban por un margen que no hacia falta. Un solo `h.pad`
+   * (no dos) sigue reservando el aire de arriba de la hoja; el resto se lo queda el contenido.
+   */
+  const sheetScrollMax = Math.max(TOUCH_MIN * 3, m.avail - h.close - h.pad - m.insetBottom);
+
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.bg },
     row: { flexDirection: 'row', gap: k.rowGap },
@@ -1229,20 +1351,9 @@ const makeStyles = (m: Metrics) => {
 
     /** El titulo del fallo de devolucion: la voz del semaforo, en la caja del saque. */
     returnTitle: { fontWeight: '900', fontSize: k.serveFont, letterSpacing: 0.5, textAlign: 'center' },
-
-    /**
-     * EL ROTULO DE LA FILA, NO UN BOTON. Ocupa un tercio como los otros dos para que la
-     * columna cierre, pero sin borde ni fondo: en esta pantalla todo lo que se toca los
-     * tiene, asi que su ausencia ya dice "esto no se toca".
-     */
-    returnLabel: { flex: 1, height: k.serve, alignItems: 'center', justifyContent: 'center' },
-    returnLabelText: {
-      fontWeight: '800',
-      fontSize: k.rallyDesc,
-      letterSpacing: 1,
-      textTransform: 'uppercase',
-      color: colors.textFaint,
-    },
+    /** Los slots vacios a los lados del boton de falla de recepcion, para que ocupe un
+        tercio y quede en la misma columna que el EF de la fila de abajo. */
+    returnSpacer: { flex: 1 },
 
     identity: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: k.gap },
 
@@ -1384,6 +1495,10 @@ const makeStyles = (m: Metrics) => {
       borderTopLeftRadius: radius.lg,
       borderTopRightRadius: radius.lg,
     },
+    /** Ver `sheetScrollMax`: invisible mientras el contenido entre, red de seguridad si no. */
+    sheetScroll: { maxHeight: sheetScrollMax },
+    sheetScrollContent: { gap: h.gap },
+
     sheetTop: { flexDirection: 'row', alignItems: 'center', height: h.close },
     sheetClose: {
       width: h.close,
@@ -1416,7 +1531,7 @@ const makeStyles = (m: Metrics) => {
       textAlign: 'center',
       color: colors.textDim,
       fontSize: strokeFont,
-      fontWeight: '700',
+      fontWeight: '600',
     },
     sheetCellNameOn: { color: colors.text },
 
@@ -1466,6 +1581,14 @@ const makeStyles = (m: Metrics) => {
       borderColor: alpha(colors.text, 0.45),
     },
     keyDotAnchor: { backgroundColor: colors.text },
+    /** El elegido en el bloque del error forzado (`ForcingBlock`): mismo trato que el ancla,
+        pero en el color del error para que se distinga de "este golpe es facil de tocar" (el
+        ancla) de "esto es lo que se toco" (esto). */
+    keySelected: {
+      backgroundColor: alpha(colors.errorForced, 0.2),
+      borderColor: colors.errorForced,
+    },
+    keyDotSelected: { backgroundColor: colors.errorForced },
 
     /**
      * El golpe base: solido y con contorno claro. Es el que se toca sin pensar, y el ojo
@@ -1493,26 +1616,26 @@ const makeStyles = (m: Metrics) => {
      * decir dos veces lo mismo, y de paso rompe la fila: nueve nombres iguales y dos mas grandes se
      * leen como si fueran de otra cosa.
      */
-    sheetBaseText: { color: colors.text, fontSize: strokeFont, fontWeight: '900' },
+    sheetBaseText: { color: colors.text, fontSize: strokeFont, fontWeight: '700' },
+    /** El elegido en el paso "con que forzo" de `ForcingBlock`. Mismo trato que `keySelected`. */
+    sheetBaseSelected: {
+      backgroundColor: alpha(colors.errorForced, 0.2),
+      borderColor: colors.errorForced,
+    },
 
 
     /**
-     * Los dos candidatos a haber forzado el error. Ocupan el lugar de la grilla entera —son
-     * el unico contenido del primer paso— asi que pueden ser grandes: dos botones grandes se
-     * aciertan sin mirar, que es exactamente lo que hace falta reaccionando a un punto que ya
-     * paso.
+     * Los dos candidatos a haber forzado el error. Antes eran EL UNICO CONTENIDO del primer
+     * paso —una pantalla propia— y podian ser tan grandes como un boton de saque (`h.row`).
+     * Ahora son el primero de TRES bloques que tienen que entrar juntos, asi que bajan a un
+     * piso mas chico: siguen siendo mucho mas altos que `TOUCH_MIN` (se aciertan igual, sin
+     * mirar) pero ya no le sacan a los otros dos bloques el aire que necesitan.
      */
-    /**
-     * ALTO PROPIO, NO `flex: 1`. Tenia flex y quedaba en DOS RAYAS de unos pocos pixeles: la
-     * hoja no tiene alto propio —crece con lo que le pongas adentro— y un `flex: 1` contra un
-     * padre sin alto resuelve a cero. Los dos botones existian y no se podian tocar.
-     *
-     * ES UNA FILA DE LA HOJA, NO UN CARTEL. Al arreglarlo quedaron dos cajas del doble de alto,
-     * con la letra enorme y un borde de 2 px: gritaban mas que cualquier otra cosa de la app,
-     * para un paso que es OPCIONAL. Ahora usan el molde que ya existe —la celda de la hoja, la
-     * misma de dejada y recuperacion— y por eso no hay nada nuevo que aprender a mirar.
-     */
-    forcingRow: { height: h.row, flexDirection: 'row', gap: h.gap },
+    forcingRow: {
+      height: Math.max(TOUCH_MIN, Math.round(h.row * 0.68)),
+      flexDirection: 'row',
+      gap: h.gap,
+    },
     forcingPick: {
       flex: 1,
       flexDirection: 'row',
@@ -1525,14 +1648,36 @@ const makeStyles = (m: Metrics) => {
       backgroundColor: colors.surfaceAlt,
     },
     /** La letra manda —es como se los busca— pero en el cuerpo de la hoja, no en titular. */
-    forcingPickText: { fontSize: strokeFont, fontWeight: '900' },
-    forcingPickName: { color: colors.text, fontSize: strokeFont, fontWeight: '700' },
+    forcingPickText: { fontSize: strokeFont, fontWeight: '700' },
+    forcingPickName: { color: colors.text, fontSize: strokeFont, fontWeight: '600' },
+    /** El candidato elegido en el paso "quien lo forzo". Mismo trato que `keySelected`. */
+    forcingPickSelected: {
+      backgroundColor: alpha(colors.errorForced, 0.2),
+      borderColor: colors.errorForced,
+    },
 
-    /** "No se quien fue": cierra la hoja. Un link, no un boton — no es la accion principal,
-        es la salida rapida de un paso opcional. El PUNTO ya esta cargado desde la cancha:
-        salir de aca no pierde nada, solo deja el dato fino sin completar. */
-    forcingOmit: { alignItems: 'center', paddingVertical: k.gap },
-    forcingOmitText: { color: colors.textFaint, fontSize: h.label, fontWeight: '700' },
+    /**
+     * LOS TRES BLOQUES DEL ERROR FORZADO (`ForcingBlock`). `stepBlockOff` es el que todavia no
+     * se puede contestar —el paso anterior sigue sin resolver—: se apaga con opacidad, no
+     * desaparece, para que las tres preguntas se vean desde el principio y quede claro que
+     * faltan dos mas. `stepTitleActive` marca CUAL de los tres es el que hay que contestar
+     * ahora — es todo el "destacado" que pidio la consigna: un color mas fuerte, nada de
+     * animaciones que compitan con la cancha de abajo.
+     */
+    /** Mas apretado que `h.gap`: son TRES bloques, no uno, y el titulo de cada uno ya separa
+        visualmente sin necesitar tanto aire como el que la hoja de un solo paso se podia dar. */
+    stepBlock: { gap: Math.round(h.gap * 0.5) },
+    /** El aire arriba y abajo de `stepDivider` — reemplaza al `sheetRowApart` de siempre (que
+        sigue usando el aire completo en la grilla de un solo paso) solo para este bloque. */
+    stepGap: { marginVertical: Math.round(h.gap * 0.7) },
+    /** La linea entre bloques. Es la UNICA hoja con mas de una pregunta, asi que es la unica
+        que necesita decir "esto termino, esto otro empieza" sin palabras. */
+    stepDivider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
+    stepBlockOff: { opacity: 0.35 },
+    /** Menos peso que `sheetTitle` (800) a proposito: son preguntas de un mismo bloque, no el
+        titulo de la hoja, y con el mismo peso costaba distinguir uno de otro de un vistazo. */
+    stepTitle: { color: colors.textFaint, fontSize: h.title, fontWeight: '600' },
+    stepTitleActive: { color: colors.textDim },
 
     /**
      * Cubre la cancha y NADA MAS: el tanteador queda arriba (con el resultado) y la barra

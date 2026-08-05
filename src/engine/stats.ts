@@ -30,12 +30,14 @@ export interface PlayerStats {
   unforcedErrors: number;
 
   /**
-   * El desglose por golpe existe donde el golpe SE CARGA: el winner y el error no forzado son
-   * actos propios y la hoja pregunta con que se hicieron.
+   * El desglose por golpe existe donde el golpe SE CARGA: el winner, el error no forzado, y el
+   * error forzado del lado de quien lo sufre son actos propios y la hoja pregunta con que se
+   * hicieron.
    *
-   * EL ERROR FORZADO NO TIENE DESGLOSE DE ESTE LADO, y no es un olvido: la hoja pregunta por
-   * el golpe del que FORZO, no por el del que sufrio. Lo que hizo el que fuerza esta en
-   * `forcedErrorsCausedByShot`, en SU ficha.
+   * EL ERROR FORZADO SE SUMA ACA MISMO, en `unforcedByShot`, no en un desglose propio: para
+   * quien lo sufre, "con que erro" es el mismo dato haya sido forzado o no — lo unico que
+   * cambia es de quien es la culpa del punto, y eso ya lo cuenta `forcedErrors` aparte. Lo que
+   * hizo el que FUERZA, en cambio, esta en `forcedErrorsCausedByShot`, en SU ficha.
    */
   winnersByShot: ShotTally;
   unforcedByShot: ShotTally;
@@ -140,11 +142,13 @@ export interface TeamStats {
 }
 
 /**
- * Como le rindio un golpe: cuantos winners dio y cuantos errores no forzados costo.
+ * Como le rindio un golpe: cuantos winners dio y cuantos errores costo.
  *
- * SIN COLUMNA DE FORZADOS: ese desglose no existe mas (ver `PlayerStats`). La hoja pregunta
- * con que golpe FORZO el que gano el punto, no con cual fallo el que lo sufrio, asi que
- * dibujar una columna de forzados por golpe seria una columna condenada a estar vacia.
+ * `unforced` MEZCLA LOS DOS TIPOS DE ERROR, a proposito: para quien pega el golpe, fallar una
+ * bandeja es fallar una bandeja, la hayan forzado o no — lo que cambia es de quien es la culpa
+ * del punto (`forcedErrors` vs `unforcedErrors`), no con que se erro. SIN COLUMNA APARTE DE
+ * FORZADOS: esa pregunta ("con que golpe FORZASTE vos un error ajeno") es otro dato, y vive en
+ * `forcedErrorsCausedByShot`, en la ficha del que fuerza.
  */
 export interface ShotLine {
   shot: Stroke;
@@ -364,12 +368,9 @@ export const computeStats = (config: MatchConfig, events: MatchEvent[]): MatchSt
       case 'ERROR_FORZADO': {
         const p = players[e.player]!;
         p.forcedErrors += 1;
-        /**
-         * SIN DESGLOSE POR GOLPE DEL LADO DE QUIEN ERRO, a proposito: la hoja ya no lo
-         * pregunta. En un error forzado el golpe que importa es el del que FORZO —eso es lo
-         * que esa persona hizo— y el del que lo sufrio no dice casi nada: te obligaron, y
-         * pegaste lo que pudiste. Vive en `forcedErrorsCausedByShot`, del otro lado.
-         */
+        // Con que erro, en el mismo desglose que un error no forzado (ver el comentario en
+        // `PlayerStats`): para quien lo sufre es el mismo dato de siempre.
+        bump(p.unforcedByShot, e.shot);
         if (e.onReturn) p.returnErrorsForced += 1;
         // El otro lado del duelo: quien lo forzo, y con que. Vive en SU ficha, no en la de
         // quien erro — es lo que el hizo, igual que un ace vive en la ficha de quien saco.

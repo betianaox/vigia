@@ -5,12 +5,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { computeStats, pct, shotLines, totalDuels } from '../engine/stats';
 import type { MatchStats, PlayerStats } from '../engine/stats';
-import type { MatchConfig, MatchEvent, MatchState, PlayerId, TeamId } from '../engine';
+import type { MatchConfig, MatchEvent, MatchState, PlayerId, Stroke, TeamId } from '../engine';
 import { L } from '../i18n';
 import { Brand } from './Brand';
 import { HeadToHead } from './charts/HeadToHead';
 import { playerRows } from './charts/playerRows';
 import { ShotBars } from './charts/ShotBars';
+import { strokeLabels } from './shots';
 import { TeamCompare, type CompareRow } from './charts/TeamCompare';
 import { useRoster } from './roster';
 import { Scoreboard } from './Scoreboard';
@@ -357,6 +358,23 @@ const duels = (
   return lines.length > 0 ? lines.join(' · ') : undefined;
 };
 
+/**
+ * Con que golpe se forzaron esos errores: "2 de Saque · 1 de Bandeja".
+ *
+ * Mismo trato que `duels`, pero por golpe en vez de por rival — es la otra mitad de la
+ * pregunta "¿como forzaste esos errores?". Antes esta ficha siempre iba a estar vacia porque
+ * ningun boton cargaba `forcedByShot`; desde que la falla de resto lo carga sola (siempre
+ * "Saque", ver `registerReturnFail` en MatchScreen), el dato empieza a existir.
+ */
+const shotDuels = (tally: Partial<Record<Stroke, number>>): string | undefined => {
+  const labels = strokeLabels();
+  const lines = (Object.entries(tally) as Array<[Stroke, number]>)
+    .filter(([, n]) => n > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([shot, n]) => `${n} de ${labels[shot]}`);
+  return lines.length > 0 ? lines.join(' · ') : undefined;
+};
+
 function PlayerCard({
   p,
   names,
@@ -423,7 +441,9 @@ function PlayerCard({
         <Stat
           label={L.stats.forcedErrorsCaused}
           value={forcedCaused > 0 ? `${forcedCaused}` : '—'}
-          sub={duels(p.forcedErrorsCaused, names)}
+          sub={[duels(p.forcedErrorsCaused, names), shotDuels(p.forcedErrorsCausedByShot)]
+            .filter(Boolean)
+            .join('\n')}
         />
         <View style={s.statCell} />
         <View style={s.statCell} />

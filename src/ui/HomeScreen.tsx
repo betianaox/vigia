@@ -43,79 +43,86 @@ export function HomeScreen({
           <Image source={LOGO} style={s.logo} resizeMode="contain" />
         </View>
 
-        {/* LAS PUERTAS. Nuevo partido es la unica que ARRANCA algo, asi que lleva el verde que
-            en el resto de la app significa "esto empieza"; las demas abren algo que ya existe
-            y van todas del mismo tamano, en una fila que ENVUELVE (`flexWrap`).
-            Envolver y no una fila fija de dos es a proposito: el dia que aparezca una tercera
-            puerta —o una cuarta— cae en un renglon nuevo sola, sin que haya que rediseñar la
-            pantalla para que entre. */}
-        <View style={s.doors}>
-          <Pressable
-            style={({ pressed: pr }) => [s.primary, pr && pressed]}
-            android_ripple={ripple}
-            onPress={() => {
-              tick();
-              onNewMatch();
-            }}
-          >
-            <MaterialIcons name="play-arrow" size={26} color={colors.text} />
-            <Text style={s.primaryText}>{L.setup.newMatch}</Text>
-          </Pressable>
-
-          <View style={s.row}>
+        {/* TODO LO DE ABAJO SE ANCLA AL PISO, NO AL TECHO. `s.bottom` es flex:1 con
+            `justifyContent: 'flex-end'`: las puertas y el boton de siembra se apilan
+            contra el borde inferior sin importar cuanto espacio libre haya arriba. Si
+            dependieran de un padding-top fijo, una resolucion mas alta o mas baja que la
+            que se probo dejaria el bloque flotando a mitad de pantalla o pegado al notch. */}
+        <View style={s.bottom}>
+          {/* LAS PUERTAS. Nuevo partido es la unica que ARRANCA algo, asi que lleva el verde que
+              en el resto de la app significa "esto empieza"; las demas abren algo que ya existe
+              y van todas del mismo tamano, en una fila que ENVUELVE (`flexWrap`).
+              Envolver y no una fila fija de dos es a proposito: el dia que aparezca una tercera
+              puerta —o una cuarta— cae en un renglon nuevo sola, sin que haya que rediseñar la
+              pantalla para que entre. */}
+          <View style={s.doors}>
             <Pressable
-              style={({ pressed: pr }) => [s.door, pr && pressed]}
+              style={({ pressed: pr }) => [s.primary, pr && pressed]}
               android_ripple={ripple}
               onPress={() => {
                 tick();
-                onHistory();
+                onNewMatch();
               }}
             >
-              <MaterialIcons name="history" size={22} color={colors.text} />
-              <Text style={s.doorText}>{L.setup.history}</Text>
+              <MaterialIcons name="play-arrow" size={26} color={colors.text} />
+              <Text style={s.primaryText}>{L.setup.newMatch}</Text>
             </Pressable>
 
-            <Pressable
-              style={({ pressed: pr }) => [s.door, pr && pressed]}
-              android_ripple={ripple}
-              onPress={() => {
-                tick();
-                onPlayers();
-              }}
-            >
-              <MaterialIcons name="groups" size={22} color={colors.text} />
-              <Text style={s.doorText}>{L.setup.players}</Text>
-            </Pressable>
+            <View style={s.row}>
+              <Pressable
+                style={({ pressed: pr }) => [s.door, pr && pressed]}
+                android_ripple={ripple}
+                onPress={() => {
+                  tick();
+                  onHistory();
+                }}
+              >
+                <MaterialIcons name="history" size={22} color={colors.text} />
+                <Text style={s.doorText}>{L.setup.history}</Text>
+              </Pressable>
+
+              <Pressable
+                style={({ pressed: pr }) => [s.door, pr && pressed]}
+                android_ripple={ripple}
+                onPress={() => {
+                  tick();
+                  onPlayers();
+                }}
+              >
+                <MaterialIcons name="groups" size={22} color={colors.text} />
+                <Text style={s.doorText}>{L.setup.players}</Text>
+              </Pressable>
+            </View>
           </View>
-        </View>
 
-        {/* Siembra un partido entero, jugado por el motor, para poder probar las estadisticas
-            sin cargar cien puntos a mano. `__DEV__` es false en el build de produccion, asi
-            que este boton no existe alli — ni el codigo que cuelga de el. Vive en el inicio y
-            no en el formulario: es una herramienta de la app entera, no de cargar un partido. */}
-        {__DEV__ && (
-          <Pressable
-            style={({ pressed: pr }) => [s.seed, pr && pressed]}
-            android_ripple={ripple}
-            onPress={() => {
-              tick();
-              void (async () => {
-                const day = 24 * 60 * 60 * 1000;
-                for (let i = 0; i < 5; i++) {
-                  await seedMatch({
-                    seed: Math.floor(Math.random() * 10000),
-                    strengthA: 0.42 + i * 0.05,
-                    startedAt: Date.now() - (75 - i * 15) * day,
-                  });
-                }
-                onHistory();
-              })();
-            }}
-          >
-            <MaterialIcons name="science" size={16} color={colors.textFaint} />
-            <Text style={s.seedText}>Sembrar 5 partidos de prueba</Text>
-          </Pressable>
-        )}
+          {/* Siembra un partido entero, jugado por el motor, para poder probar las estadisticas
+              sin cargar cien puntos a mano. `__DEV__` es false en el build de produccion, asi
+              que este boton no existe alli — ni el codigo que cuelga de el. Vive en el inicio y
+              no en el formulario: es una herramienta de la app entera, no de cargar un partido. */}
+          {__DEV__ && (
+            <Pressable
+              style={({ pressed: pr }) => [s.seed, pr && pressed]}
+              android_ripple={ripple}
+              onPress={() => {
+                tick();
+                void (async () => {
+                  const day = 24 * 60 * 60 * 1000;
+                  for (let i = 0; i < 5; i++) {
+                    await seedMatch({
+                      seed: Math.floor(Math.random() * 10000),
+                      strengthA: 0.42 + i * 0.05,
+                      startedAt: Date.now() - (75 - i * 15) * day,
+                    });
+                  }
+                  onHistory();
+                })();
+              }}
+            >
+              <MaterialIcons name="science" size={16} color={colors.textFaint} />
+              <Text style={s.seedText}>Sembrar 5 partidos de prueba</Text>
+            </Pressable>
+          )}
+        </View>
       </SafeAreaView>
     </ImageBackground>
   );
@@ -123,11 +130,14 @@ export function HomeScreen({
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  safe: { flex: 1, padding: space.lg, justifyContent: 'space-between' },
+  safe: { flex: 1, padding: space.lg },
 
   head: { alignItems: 'center', paddingTop: space.xl },
   /** El ancho manda, el alto sale de la proporcion real del archivo (ver `LOGO_RATIO`). */
   logo: { width: 180, height: 180 / LOGO_RATIO },
+
+  /** Ancla todo lo de abajo al piso de la pantalla, no al techo (ver comentario en el JSX). */
+  bottom: { flex: 1, justifyContent: 'flex-end', gap: space.md },
 
   /**
    * SOBRE EL FONDO, LOS BOTONES NECESITAN SU PROPIO CONTRASTE. Un texto blanco solo sobre una

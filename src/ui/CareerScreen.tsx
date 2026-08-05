@@ -7,10 +7,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { CareerPoint, CareerStats } from '../engine/career';
 import { pct, totalDuels } from '../engine/stats';
 import type { PlayerStats } from '../engine/stats';
+import type { Stroke } from '../engine';
 import { L } from '../i18n';
 import { Brand } from './Brand';
 import { useRoster } from './roster';
 import { ShotStack } from './charts/ShotStack';
+import { strokeLabels } from './shots';
 import { Trend, type TrendPoint } from './charts/Trend';
 import { alpha, colors, pressed, radius, ripple, space } from './theme';
 
@@ -18,6 +20,22 @@ const tick = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
 const num = (n: number | null, suffix = ''): string =>
   n === null ? '—' : `${Math.round(n)}${suffix}`;
+
+/**
+ * Con que golpe se forzaron esos errores, acumulado: "12 de Saque · 3 de Bandeja".
+ *
+ * Mismo calculo que en la ficha del partido (`shotDuels` en StatsScreen), pero SIN el "contra
+ * quien" que esa si tiene: un duelo por rival, sumado en dos temporadas, no termina nunca —el
+ * golpe en cambio es un conjunto chico y cerrado, cabe igual en un acumulado.
+ */
+const shotDuels = (tally: Partial<Record<Stroke, number>>): string | undefined => {
+  const labels = strokeLabels();
+  const lines = (Object.entries(tally) as Array<[Stroke, number]>)
+    .filter(([, n]) => n > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([shot, n]) => `${n} de ${labels[shot]}`);
+  return lines.length > 0 ? lines.join(' · ') : undefined;
+};
 
 /**
  * Las metricas que se pueden seguir en el tiempo.
@@ -420,6 +438,7 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
                 <Stat
                   label={L.stats.forcedErrorsCaused}
                   value={careerForcedCaused > 0 ? `${careerForcedCaused}` : '—'}
+                  sub={shotDuels(stats.totals.forcedErrorsCausedByShot)}
                 />
                 <View style={s.statCell} />
                 <View style={s.statCell} />

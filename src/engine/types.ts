@@ -90,7 +90,15 @@ export type Stroke =
   | 'bandeja'
   | 'vibora'
   | 'rulo'
-  | 'remate';
+  | 'remate'
+  /**
+   * EL SAQUE. No lo elige nadie desde ninguna hoja: lo pone la app sola, como
+   * `forcedByShot` de toda falla de recepcion (ver `registerReturnFail` en
+   * `MatchScreen`) — una devolucion fallida siempre la fuerza el saque de quien esta
+   * sacando, nunca otra cosa. Sin lado, como los golpes por alto: el saque no se juega
+   * de drive o de reves, se juega de donde toque sacar.
+   */
+  | 'saque';
 
 /**
  * NO HAY VARIANTES. Existio un campo `variant` que refinaba el golpe sin partirlo (la vibora
@@ -168,16 +176,22 @@ export type MatchEvent = (
       player: PlayerId;
       onReturn?: boolean;
       /**
-       * ESTE EVENTO NO LLEVA `shot`, Y ES LA DECISION QUE LO DEFINE.
+       * CON QUE GOLPE ERRO EL QUE SUFRIO EL FORZADO. Hubo una decision de no preguntarlo —
+       * costaba un toque mas en la unica pantalla que se opera entre dos puntos, y no se iba a
+       * mirar— pero se pidio de vuelta: entra en el mismo desglose que un error no forzado
+       * cualquiera (`unforcedByShot` en `PlayerStats`), porque para quien lo sufre es lo mismo
+       * dato: con que le erro.
        *
-       * Un error forzado es el unico que tiene responsable de los dos lados, y de esos dos
-       * golpes solo uno dice algo: el del que FORZO. El del que lo sufrio no aporta —te
-       * obligaron, y pegaste lo que pudiste—, y preguntarlo costaba un toque mas en la unica
-       * pantalla que se opera entre dos puntos.
-       *
-       * Asi que la hoja pregunta quien forzo y con que, y ahi termina. El desglose por golpe
-       * vive en la ficha del que fuerza (`forcedErrorsCausedByShot`); el que lo sufrio se
-       * queda con su EF, sin desglose.
+       * SOLO SE PREGUNTA SI YA SE SABE QUIEN FORZO. Los tres datos de este evento —quien
+       * forzo, con que forzo, y con que erro el que lo sufrio— se cargan de una sola vez en
+       * `MatchScreen` (ver el bloque de tres pasos ahi); cerrar en cualquiera de los tres deja
+       * el evento sin ninguno de los tres, no a medias.
+       */
+      shot?: Shot;
+      /**
+       * El otro lado del duelo: quien lo forzo, y con que. El desglose por golpe de ESTE lado
+       * vive en la ficha del que fuerza (`forcedErrorsCausedByShot`), no en la de quien erro —
+       * es lo que esa persona hizo.
        */
       forcedBy?: PlayerId;
       forcedByShot?: Shot;

@@ -427,6 +427,21 @@ describe('quien forzo el error', () => {
     ]);
     expect(s.players.a1!.forcedErrorsCaused).toEqual({ b1: 2 });
   });
+
+  it('con que golpe erro el que sufrio el forzado suma junto a los no forzados', () => {
+    const s = computeStats(c, [
+      {
+        type: 'ERROR_FORZADO',
+        player: 'b1',
+        forcedBy: 'a1',
+        forcedByShot: { stroke: 'remate' },
+        shot: { stroke: 'chiquita' },
+      },
+    ]);
+    // El golpe de quien fuerza vive en SU ficha; el de quien sufre, en la de siempre.
+    expect(s.players.a1!.forcedErrorsCausedByShot).toEqual({ remate: 1 });
+    expect(s.players.b1!.unforcedByShot).toEqual({ chiquita: 1 });
+  });
 });
 
 describe('las estadisticas son una funcion pura del log', () => {

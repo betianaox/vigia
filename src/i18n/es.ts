@@ -59,6 +59,8 @@ export const es = {
      * No es un golpe defensivo cualquiera, y por eso no se traduce como tal.
      */
     recuperacion: 'Recuperación',
+    /** Nunca sale de una hoja: lo pone la app sola en toda falla de recepcion (ver `Stroke`). */
+    saque: 'Saque',
   },
 
   /**
@@ -197,7 +199,8 @@ export const es = {
     forcedByTitle: '¿Quién lo forzó?',
     /** El nombre de QUIEN LO FORZO, no del que se equivoco: sin esto, se elegiria a ciegas. */
     forcedByShotTitle: (name: string) => `¿Con qué golpe forzó ${name}?`,
-    forcedByOmit: 'Omitir',
+    /** El tercer paso: ahora el nombre es el de quien SUFRIO el forzado, no el que forzo. */
+    erredByShotTitle: (name: string) => `¿Con qué golpe erró ${name}?`,
 
     goldenPoint: 'PUNTO DE ORO',
     goldenPointChoose: 'PUNTO DE ORO — ELIGE EL QUE RESTA',

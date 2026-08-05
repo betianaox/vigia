@@ -24,6 +24,7 @@ export const it: Dict = {
     globo: 'Pallonetto',
     dejada: 'Smorzata',
     recuperacion: 'Recupero',
+    saque: 'Servizio',
   },
 
   sides: {
@@ -130,7 +131,7 @@ export const it: Dict = {
 
     forcedByTitle: 'Chi l’ha forzato?',
     forcedByShotTitle: (name: string) => `Con che colpo l’ha forzato ${name}?`,
-    forcedByOmit: 'Salta',
+    erredByShotTitle: (name: string) => `Con che colpo ha sbagliato ${name}?`,
 
     goldenPoint: 'PUNTO D’ORO',
     goldenPointChoose: 'PUNTO D’ORO — SCEGLI CHI RISPONDE',

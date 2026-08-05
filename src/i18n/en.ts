@@ -45,6 +45,7 @@ export const en: Dict = {
      * descripcion se dice en el idioma de cada uno.
      */
     recuperacion: 'Retrieval',
+    saque: 'Serve',
   },
 
   sides: {
@@ -151,7 +152,7 @@ export const en: Dict = {
 
     forcedByTitle: 'Who forced it?',
     forcedByShotTitle: (name: string) => `What shot did ${name} force it with?`,
-    forcedByOmit: 'Skip',
+    erredByShotTitle: (name: string) => `What shot did ${name} miss with?`,
 
     goldenPoint: 'GOLDEN POINT',
     goldenPointChoose: 'GOLDEN POINT — PICK THE RETURNER',

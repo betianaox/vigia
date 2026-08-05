@@ -24,6 +24,7 @@ export const pt: Dict = {
     globo: 'Globo',
     dejada: 'Dejada',
     recuperacion: 'Recuperação',
+    saque: 'Saque',
   },
 
   sides: {
@@ -130,7 +131,7 @@ export const pt: Dict = {
 
     forcedByTitle: 'Quem forçou?',
     forcedByShotTitle: (name: string) => `Com que golpe é que ${name} forçou?`,
-    forcedByOmit: 'Saltar',
+    erredByShotTitle: (name: string) => `Com que golpe é que ${name} errou?`,
 
     goldenPoint: 'PONTO DE OURO',
     goldenPointChoose: 'PONTO DE OURO — ESCOLHE QUEM RECEBE',
