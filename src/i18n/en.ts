@@ -352,6 +352,7 @@ export const en: Dict = {
     settings: 'Settings',
     privacy: 'Privacy policy',
     contact: 'Contact us',
+    rate: 'Rate the app',
     version: 'Vigía {v}',
 
     startHint:

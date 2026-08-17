@@ -65,6 +65,19 @@ const privacyUrl = (lang: Lang): string => {
 
 const SUPPORT_MAIL = 'support@imagostack.com';
 
+/**
+ * La ficha en Google Play.
+ *
+ * Se arma con el paquete de `app.json` y NO con `StoreReview.storeUrl()`, que parecia lo obvio:
+ * esa funcion lee `Constants.expoConfig`, que en un build de desarrollo sale de la configuracion
+ * EMBEBIDA en el apk. Agregar el campo a `app.json` no alcanzaba —habia que recompilar para que
+ * la fila apareciera—, y una fila que existe o no segun cuando se compilo es una trampa.
+ *
+ * Leyendo el paquete directo, la URL sale del mismo archivo que declara la app y no puede quedar
+ * desincronizada con ella.
+ */
+const PLAY_URL = `https://play.google.com/store/apps/details?id=${appJson.expo.android.package}`;
+
 /** Los idiomas. `auto` primero, con el que le toca hoy al lado, para no elegir a ciegas. */
 const languages = (): Array<{ value: LangPref; label: string }> => [
   { value: 'auto', label: `${L.setup.languageAuto} · ${LANG_NAMES[resolveLang('auto')]}` },
@@ -201,6 +214,12 @@ export function HelpScreen({
         />
 
         <View style={s.divider} />
+
+        {/* PRIMERA, arriba de las dos legales: es la unica de las tres que se ofrece, no que se
+            cumple. Abre la FICHA de Play, no el dialogo de valoracion — Google prohibe
+            expresamente disparar ese dialogo desde un boton. El dialogo aparece solo, y casi
+            nunca (ver `store/review.ts`). */}
+        <Link icon="star-outline" label={L.help.rate} onPress={() => open(PLAY_URL)} />
 
         <Link
           icon="shield"

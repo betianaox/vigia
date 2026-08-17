@@ -509,6 +509,12 @@ export const es = {
     settings: 'Ajustes',
     privacy: 'Política de privacidad',
     contact: 'Escríbenos',
+    /**
+     * Este boton abre la FICHA de Google Play, no el dialogo de valoracion dentro de la app:
+     * Google prohibe expresamente disparar ese dialogo desde un boton. El de adentro aparece
+     * solo, y casi nunca (ver `store/review.ts`).
+     */
+    rate: 'Valorar la app',
     /** {v} es la version que declara `app.json`: no se escribe a mano en ningun lado. */
     version: 'Vigía {v}',
 

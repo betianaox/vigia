@@ -1,6 +1,7 @@
 import * as SplashScreen from 'expo-splash-screen';
 import { NavigationBar } from 'expo-navigation-bar';
 import { StatusBar } from 'expo-status-bar';
+import * as StoreReview from 'expo-store-review';
 import { useCallback, useEffect, useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -12,6 +13,7 @@ import { career, type CareerStats } from './src/engine/career';
 import type { MatchConfig, MatchEvent } from './src/engine';
 import {
   getCurrentId,
+  loadIndex,
   loadMatch,
   loadMatchesOf,
   newMatchId,
@@ -19,6 +21,7 @@ import {
   setCurrentId,
   type SavedMatch,
 } from './src/store/matches';
+import { shouldAskReview } from './src/store/review';
 import { CareerScreen } from './src/ui/CareerScreen';
 import { HelpScreen } from './src/ui/HelpScreen';
 import { HistoryScreen } from './src/ui/HistoryScreen';
@@ -187,6 +190,29 @@ function Vigia({ onLanguage }: { onLanguage: () => void }) {
     })();
   }, []);
 
+  /**
+   * Pide la valoracion si toca. Cuenta los partidos TERMINADOS del indice —no los guardados—
+   * porque uno abandonado a los tres puntos no dice nada sobre si la app le sirvio a alguien.
+   *
+   * Nada de esto avisa si el dialogo se mostro: Google tiene su propia cuota y decide solo, sin
+   * contarselo a la app. Por eso el hito se marca como pedido igual, se haya visto o no — insistir
+   * hasta "acertar" es exactamente lo que vuelve molesta a una app.
+   */
+  const maybeAskReview = useCallback(async () => {
+    const p = prefs;
+    if (!p) return;
+
+    const finished = (await loadIndex()).filter((m) => m.finished).length;
+    if (!shouldAskReview(finished, p.lastReviewAsk)) return;
+
+    setPref({ lastReviewAsk: finished });
+
+    // Si el telefono no lo soporta —una version vieja de Play Services, un dispositivo sin
+    // Play— no pasa nada: no hay nada que ofrecerle y no se le inventa un cartel.
+    if (!(await StoreReview.hasAction())) return;
+    await StoreReview.requestReview().catch(() => {});
+  }, [prefs, setPref]);
+
   /** Las dos salidas del saludo lo dan por visto: la que entra a la ayuda y la que se va. */
   const closeWelcome = (goToHelp: boolean) => {
     setPref({ seenWelcome: true });
@@ -260,6 +286,18 @@ function Vigia({ onLanguage }: { onLanguage: () => void }) {
     setResumable(unfinished ? match : null);
     setMatch(null);
     setScreen(unfinished ? { name: 'resume' } : { name: 'home' });
+
+    /**
+     * LA VALORACION SE PIDE AL SALIR DE UN PARTIDO TERMINADO, no al terminarlo.
+     *
+     * Terminar el partido y que aparezca un dialogo encima de la cancha seria interrumpir el
+     * momento en el que la persona esta mirando el resultado. Aca ya cerro, ya vio lo que queria
+     * ver, y esta volviendo: es el hueco donde una pregunta no pisa nada.
+     *
+     * Y solo si era el partido TERMINADO: abandonar uno a medias no es el momento de preguntar
+     * si le gusta la app.
+     */
+    if (match && !unfinished) void maybeAskReview();
   };
 
   /**

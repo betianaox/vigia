@@ -103,7 +103,7 @@ export const pt: Dict = {
       cambio: 'Muda de lado',
     },
 
-    remembered: 'A app guarda isto para o próximo jogo.',
+    remembered: 'O app guarda isso para o próximo jogo.',
     start: 'Começar',
 
     history: 'Histórico',
@@ -172,12 +172,12 @@ export const pt: Dict = {
     backup: 'Cópia de segurança',
     export: 'Exportar',
     import: 'Importar',
-    exportNote: 'Os teus jogos vivem neste telemóvel. Guarda esta cópia onde quiseres.',
+    exportNote: 'Seus jogos ficam neste celular. Guarde esta cópia onde quiser.',
     imported: (n: number) => (n === 1 ? 'Adicionou-se 1 jogo.' : `Adicionaram-se ${n} jogos.`),
     importedNone: 'Não se adicionou nenhum: já os tinhas todos.',
     importedSkipped: (n: number) => (n === 1 ? '1 já estava.' : `${n} já estavam.`),
-    importBad: 'Esse ficheiro não é uma cópia do Vigía.',
-    importFailed: 'Não foi possível ler o ficheiro.',
+    importBad: 'Esse arquivo não é uma cópia do Vigía.',
+    importFailed: 'Não foi possível ler o arquivo.',
     ok: 'Pronto',
   },
 
@@ -267,8 +267,8 @@ export const pt: Dict = {
 
     finished: 'Jogo terminado.',
     finishedEarly: 'Jogo por terminar.',
-    share: 'Partilhar',
-    shareDialog: 'Partilhar o jogo',
+    share: 'Compartilhar',
+    shareDialog: 'Compartilhar o jogo',
 
     otherShots: 'Outros',
     noShots: 'Dados insuficientes.',
@@ -279,7 +279,7 @@ export const pt: Dict = {
 
   welcome: {
     title: 'Bem-vindo ao Vigía',
-    text: 'Para saber como usar a app, entra em Ajuda.',
+    text: 'Para saber como usar o app, entre em Ajuda.',
     help: 'Ajuda',
     close: 'Fechar',
   },
@@ -291,8 +291,8 @@ export const pt: Dict = {
 
     steps: [
       {
-        title: 'Tu vês. A app anota.',
-        text: 'É usada por alguém que está fora do campo: o treinador, alguém do banco, um amigo.',
+        title: 'Você vê. O app anota.',
+        text: 'É usado por alguém que está fora da quadra: o treinador, alguém do banco, um amigo.',
       },
       {
         title: 'Os quatro, na quadra',
@@ -300,7 +300,7 @@ export const pt: Dict = {
       },
       {
         title: 'Quem saca primeiro',
-        text: 'Sorteia-se, e podes corrigir à mão. Começa sacando o de direita, no início de cada set podes mudar.',
+        text: 'É sorteado, e você pode corrigir na mão. Começa sacando o de direita, no início de cada set dá para mudar.',
       },
       {
         title: 'Toca no que aconteceu no ponto',
@@ -320,20 +320,21 @@ export const pt: Dict = {
       },
       {
         title: 'A evolução de cada jogador',
-        text: 'Cada pessoa acumula os seus jogos, e podes acompanhar como progride com o tempo.',
+        text: 'Cada pessoa acumula seus jogos, e você acompanha como progride com o tempo.',
       },
       {
         title: 'Um cartão para o grupo',
-        text: 'O jogo todo numa imagem, pronta para partilhar no WhatsApp.',
+        text: 'O jogo todo em uma imagem, pronta para compartilhar no WhatsApp.',
       },
     ],
 
     settings: 'Ajustes',
     privacy: 'Política de privacidade',
     contact: 'Escreve-nos',
+    rate: 'Avaliar o app',
     version: 'Vigía {v}',
 
     startHint:
-      'Para começar, toca em {icon} Jogo novo. Se deixares um jogo por terminar, segues depois a partir do Histórico.',
+      'Para começar, toque em {icon} Jogo novo. Se deixar um jogo por terminar, você segue depois pelo Histórico.',
   },
 };

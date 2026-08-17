@@ -18,7 +18,8 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.imagostack.vigia"
+      "package": "com.imagostack.vigia",
+      "playStoreUrl": "https://play.google.com/store/apps/details?id=com.imagostack.vigia"
     },
     "web": {
       "favicon": "./assets/favicon.png"

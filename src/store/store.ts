@@ -61,6 +61,13 @@ export interface Prefs {
    * adelante la pantalla solo se abre a pedido, con el boton de ayuda del inicio.
    */
   seenWelcome: boolean;
+  /**
+   * Con cuantos partidos terminados se pidio la valoracion por ultima vez. Cero: nunca.
+   *
+   * Guarda el NUMERO y no un booleano a proposito (ver `store/review.ts`): asi, borrar partidos
+   * y volver a llegar al mismo hito no vuelve a preguntar.
+   */
+  lastReviewAsk: number;
 }
 
 /** La primera vez que se abre la app. De ahi en adelante manda lo ultimo que se uso. */
@@ -98,6 +105,9 @@ export const DEFAULT_PREFS: Prefs = {
    * ahora no estaban escritas en ningun lado.
    */
   seenWelcome: false,
+
+  /** Nunca se pidio. El primer hito es el tercer partido terminado. */
+  lastReviewAsk: 0,
 };
 
 /**

@@ -331,6 +331,7 @@ export const it: Dict = {
     settings: 'Impostazioni',
     privacy: 'Informativa sulla privacy',
     contact: 'Scrivici',
+    rate: 'Valuta l’app',
     version: 'Vigía {v}',
 
     startHint:
