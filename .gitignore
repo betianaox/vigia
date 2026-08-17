@@ -39,3 +39,7 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Capturas de pantalla sacadas con adb (ver scripts/shot.sh). Son para mirar la app y para
+# armar la ficha de Play, no parte del proyecto: un PNG de pantalla completa pesa megabytes.
+capturas/

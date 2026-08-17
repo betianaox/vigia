@@ -1,10 +1,12 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useState } from 'react';
 import { Image, ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { seedMatch } from '../dev/seed';
+import { seedSeason } from '../dev/seed';
 import { L } from '../i18n';
+import { useRoster } from './roster';
 import { alpha, colors, pressed, radius, ripple, space } from './theme';
 
 const tick = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -36,6 +38,21 @@ export function HomeScreen({
   onHistory: () => void;
   onPlayers: () => void;
 }) {
+  /* Sembrar una temporada entera tarda unos segundos en un telefono: el motor juega cada punto
+     de cada partido. Sin este contador el boton parece colgado y uno lo toca de nuevo. */
+  const [sembrando, setSembrando] = useState<{ done: number; total: number } | null>(null);
+
+  /**
+   * HAY QUE AVISARLE AL PLANTEL QUE CAMBIO.
+   *
+   * La siembra escribe los jugadores en AsyncStorage, pero el plantel que ve la app vive en el
+   * contexto de `roster.tsx`, que se lee UNA SOLA VEZ al arrancar. Sin este `reload`, los
+   * partidos sembrados aparecen en el historial —esa lista relee el indice cada vez que se
+   * abre— y los jugadores NO aparecen en ningun lado: la pantalla de jugadores queda vacia y
+   * entonces no hay a quien entrarle para ver sus estadisticas.
+   */
+  const { reload: reloadRoster } = useRoster();
+
   return (
     <ImageBackground source={BG} style={s.root} resizeMode="cover">
       <SafeAreaView style={s.safe}>
@@ -95,31 +112,44 @@ export function HomeScreen({
             </View>
           </View>
 
-          {/* Siembra un partido entero, jugado por el motor, para poder probar las estadisticas
-              sin cargar cien puntos a mano. `__DEV__` es false en el build de produccion, asi
-              que este boton no existe alli — ni el codigo que cuelga de el. Vive en el inicio y
-              no en el formulario: es una herramienta de la app entera, no de cargar un partido. */}
+          {/* Siembra una temporada entera, jugada por el motor, para poder probar y fotografiar
+              las estadisticas sin cargar mil puntos a mano. `__DEV__` es false en el build de
+              produccion, asi que este boton no existe alli — ni el codigo que cuelga de el. Vive
+              en el inicio y no en el formulario: es una herramienta de la app entera, no de
+              cargar un partido. */}
           {__DEV__ && (
             <Pressable
               style={({ pressed: pr }) => [s.seed, pr && pressed]}
               android_ripple={ripple}
+              disabled={sembrando !== null}
               onPress={() => {
                 tick();
+                setSembrando({ done: 0, total: 24 });
                 void (async () => {
-                  const day = 24 * 60 * 60 * 1000;
-                  for (let i = 0; i < 5; i++) {
-                    await seedMatch({
-                      seed: Math.floor(Math.random() * 10000),
-                      strengthA: 0.42 + i * 0.05,
-                      startedAt: Date.now() - (75 - i * 15) * day,
+                  try {
+                    await seedSeason({
+                      matches: 24,
+                      onProgress: (done, total) => setSembrando({ done, total }),
                     });
+                    // Antes de navegar: si no, se llega al historial con el plantel viejo.
+                    await reloadRoster();
+                    onHistory();
+                  } finally {
+                    setSembrando(null);
                   }
-                  onHistory();
                 })();
               }}
             >
-              <MaterialIcons name="science" size={16} color={colors.textFaint} />
-              <Text style={s.seedText}>Sembrar 5 partidos de prueba</Text>
+              <MaterialIcons
+                name={sembrando ? 'hourglass-top' : 'science'}
+                size={16}
+                color={colors.textFaint}
+              />
+              <Text style={s.seedText}>
+                {sembrando
+                  ? `Sembrando ${sembrando.done}/${sembrando.total}…`
+                  : 'Sembrar una temporada de prueba'}
+              </Text>
             </Pressable>
           )}
         </View>
