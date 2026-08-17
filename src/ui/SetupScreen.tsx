@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -19,7 +19,8 @@ import { Brand } from './Brand';
 import { PlayerField } from './PlayerField';
 import { useRoster } from './roster';
 import { Select } from './Select';
-import { alpha, colors, pressed, radius, ripple, space, teamColor } from './theme';
+import { useColors } from './theme-context';
+import { alpha, pressed, radius, ripple, space, teamColor, type Colors } from './theme';
 
 const tick = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 /** El golpe seco con el que aterriza el sorteo. */
@@ -111,6 +112,9 @@ export function SetupScreen({
 }) {
   // El plantel sale del contexto: una sola fuente en toda la app.
   const { players: roster, reload } = useRoster();
+
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
   const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS);
   /** Lo escrito en cada lugar. El jugador se resuelve al empezar, no antes. */
   const [names, setNames] = useState<Record<Slot, string>>({ a1: '', a2: '', b1: '', b2: '' });
@@ -249,14 +253,14 @@ export function SetupScreen({
             que se abre desde ahi (Historial, Jugadores). Misma posicion, mismo icono, en toda
             la app. */}
         <View style={s.head}>
-          <Brand subtitle={L.setup.newMatch} tint={colors.ball} />
+          <Brand subtitle={L.setup.newMatch} tint={c.ball} />
           <Pressable
             style={({ pressed: pr }) => [s.close, pr && pressed]}
             android_ripple={{ ...ripple, borderless: true }}
             onPress={onBack}
             hitSlop={10}
           >
-            <MaterialIcons name="close" size={24} color={colors.text} />
+            <MaterialIcons name="close" size={24} color={c.text} />
           </Pressable>
         </View>
 
@@ -267,10 +271,10 @@ export function SetupScreen({
                 La linea del color del equipo, corriendo hasta el borde, lo convierte en un
                 encabezado de verdad — y dice donde empieza cada equipo sin que haya que leerlo. */}
             <View style={s.blockHead}>
-              <Text style={[s.blockTitle, { color: teamColor(team) }]}>
+              <Text style={[s.blockTitle, { color: teamColor(team, c) }]}>
                 {teamName(team).toUpperCase()}
               </Text>
-              <View style={[s.blockRule, { backgroundColor: alpha(teamColor(team), 0.5) }]} />
+              <View style={[s.blockRule, { backgroundColor: alpha(teamColor(team, c), 0.5) }]} />
             </View>
 
             {/* El campo se resuelve solo: escribis y abajo aparecen los jugadores guardados que
@@ -362,7 +366,7 @@ export function SetupScreen({
           /* Cada equipo con SU color: es el mismo violeta y naranja de la cancha y del
              tanteador. Sin esto, "Equipo 1" y "Equipo 2" son dos palabras iguales y hay que
              leerlas; con el color, se reconocen sin leer. */
-          colorOf={(v) => teamColor(v as TeamId)}
+          colorOf={(v) => teamColor(v as TeamId, c)}
           right={
             <HeadChip
               icon="casino"
@@ -489,7 +493,7 @@ export function SetupScreen({
           <MaterialIcons
             name="play-arrow"
             size={26}
-            color={ready ? colors.text : colors.textFaint}
+            color={ready ? c.text : c.textFaint}
           />
           <Text style={[s.startText, !ready && s.startTextOff]}>{L.setup.start}</Text>
         </Pressable>
@@ -519,6 +523,9 @@ function HeadChip({
   disabled?: boolean;
   onPress: () => void;
 }) {
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+
   return (
     <Pressable
       style={({ pressed: pr }) => [s.chip, on && s.chipOn, pr && pressed]}
@@ -526,7 +533,7 @@ function HeadChip({
       onPress={onPress}
       disabled={disabled}
     >
-      <MaterialIcons name={icon} size={16} color={on ? colors.text : colors.textDim} />
+      <MaterialIcons name={icon} size={16} color={on ? c.text : c.textDim} />
       <Text style={[s.chipText, on && s.chipTextOn]} numberOfLines={1}>
         {label}
       </Text>
@@ -562,6 +569,9 @@ interface SegmentedProps {
 
 /** Un grupo de opciones excluyentes. Todas visibles: elegir no puede costar dos toques. */
 function Segmented(props: SegmentedProps) {
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+
   return (
     <View style={s.segBlock}>
       <View style={s.segHead}>
@@ -581,17 +591,17 @@ function Segmented(props: SegmentedProps) {
       {props.stack && props.options.length === 3 ? (
         <>
           <View style={s.segRow}>
-            {button(props, 0)}
-            {button(props, 1)}
+            {button(props, 0, c, s)}
+            {button(props, 1, c, s)}
           </View>
           <View style={s.segRow}>
             <View style={s.segSpacer} />
-            {button(props, 2)}
+            {button(props, 2, c, s)}
             <View style={s.segSpacer} />
           </View>
         </>
       ) : (
-        <View style={s.segRow}>{props.options.map((_, i) => button(props, i))}</View>
+        <View style={s.segRow}>{props.options.map((_, i) => button(props, i, c, s))}</View>
       )}
 
       {/**
@@ -615,8 +625,19 @@ function Segmented(props: SegmentedProps) {
   );
 }
 
-/** Un boton del grupo. Vive afuera para poder dibujarlo en cualquier renglon (ver el 2+1). */
-function button(props: SegmentedProps, i: number): ReactNode {
+/**
+ * Un boton del grupo. Vive afuera para poder dibujarlo en cualquier renglon (ver el 2+1).
+ *
+ * NO es un componente, es una funcion que devuelve JSX: por eso no puede pedir el tema con un
+ * hook y lo recibe. Y lo recibe como `theme` y no como `c` porque aca `c` ya significa otra
+ * cosa desde antes —el color del EQUIPO de esta opcion—, que no tiene nada que ver con el tema.
+ */
+function button(
+  props: SegmentedProps,
+  i: number,
+  theme: Colors,
+  s: ReturnType<typeof makeStyles>,
+): ReactNode {
   const o = props.options[i]!;
   const on = o.value === props.value;
   const c = props.colorOf?.(o.value);
@@ -631,7 +652,7 @@ function button(props: SegmentedProps, i: number): ReactNode {
            distingue al elegido es el BORDE BLANCO, que es el mismo vocabulario de la
            cancha: alla, el borde blanco marca al que saca. Nada nuevo que aprender. */
         c && { backgroundColor: alpha(c, on ? 0.24 : 0.1), borderColor: alpha(c, 0.45) },
-        c && on && { borderColor: colors.serve },
+        c && on && { borderColor: theme.serve },
         pr && pressed,
       ]}
       android_ripple={ripple}
@@ -656,8 +677,9 @@ function button(props: SegmentedProps, i: number): ReactNode {
  * El aire de esta pantalla es a proposito. No se toca bajo presion —se llena una vez, antes
  * de empezar— asi que puede respirar. Es lo contrario de la cancha, donde cada dp cuenta.
  */
-const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
+const makeStyles = (c: Colors) =>
+  StyleSheet.create({
+  root: { flex: 1, backgroundColor: c.bg },
   /**
    * `flexGrow` para que el contenido pueda OCUPAR la pantalla aunque no la llene: sin esto,
    * centrar no significa nada — el contenedor mide lo mismo que su contenido.
@@ -694,7 +716,7 @@ const s = StyleSheet.create({
   slotLabelBox: { alignItems: 'flex-start' },
   slotLabel: {
     height: 48,
-    color: colors.textFaint,
+    color: c.textFaint,
     fontSize: SLOT_FONT,
     fontWeight: '700',
     lineHeight: 48,
@@ -702,7 +724,7 @@ const s = StyleSheet.create({
   /** Reserva el ancho y no ocupa alto ni se ve. Solo esta para que la caja mida bien. */
   slotGhost: { height: 0, opacity: 0 },
 
-  hint: { color: colors.textFaint, fontSize: 12.5, lineHeight: 17 },
+  hint: { color: c.textFaint, fontSize: 12.5, lineHeight: 17 },
 
   segBlock: { gap: space.sm },
   segHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
@@ -710,8 +732,8 @@ const s = StyleSheet.create({
   segCell: { flex: 1 },
   /** El hueco a los costados de la opcion suelta del 2+1: la deja centrada y del mismo ancho. */
   segSpacer: { flex: 0.5 },
-  segHint: { color: colors.textFaint, fontSize: 12.5, lineHeight: 16 },
-  segTitle: { flex: 1, color: colors.textFaint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1.5 },
+  segHint: { color: c.textFaint, fontSize: 12.5, lineHeight: 16 },
+  segTitle: { flex: 1, color: c.textFaint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1.5 },
 
   segRow: { flexDirection: 'row', gap: space.sm },
   seg: {
@@ -729,12 +751,12 @@ const s = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: radius.sm,
     borderWidth: 1,
-    borderColor: alpha(colors.text, 0.2),
-    backgroundColor: colors.surfaceAlt,
+    borderColor: alpha(c.text, 0.2),
+    backgroundColor: c.surfaceAlt,
   },
-  segOn: { backgroundColor: alpha(colors.text, 0.16), borderColor: alpha(colors.text, 0.5) },
-  segText: { color: colors.textDim, fontSize: 14, fontWeight: '700', textAlign: 'center' },
-  segTextOn: { color: colors.text, fontWeight: '900' },
+  segOn: { backgroundColor: alpha(c.text, 0.16), borderColor: alpha(c.text, 0.5) },
+  segText: { color: c.textDim, fontSize: 14, fontWeight: '700', textAlign: 'center' },
+  segTextOn: { color: c.text, fontWeight: '900' },
 
   /**
    * La pastilla del renglon de titulo. Ver `HeadChip`.
@@ -753,22 +775,22 @@ const s = StyleSheet.create({
     paddingHorizontal: space.md,
     borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: alpha(colors.text, 0.2),
-    backgroundColor: colors.surfaceAlt,
+    borderColor: alpha(c.text, 0.2),
+    backgroundColor: c.surfaceAlt,
   },
-  chipOn: { backgroundColor: alpha(colors.text, 0.16), borderColor: alpha(colors.text, 0.5) },
-  chipText: { color: colors.textDim, fontSize: 13, fontWeight: '800' },
-  chipTextOn: { color: colors.text, fontWeight: '900' },
+  chipOn: { backgroundColor: alpha(c.text, 0.16), borderColor: alpha(c.text, 0.5) },
+  chipText: { color: c.textDim, fontSize: 13, fontWeight: '800' },
+  chipTextOn: { color: c.text, fontWeight: '900' },
 
   /** Una caja propia, justo debajo de lo que la abrio: lo que agrupa a las opciones ES la caja. */
   panel: {
     gap: space.lg,
     padding: space.md,
     borderRadius: radius.md,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
   },
   /** Sutil: separa sin dibujar cajas adentro de la caja. */
-  panelRule: { height: StyleSheet.hairlineWidth, backgroundColor: alpha(colors.text, 0.12) },
+  panelRule: { height: StyleSheet.hairlineWidth, backgroundColor: alpha(c.text, 0.12) },
   /* Aca vivia EL CORTE, la linea que separaba el reglamento del partido de lo que era de la app.
      Se fue con ellas: en este panel ya no conviven dos categorias, asi que no hay nada que
      cortar. */
@@ -787,14 +809,14 @@ const s = StyleSheet.create({
     height: 56,
     paddingHorizontal: space.md,
     borderRadius: radius.md,
-    backgroundColor: colors.cta,
+    backgroundColor: c.cta,
   },
-  startText: { color: colors.text, fontSize: 17, fontWeight: '900' },
+  startText: { color: c.text, fontSize: 17, fontWeight: '900' },
   /**
    * Deshabilitado NO es "el mismo boton mas transparente": el lima al 35% sobre fondo oscuro
    * da un verde oliva sucio que no se lee como apagado, se lee como roto. Se apaga cambiando
    * el color, no la opacidad.
    */
-  startOff: { backgroundColor: colors.surface },
-  startTextOff: { color: colors.textFaint },
+  startOff: { backgroundColor: c.surface },
+  startTextOff: { color: c.textFaint },
 });

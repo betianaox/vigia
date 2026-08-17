@@ -170,6 +170,24 @@ const light: Colors = {
    * necesita una barra grande, donde el area ya hace la mitad del trabajo.
    */
   ballChart: '#8A9C14',
+
+  /**
+   * LOS EQUIPOS, UN PASO MAS OSCUROS. Sobre el fondo claro, el violeta y el naranja originales
+   * quedaban en 2.40 y 2.00 — por debajo del minimo de 3:1 incluso para un grafico. Y no son un
+   * grafico: encabezan media pantalla del formulario, en texto.
+   *
+   * Quedan en 3.74 y 3.42: por encima del 3:1 de los elementos graficos, por debajo del 4.5 del
+   * texto chico. Se probo el paso siguiente —5.03 y 4.06— y era mas legible pero apagaba la
+   * marca: el naranja empezaba a irse a marron. Se eligio a ojo sobre el telefono, que es donde
+   * se mira, y estos nombres van en mayusculas y en negrita, que es la parte del texto que menos
+   * depende del contraste puro.
+   *
+   * El TONO se mantiene en los dos —violeta 262 contra 255, naranja 24 contra 27—, y eso es lo
+   * que importa para que sigan siendo la misma pareja: lo que los separa entre si, tambien para
+   * quien no distingue rojo de verde, es el tono, no el brillo.
+   */
+  teamA: '#8B5CF6',
+  teamB: '#D2600A',
 };
 
 export const themes = { oscuro: dark, claro: light } as const;

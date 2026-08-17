@@ -46,7 +46,8 @@ import {
   STROKES_POR_ALTO,
   STROKES_SIN_LADO,
 } from './shots';
-import { alpha, colors, pressed, radius, ripple, space, teamColor } from './theme';
+import { useColors } from './theme-context';
+import { alpha, pressed, radius, ripple, space, teamColor, type Colors } from './theme';
 
 type RallyAction = 'WINNER' | 'ERROR_FORZADO' | 'ERROR_NO_FORZADO';
 
@@ -95,19 +96,21 @@ const ANCHOR_BAJO: Stroke = 'dejada';
  * "Error no forzado" no entraba en dos lineas — se cortaba en "no for...". Dice lo mismo
  * en la mitad de ancho.
  */
-const rally = (): Array<{ type: RallyAction; label: string; desc: string; color: string }> => [
-  { type: 'WINNER', label: L.court.winnerShort, desc: L.court.winner, color: colors.winner },
+const rally = (
+  c: Colors,
+): Array<{ type: RallyAction; label: string; desc: string; color: string }> => [
+  { type: 'WINNER', label: L.court.winnerShort, desc: L.court.winner, color: c.winner },
   {
     type: 'ERROR_FORZADO',
     label: L.court.forcedShort,
     desc: L.court.forced,
-    color: colors.errorForced,
+    color: c.errorForced,
   },
   {
     type: 'ERROR_NO_FORZADO',
     label: L.court.unforcedShort,
     desc: L.court.unforced,
-    color: colors.errorUnforced,
+    color: c.errorUnforced,
   },
 ];
 
@@ -150,7 +153,8 @@ export function MatchScreen({
 
   const m = useMetrics();
   const { nameOf } = useRoster();
-  const s = useMemo(() => makeStyles(m), [m]);
+  const c = useColors();
+  const s = useMemo(() => makeStyles(m, c), [m, c]);
 
   const [shotFor, setShotFor] = useState<number | null>(null);
   const [rotated, setRotated] = useState(false);
@@ -413,7 +417,7 @@ export function MatchScreen({
                 onPress={() => swapPositions(t)}
                 hitSlop={10}
               >
-                <MaterialIcons name="swap-horiz" size={m.sheet.closeIcon} color={colors.text} />
+                <MaterialIcons name="swap-horiz" size={m.sheet.closeIcon} color={c.text} />
               </Pressable>
             )}
           </View>
@@ -434,13 +438,13 @@ export function MatchScreen({
             <MaterialIcons
               name="emoji-events"
               size={Math.round(m.card.avatarMax * 0.65)}
-              color={colors.trophy}
+              color={c.trophy}
             />
 
             <FixedText style={s.finishedTitle}>{L.court.finished}</FixedText>
 
             <FixedText
-              style={[s.finishedWinners, { color: teamColor(state.winner!) }]}
+              style={[s.finishedWinners, { color: teamColor(state.winner!, c) }]}
               numberOfLines={1}
             >
               {[config.teams[state.winner!].drive, config.teams[state.winner!].reves]
@@ -462,7 +466,7 @@ export function MatchScreen({
                 onPress={goHome}
                 disabled={!onHome}
               >
-                <MaterialIcons name="home" size={m.card.avatarMax * 0.55} color={colors.text} />
+                <MaterialIcons name="home" size={m.card.avatarMax * 0.55} color={c.text} />
                 <FixedText style={s.finishedBtnText}>{L.court.home}</FixedText>
               </Pressable>
 
@@ -477,7 +481,7 @@ export function MatchScreen({
                 <MaterialIcons
                   name="bar-chart"
                   size={m.card.avatarMax * 0.55}
-                  color={colors.text}
+                  color={c.text}
                 />
                 <FixedText style={s.finishedBtnText}>{L.court.stats}</FixedText>
               </Pressable>
@@ -503,7 +507,7 @@ export function MatchScreen({
           }}
           disabled={events.length === 0}
         >
-          <MaterialIcons name="undo" size={m.bottom.icon} color={colors.text} />
+          <MaterialIcons name="undo" size={m.bottom.icon} color={c.text} />
           <FixedText style={s.utilText}>{L.court.undo}</FixedText>
         </Pressable>
         {/* Solo icono: la etiqueta no explicaba nada (¿"dar vuelta" que?) y ocupaba lugar.
@@ -516,7 +520,7 @@ export function MatchScreen({
             setRotated((r) => !r);
           }}
         >
-          <MaterialIcons name="swap-vert" size={m.bottom.icon} color={colors.text} />
+          <MaterialIcons name="swap-vert" size={m.bottom.icon} color={c.text} />
         </Pressable>
         <Pressable
           style={({ pressed: p }) => [s.utilBtn, s.utilBtnIcon, p && s.pressed]}
@@ -526,7 +530,7 @@ export function MatchScreen({
             onStats?.();
           }}
         >
-          <MaterialIcons name="bar-chart" size={m.bottom.icon} color={colors.text} />
+          <MaterialIcons name="bar-chart" size={m.bottom.icon} color={c.text} />
         </Pressable>
 
         {/* Volver al inicio. Va ULTIMO, lo mas lejos posible de Deshacer: es la unica accion
@@ -543,7 +547,7 @@ export function MatchScreen({
           onPress={goHome}
           disabled={!onHome}
         >
-          <MaterialIcons name="home" size={m.bottom.icon} color={colors.text} />
+          <MaterialIcons name="home" size={m.bottom.icon} color={c.text} />
         </Pressable>
       </View>
 
@@ -591,7 +595,9 @@ function PlayerCard(props: {
   onReturnFail: () => void;
 }) {
   const { s, m } = props;
-  const c = teamColor(props.team);
+  const c = useColors();
+  /** El color del EQUIPO de esta tarjeta. No confundir con `c`, que es el tema. */
+  const teamC = teamColor(props.team, c);
   const second = props.serveState === 'SEGUNDO';
 
   /** Al pasar a 2do saque —o sea, cuando la falta entro— la pildora destella. */
@@ -616,7 +622,7 @@ function PlayerCard(props: {
       android_ripple={ripple}
       onPress={onPress}
     >
-      <FixedText style={[s.serveText, { color: solid ? colors.onLight : color }]} numberOfLines={1}>
+      <FixedText style={[s.serveText, { color: solid ? c.onLight : color }]} numberOfLines={1}>
         {label}
       </FixedText>
     </Pressable>
@@ -658,9 +664,9 @@ function PlayerCard(props: {
         <View style={s.row}>
           {/* En 2do saque dice DOBLE, no "doble falta": una sola palabra, una sola linea,
               y la pildora de abajo ya dice 2DO SAQUE. */}
-          {serveBtn(second ? L.court.double : L.court.fault, colors.falta, props.onFalta, true)}
-          {serveBtn(L.court.ace, colors.ace, props.onAce)}
-          {serveBtn(L.court.let, colors.let, props.onLet)}
+          {serveBtn(second ? L.court.double : L.court.fault, c.falta, props.onFalta, true)}
+          {serveBtn(L.court.ace, c.ace, props.onAce)}
+          {serveBtn(L.court.let, c.let, props.onLet)}
         </View>
       ) : props.receiving ? (
         /* EL FALLO DE DEVOLUCION: un solo boton, alineado a la izquierda (dos slots vacios lo
@@ -682,7 +688,7 @@ function PlayerCard(props: {
            ni menos, un error forzado — el mismo dato, solo que este ya viene con el forzador y
            el golpe resueltos de antemano. */
         <View style={s.row}>
-          {returnBtn(colors.errorForced, L.court.returnRow, props.onReturnFail)}
+          {returnBtn(c.errorForced, L.court.returnRow, props.onReturnFail)}
           <View style={s.returnSpacer} />
           <View style={s.returnSpacer} />
         </View>
@@ -695,7 +701,7 @@ function PlayerCard(props: {
         <View style={s.avatarRow}>
           {/* Un cuadrado que se resuelve solo: toma el alto disponible y saca el ancho de ahi.
               Nadie le dice cuanto mide — solo hasta donde puede crecer. */}
-          <View style={[s.avatar, { backgroundColor: c }]}>
+          <View style={[s.avatar, { backgroundColor: teamC }]}>
             <FixedText style={s.avatarText} numberOfLines={1} adjustsFontSizeToFit>
               {initials(props.name)}
             </FixedText>
@@ -706,7 +712,7 @@ function PlayerCard(props: {
               altura del nombre, que con un nombre largo se le montaba encima. Es absoluta y
               no captura toques — informa sin mover ni tapar nada. */}
           <View style={s.sideMark} pointerEvents="none">
-            <FixedText style={[s.sideMarkText, { color: alpha(c, 0.34) }]}>
+            <FixedText style={[s.sideMarkText, { color: alpha(teamC, 0.34) }]}>
               {props.position === 'drive' ? 'D' : 'R'}
             </FixedText>
           </View>
@@ -735,7 +741,7 @@ function PlayerCard(props: {
                 },
               ]}
             >
-              <FixedText style={[s.pillText, second && { color: colors.onLight }]}>
+              <FixedText style={[s.pillText, second && { color: c.onLight }]}>
                 {second ? L.court.secondServe : L.court.firstServe}
               </FixedText>
             </Animated.View>
@@ -753,7 +759,7 @@ function PlayerCard(props: {
                 <MaterialIcons
                   name="swap-horiz"
                   size={Math.round(m.card.pill * 1.3)}
-                  color={colors.textDim}
+                  color={c.textDim}
                 />
               </Pressable>
             )}
@@ -775,7 +781,7 @@ function PlayerCard(props: {
       </View>
 
       <View style={s.row}>
-        {rally().map((a) => (
+        {rally(c).map((a) => (
           <Pressable
             key={a.type}
             style={({ pressed: p }) => [
@@ -848,8 +854,9 @@ function ShotSheet(props: {
   };
 }) {
   const { s, m } = props;
+  const c = useColors();
   /** La misma inicial y el mismo color del boton que se acaba de tocar. */
-  const action = rally().find((a) => a.type === props.action)!;
+  const action = rally(c).find((a) => a.type === props.action)!;
 
   /** Los nombres, leidos al dibujar: si cambia el idioma, cambia la hoja. */
   const strokes = strokeLabels();
@@ -965,7 +972,7 @@ function ShotSheet(props: {
                   forzado esta cabecera queda IGUAL —dice quien lo sufrio—: los tres pasos que
                   siguen abajo son los que van cambiando, no este titulo. */}
               <Text style={{ color: action.color }}>{action.label}</Text>{' '}
-              <Text style={{ color: teamColor(props.team) }}>{props.playerName}</Text>
+              <Text style={{ color: teamColor(props.team, c) }}>{props.playerName}</Text>
             </Text>
             {/* Blanca, no roja: cerrar sin elegir golpe no es destructivo ni es un error — el
                 punto ya quedo registrado. Un rojo diria "cuidado", y aca no hay cuidado. */}
@@ -975,7 +982,7 @@ function ShotSheet(props: {
               onPress={props.onSkip}
               hitSlop={8}
             >
-              <MaterialIcons name="close" size={m.sheet.closeIcon} color={colors.text} />
+              <MaterialIcons name="close" size={m.sheet.closeIcon} color={c.text} />
             </Pressable>
           </View>
 
@@ -1032,6 +1039,7 @@ function ForcingBlock(props: {
   onComplete: (forcedBy: PlayerId, forcedByShot: Shot, shot: Shot) => void;
 }) {
   const { s } = props;
+  const c = useColors();
   const strokes = strokeLabels();
   const sides = sideLabels();
   const forcerTeam: TeamId = props.erringTeam === 'A' ? 'B' : 'A';
@@ -1151,14 +1159,14 @@ function ForcingBlock(props: {
               key={o.id}
               style={({ pressed: p }) => [
                 s.forcingPick,
-                { borderColor: alpha(teamColor(forcerTeam), 0.5) },
+                { borderColor: alpha(teamColor(forcerTeam, c), 0.5) },
                 who?.id === o.id && s.forcingPickSelected,
                 p && s.pressed,
               ]}
               android_ripple={ripple}
               onPress={() => pickWho(o)}
             >
-              <Text style={[s.forcingPickText, { color: teamColor(forcerTeam) }]}>
+              <Text style={[s.forcingPickText, { color: teamColor(forcerTeam, c) }]}>
                 {o.position === 'drive' ? 'D' : 'R'}
               </Text>
               <Text style={s.forcingPickName} numberOfLines={1}>
@@ -1218,16 +1226,19 @@ const longestStroke = (): number =>
 const longestCellStroke = (): number =>
   Math.max(...STROKES_SIN_LADO.map((st) => strokeLabels()[st].length));
 
-/**
- * El contorno de los botones de la hoja: mas marcado que un borde de superficie, para que
- * cada boton se recorte contra el fondo — pero por debajo del contorno del golpe base, que es
- * el unico que tiene que destacarse.
- */
-const SHEET_BORDER = alpha(colors.text, 0.2);
-
-const makeStyles = (m: Metrics) => {
+const makeStyles = (m: Metrics, c: Colors) => {
   const k = m.card;
   const h = m.sheet;
+
+  /**
+   * El contorno de los botones de la hoja: mas marcado que un borde de superficie, para que
+   * cada boton se recorte contra el fondo — pero por debajo del contorno del golpe base, que es
+   * el unico que tiene que destacarse.
+   *
+   * Vive ADENTRO de la fabrica: como constante de modulo leia el color una sola vez, al cargar
+   * el archivo, y se quedaba con el del tema que estuviera puesto en ese momento.
+   */
+  const SHEET_BORDER = alpha(c.text, 0.2);
   /** El ⇄ que da vuelta la pareja: flota sobre el hueco entre las dos tarjetas. */
   const swapSize = Math.round(k.avatarMax * 0.62);
 
@@ -1302,13 +1313,13 @@ const makeStyles = (m: Metrics) => {
   const sheetScrollMax = Math.max(TOUCH_MIN * 3, m.avail - h.close - h.pad - m.insetBottom);
 
   return StyleSheet.create({
-    root: { flex: 1, backgroundColor: colors.bg },
+    root: { flex: 1, backgroundColor: c.bg },
     row: { flexDirection: 'row', gap: k.rowGap },
 
     /** El acuse de recibo del toque. Lo llevan TODOS los botones (ver theme.ts). */
     pressed,
 
-    goldenBar: { backgroundColor: colors.golden, padding: k.gap, gap: k.gap, alignItems: 'center' },
+    goldenBar: { backgroundColor: c.golden, padding: k.gap, gap: k.gap, alignItems: 'center' },
     goldenText: { color: '#3B2708', fontWeight: '900', letterSpacing: 1, fontSize: k.pillFont + 2 },
     goldenBtn: {
       backgroundColor: '#3B2708',
@@ -1317,7 +1328,7 @@ const makeStyles = (m: Metrics) => {
       paddingHorizontal: space.xl,
       borderRadius: radius.sm,
     },
-    goldenBtnText: { color: colors.golden, fontWeight: '800', fontSize: k.name },
+    goldenBtnText: { color: c.golden, fontWeight: '800', fontSize: k.name },
 
     court: { flex: 1, gap: m.court.gap, padding: m.court.pad },
     teamRow: { flex: 1, flexDirection: 'row', gap: m.court.gap },
@@ -1328,13 +1339,13 @@ const makeStyles = (m: Metrics) => {
       padding: k.pad,
       borderRadius: radius.lg,
       borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.surface,
+      borderColor: c.border,
+      backgroundColor: c.surface,
       /** Red de seguridad: si algun dia el contenido no entra, que se recorte adentro de la
           tarjeta y no se le monte encima a la de abajo, como pasaba antes. */
       overflow: 'hidden',
     },
-    cardServing: { borderColor: colors.serve, borderWidth: 2, backgroundColor: colors.surfaceAlt },
+    cardServing: { borderColor: c.serve, borderWidth: 2, backgroundColor: c.surfaceAlt },
 
     // Los tres del saque son del mismo tamano; los distingue el color, no la jerarquia.
     serveRowEmpty: { height: k.serve },
@@ -1393,8 +1404,8 @@ const makeStyles = (m: Metrics) => {
       justifyContent: 'center',
     },
     /** La inicial se encoge sola contra el circulo que le toco: no hay ningun numero que atar. */
-    avatarText: { color: colors.bg, fontWeight: '900', fontSize: Math.round(k.avatarMax * 0.42) },
-    cardName: { color: colors.text, fontWeight: '700', fontSize: k.name },
+    avatarText: { color: c.bg, fontWeight: '900', fontSize: Math.round(k.avatarMax * 0.42) },
+    cardName: { color: c.text, fontWeight: '700', fontSize: k.name },
 
     /** La pildora y, si el reglamento lo permite, el ⇄ que dice "saca el otro". */
     pillRow: { flexDirection: 'row', alignItems: 'center', gap: k.rowGap },
@@ -1420,8 +1431,8 @@ const makeStyles = (m: Metrics) => {
       marginTop: -swapSize / 2,
       borderRadius: radius.pill,
       borderWidth: 1,
-      borderColor: colors.textFaint,
-      backgroundColor: colors.surfaceAlt,
+      borderColor: c.textFaint,
+      backgroundColor: c.surfaceAlt,
       alignItems: 'center',
       justifyContent: 'center',
       zIndex: 2,
@@ -1436,9 +1447,9 @@ const makeStyles = (m: Metrics) => {
       borderWidth: 1,
     },
     pillEmpty: { height: k.pill },
-    pillCool: { borderColor: alpha(colors.serve, 0.5), backgroundColor: alpha(colors.serve, 0.1) },
-    pillHot: { borderColor: colors.serve, backgroundColor: colors.serve },
-    pillText: { color: colors.serve, fontSize: k.pillFont, fontWeight: '900', letterSpacing: 1 },
+    pillCool: { borderColor: alpha(c.serve, 0.5), backgroundColor: alpha(c.serve, 0.1) },
+    pillHot: { borderColor: c.serve, backgroundColor: c.serve },
+    pillText: { color: c.serve, fontSize: k.pillFont, fontWeight: '900', letterSpacing: 1 },
 
     rallyBtn: {
       flex: 1,
@@ -1453,14 +1464,14 @@ const makeStyles = (m: Metrics) => {
     descBox: { height: descLine, justifyContent: 'center', alignSelf: 'stretch' },
     rallyDesc: { fontWeight: '700', fontSize: k.rallyDesc, lineHeight: descLine, textAlign: 'center' },
 
-    bottom: { flexDirection: 'row', gap: m.bottom.gap, padding: m.bottom.pad, backgroundColor: colors.surface },
+    bottom: { flexDirection: 'row', gap: m.bottom.gap, padding: m.bottom.pad, backgroundColor: c.surface },
     utilBtn: {
       flex: 1,
       flexDirection: 'row',
       gap: m.bottom.gap,
       height: m.bottom.util,
       borderRadius: radius.md,
-      backgroundColor: colors.surfaceAlt,
+      backgroundColor: c.surfaceAlt,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -1468,14 +1479,14 @@ const makeStyles = (m: Metrics) => {
     /** Solo icono: no necesita crecer, y el ancho que sobra se lo lleva Deshacer. */
     utilBtnIcon: { flex: 0, width: m.bottom.util + m.bottom.gap * 2 },
     utilBtnOff: { opacity: 0.35 },
-    utilText: { color: colors.text, fontWeight: '800', fontSize: m.bottom.font },
+    utilText: { color: c.text, fontWeight: '800', fontSize: m.bottom.font },
 
     // ---- Hoja de golpes ----
     sheetBg: { flex: 1, justifyContent: 'flex-end' },
     /** Solo el fondo cierra. Va absoluto y aparte, para que la hoja no le pase los toques. */
     sheetBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#000B' },
     sheet: {
-      backgroundColor: colors.surface,
+      backgroundColor: c.surface,
       padding: h.pad,
       /**
        * El Modal se ancla al borde FISICO: sin el inset, la ultima fila queda debajo de la barra
@@ -1508,7 +1519,7 @@ const makeStyles = (m: Metrics) => {
       /** Que el icono quede alineado con el borde de la grilla, no el area tactil. */
       marginRight: -h.pad / 2,
     },
-    sheetTitle: { flex: 1, color: colors.textDim, fontSize: h.title, fontWeight: '800' },
+    sheetTitle: { flex: 1, color: c.textDim, fontSize: h.title, fontWeight: '800' },
 
     sheetRow: { flexDirection: 'row', gap: h.gap, height: h.row },
     /** Separa un bloque del anterior: el aire es lo unico que dice "esto es otra cosa". */
@@ -1523,17 +1534,17 @@ const makeStyles = (m: Metrics) => {
       borderRadius: radius.sm,
       borderWidth: 1,
       borderColor: SHEET_BORDER,
-      backgroundColor: colors.surfaceAlt,
+      backgroundColor: c.surfaceAlt,
     },
     /** Centrado, como el nombre del teclado: toda la hoja lee por el eje del medio. */
     sheetCellName: {
       flex: 1,
       textAlign: 'center',
-      color: colors.textDim,
+      color: c.textDim,
       fontSize: strokeFont,
       fontWeight: '600',
     },
-    sheetCellNameOn: { color: colors.text },
+    sheetCellNameOn: { color: c.text },
 
     /**
      * EL TECLADO: el nombre a la izquierda, dos teclas a la derecha.
@@ -1545,7 +1556,7 @@ const makeStyles = (m: Metrics) => {
     keyHeadText: {
       width: keyW,
       textAlign: 'center',
-      color: colors.textFaint,
+      color: c.textFaint,
       fontSize: sideFont * 0.62,
       fontWeight: '900',
       letterSpacing: 1,
@@ -1555,7 +1566,7 @@ const makeStyles = (m: Metrics) => {
     keyName: {
       flex: 1,
       textAlign: 'center',
-      color: colors.text,
+      color: c.text,
       fontSize: strokeFont,
       fontWeight: '700',
     },
@@ -1565,7 +1576,7 @@ const makeStyles = (m: Metrics) => {
       borderRadius: radius.sm,
       borderWidth: 1,
       borderColor: SHEET_BORDER,
-      backgroundColor: colors.surfaceAlt,
+      backgroundColor: c.surfaceAlt,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -1573,22 +1584,22 @@ const makeStyles = (m: Metrics) => {
       width: Math.round(sideFont * 0.5),
       height: Math.round(sideFont * 0.5),
       borderRadius: radius.pill,
-      backgroundColor: colors.textDim,
+      backgroundColor: c.textDim,
     },
     /** El ancla: las mismas teclas, con el relleno del remate y la bandeja (ver `ANCHOR`). */
     keyAnchor: {
-      backgroundColor: alpha(colors.text, 0.14),
-      borderColor: alpha(colors.text, 0.45),
+      backgroundColor: alpha(c.text, 0.14),
+      borderColor: alpha(c.text, 0.45),
     },
-    keyDotAnchor: { backgroundColor: colors.text },
+    keyDotAnchor: { backgroundColor: c.text },
     /** El elegido en el bloque del error forzado (`ForcingBlock`): mismo trato que el ancla,
         pero en el color del error para que se distinga de "este golpe es facil de tocar" (el
         ancla) de "esto es lo que se toco" (esto). */
     keySelected: {
-      backgroundColor: alpha(colors.errorForced, 0.2),
-      borderColor: colors.errorForced,
+      backgroundColor: alpha(c.errorForced, 0.2),
+      borderColor: c.errorForced,
     },
-    keyDotSelected: { backgroundColor: colors.errorForced },
+    keyDotSelected: { backgroundColor: c.errorForced },
 
     /**
      * El golpe base: solido y con contorno claro. Es el que se toca sin pensar, y el ojo
@@ -1602,9 +1613,9 @@ const makeStyles = (m: Metrics) => {
       /** Un poco mas que una variante, no el doble: los cuatro son teclas de la misma fila. */
       flex: 1.25,
       borderRadius: radius.sm,
-      backgroundColor: alpha(colors.text, 0.14),
+      backgroundColor: alpha(c.text, 0.14),
       borderWidth: 1,
-      borderColor: alpha(colors.text, 0.45),
+      borderColor: alpha(c.text, 0.45),
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: 2,
@@ -1616,11 +1627,11 @@ const makeStyles = (m: Metrics) => {
      * decir dos veces lo mismo, y de paso rompe la fila: nueve nombres iguales y dos mas grandes se
      * leen como si fueran de otra cosa.
      */
-    sheetBaseText: { color: colors.text, fontSize: strokeFont, fontWeight: '700' },
+    sheetBaseText: { color: c.text, fontSize: strokeFont, fontWeight: '700' },
     /** El elegido en el paso "con que forzo" de `ForcingBlock`. Mismo trato que `keySelected`. */
     sheetBaseSelected: {
-      backgroundColor: alpha(colors.errorForced, 0.2),
-      borderColor: colors.errorForced,
+      backgroundColor: alpha(c.errorForced, 0.2),
+      borderColor: c.errorForced,
     },
 
 
@@ -1645,15 +1656,15 @@ const makeStyles = (m: Metrics) => {
       paddingHorizontal: cellPad,
       borderRadius: radius.sm,
       borderWidth: 1,
-      backgroundColor: colors.surfaceAlt,
+      backgroundColor: c.surfaceAlt,
     },
     /** La letra manda —es como se los busca— pero en el cuerpo de la hoja, no en titular. */
     forcingPickText: { fontSize: strokeFont, fontWeight: '700' },
-    forcingPickName: { color: colors.text, fontSize: strokeFont, fontWeight: '600' },
+    forcingPickName: { color: c.text, fontSize: strokeFont, fontWeight: '600' },
     /** El candidato elegido en el paso "quien lo forzo". Mismo trato que `keySelected`. */
     forcingPickSelected: {
-      backgroundColor: alpha(colors.errorForced, 0.2),
-      borderColor: colors.errorForced,
+      backgroundColor: alpha(c.errorForced, 0.2),
+      borderColor: c.errorForced,
     },
 
     /**
@@ -1672,12 +1683,12 @@ const makeStyles = (m: Metrics) => {
     stepGap: { marginVertical: Math.round(h.gap * 0.7) },
     /** La linea entre bloques. Es la UNICA hoja con mas de una pregunta, asi que es la unica
         que necesita decir "esto termino, esto otro empieza" sin palabras. */
-    stepDivider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
+    stepDivider: { height: StyleSheet.hairlineWidth, backgroundColor: c.border },
     stepBlockOff: { opacity: 0.35 },
     /** Menos peso que `sheetTitle` (800) a proposito: son preguntas de un mismo bloque, no el
         titulo de la hoja, y con el mismo peso costaba distinguir uno de otro de un vistazo. */
-    stepTitle: { color: colors.textFaint, fontSize: h.title, fontWeight: '600' },
-    stepTitleActive: { color: colors.textDim },
+    stepTitle: { color: c.textFaint, fontSize: h.title, fontWeight: '600' },
+    stepTitleActive: { color: c.textDim },
 
     /**
      * Cubre la cancha y NADA MAS: el tanteador queda arriba (con el resultado) y la barra
@@ -1690,13 +1701,13 @@ const makeStyles = (m: Metrics) => {
       left: 0,
       right: 0,
       bottom: 0,
-      backgroundColor: alpha(colors.bg, 0.93),
+      backgroundColor: alpha(c.bg, 0.93),
       alignItems: 'center',
       justifyContent: 'center',
       gap: m.court.gap,
       padding: m.court.pad,
     },
-    finishedTitle: { color: colors.text, fontSize: h.title + 4, fontWeight: '900' },
+    finishedTitle: { color: c.text, fontSize: h.title + 4, fontWeight: '900' },
     /** Quien gano NO es el resultado (ese esta arriba, en el tanteador): es el momento. */
     finishedWinners: { fontSize: h.label + 1, fontWeight: '800', textAlign: 'center' },
 
@@ -1712,11 +1723,11 @@ const makeStyles = (m: Metrics) => {
       gap: k.gap,
       borderRadius: radius.md,
       borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.surfaceAlt,
+      borderColor: c.border,
+      backgroundColor: c.surfaceAlt,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    finishedBtnText: { color: colors.text, fontSize: h.label, fontWeight: '800' },
+    finishedBtnText: { color: c.text, fontSize: h.label, fontWeight: '800' },
   });
 };

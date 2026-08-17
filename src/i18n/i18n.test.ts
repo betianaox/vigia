@@ -185,17 +185,32 @@ describe('nadie congela el diccionario', () => {
         const line = lines[i]!;
         // Una declaracion a nivel de modulo: empieza en la columna cero.
         if (!/^(export )?(const|let) /.test(line)) continue;
-        // Si lo que se declara es una FUNCION, lee el diccionario al llamarla. Es lo correcto.
-        if (line.includes('=>') || line.includes('function')) continue;
 
-        // El resto de la declaracion, hasta que cierre en la columna cero.
+        // La declaracion entera, hasta que cierre.
         let stmt = line;
         for (let j = i + 1; j < lines.length && !/;\s*$/.test(stmt); j++) {
           stmt += `\n${lines[j]!}`;
         }
-        if (/\bL\./.test(stmt)) {
-          offenders.push(`${file.replace(ROOT, '').slice(1)}:${i + 1} — ${line.trim()}`);
-        }
+
+        const usa = /\bL\./.exec(stmt);
+        if (!usa) continue;
+
+        /**
+         * SI EL `=>` VIENE ANTES DEL `L.`, es una funcion que lee el diccionario al llamarla, y
+         * eso es lo correcto — no un valor que se copia al cargar el modulo.
+         *
+         * Se mira el STATEMENT entero y no la primera linea: una funcion con la firma cortada en
+         * varias lineas —`const rally = (\n  c: Colors,\n): ... => [`— tiene el `=>` recien en la
+         * tercera, y mirando solo la primera se la acusaba de congelar el diccionario. Lo que
+         * decide es el ORDEN, no en que renglon cae cada cosa.
+         */
+        const flecha = stmt.indexOf('=>');
+        const esFuncion =
+          (flecha !== -1 && flecha < usa.index) ||
+          /\bfunction\b/.test(stmt.slice(0, usa.index));
+        if (esFuncion) continue;
+
+        offenders.push(`${file.replace(ROOT, '').slice(1)}:${i + 1} — ${line.trim()}`);
       }
     }
 

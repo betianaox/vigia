@@ -1,8 +1,10 @@
 import { MaterialIcons } from '@expo/vector-icons';
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import type { Player } from '../engine';
-import { alpha, colors, pressed, radius, ripple, space } from './theme';
+import { useColors } from './theme-context';
+import { alpha, pressed, radius, ripple, space, type Colors } from './theme';
 
 /**
  * Un campo para nombrar a una persona: se escribe un pedazo del nombre y abajo aparecen los
@@ -43,6 +45,9 @@ export function PlayerField({
   onFocus?: () => void;
   onBlur?: () => void;
 }) {
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+
   const locked = Boolean(chosen);
 
   return (
@@ -51,7 +56,7 @@ export function PlayerField({
         <MaterialIcons
           name={locked ? 'person' : 'search'}
           size={20}
-          color={locked ? colors.text : colors.textFaint}
+          color={locked ? c.text : c.textFaint}
         />
 
         {chosen ? (
@@ -66,7 +71,7 @@ export function PlayerField({
             onFocus={onFocus}
             onBlur={onBlur}
             placeholder={placeholder}
-            placeholderTextColor={colors.textFaint}
+            placeholderTextColor={c.textFaint}
             autoCapitalize="words"
             autoCorrect={false}
             returnKeyType="done"
@@ -75,7 +80,7 @@ export function PlayerField({
 
         {(locked || value.length > 0) && (
           <Pressable onPress={onClear} hitSlop={10}>
-            <MaterialIcons name="close" size={18} color={colors.textDim} />
+            <MaterialIcons name="close" size={18} color={c.textDim} />
           </Pressable>
         )}
       </View>
@@ -90,7 +95,7 @@ export function PlayerField({
               android_ripple={ripple}
               onPress={() => onPick(p)}
             >
-              <MaterialIcons name="person" size={18} color={colors.textDim} />
+              <MaterialIcons name="person" size={18} color={c.textDim} />
               <Text style={s.hitText} numberOfLines={1}>
                 {p.name}
               </Text>
@@ -102,7 +107,8 @@ export function PlayerField({
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Colors) =>
+  StyleSheet.create({
   /**
    * SIN `flex`. El componente no sabe —ni tiene por que saber— si lo van a poner en una fila o
    * en una columna: `flex: 1` significa "ocupa el ancho que sobra" en una y "ocupa el alto que
@@ -119,25 +125,25 @@ const s = StyleSheet.create({
     paddingHorizontal: space.md,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: alpha(colors.text, 0.2),
-    backgroundColor: colors.surfaceAlt,
+    borderColor: alpha(c.text, 0.2),
+    backgroundColor: c.surfaceAlt,
   },
   /** Vacio: mas apagado y con el borde apenas insinuado. Se ve que falta llenarlo. */
-  boxEmpty: { backgroundColor: 'transparent', borderColor: alpha(colors.text, 0.12) },
+  boxEmpty: { backgroundColor: 'transparent', borderColor: alpha(c.text, 0.12) },
   /** Fijado: se enciende. De un vistazo se ve que hay un filtro puesto. */
-  boxOn: { borderColor: alpha(colors.text, 0.5), backgroundColor: alpha(colors.text, 0.1) },
+  boxOn: { borderColor: alpha(c.text, 0.5), backgroundColor: alpha(c.text, 0.1) },
 
   input: {
     flex: 1,
-    color: colors.text,
+    color: c.text,
     fontSize: 16,
     fontWeight: '700',
     padding: 0,
     includeFontPadding: false,
   },
-  chosen: { flex: 1, color: colors.text, fontSize: 16, fontWeight: '900' },
+  chosen: { flex: 1, color: c.text, fontSize: 16, fontWeight: '900' },
 
-  hits: { borderRadius: radius.md, backgroundColor: colors.surface, overflow: 'hidden' },
+  hits: { borderRadius: radius.md, backgroundColor: c.surface, overflow: 'hidden' },
   hit: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -145,5 +151,5 @@ const s = StyleSheet.create({
     height: 48,
     paddingHorizontal: space.md,
   },
-  hitText: { flex: 1, color: colors.text, fontSize: 16, fontWeight: '600' },
+  hitText: { flex: 1, color: c.text, fontSize: 16, fontWeight: '600' },
 });
