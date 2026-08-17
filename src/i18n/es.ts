@@ -386,6 +386,16 @@ export const es = {
     returnErrorPct: 'Falla en resto',
     /** Los errores forzados que ESTA persona provoco. El par de `forcedErrors`, del otro lado. */
     forcedErrorsCaused: 'Errores provocados',
+    /**
+     * Los dos rotulos del desglose de los errores provocados: contra quien, y con que golpe.
+     *
+     * Antes las dos listas iban pegadas en el subtitulo de la celda, sin distinguirse, y en un
+     * tercio del ancho de la tarjeta. Los rivales son como maximo DOS, asi que esa lista siempre
+     * fue corta; los golpes son CATORCE, y esa era la que desbordaba. Con el rotulo delante ya no
+     * hace falta el "a" de "3 a Beto": la fila dice de que habla.
+     */
+    causedAgainst: 'A quién',
+    causedWith: 'Con qué',
 
     /**
      * Winners contra errores no forzados, los dos crudos: "22/14". El par no tiene umbral

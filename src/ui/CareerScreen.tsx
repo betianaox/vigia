@@ -15,27 +15,20 @@ import { ShotStack } from './charts/ShotStack';
 import { strokeLabels } from './shots';
 import { Trend, type TrendPoint } from './charts/Trend';
 import { alpha, colors, pressed, radius, ripple, space } from './theme';
+import { tally, WideStat } from './WideStat';
 
 const tick = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
 const num = (n: number | null, suffix = ''): string =>
   n === null ? '—' : `${Math.round(n)}${suffix}`;
 
-/**
- * Con que golpe se forzaron esos errores, acumulado: "12 de Saque · 3 de Bandeja".
- *
- * Mismo calculo que en la ficha del partido (`shotDuels` en StatsScreen), pero SIN el "contra
- * quien" que esa si tiene: un duelo por rival, sumado en dos temporadas, no termina nunca —el
- * golpe en cambio es un conjunto chico y cerrado, cabe igual en un acumulado.
- */
-const shotDuels = (tally: Partial<Record<Stroke, number>>): string | undefined => {
-  const labels = strokeLabels();
-  const lines = (Object.entries(tally) as Array<[Stroke, number]>)
-    .filter(([, n]) => n > 0)
-    .sort((a, b) => b[1] - a[1])
-    .map(([shot, n]) => `${n} de ${labels[shot]}`);
-  return lines.length > 0 ? lines.join(' · ') : undefined;
-};
+/* El desglose por golpe ya no se arma aca: vive en `WideStat.tsx` junto al componente que lo
+   muestra. Estaba duplicado con la ficha del partido, y esa copia es la razon por la que el
+   mismo defecto de maquetado hubo que encontrarlo dos veces.
+
+   El comentario que estaba aca decia que el golpe "es un conjunto chico y cerrado, cabe igual en
+   un acumulado". No cabia: son CATORCE golpes, y en el acumulado de una temporada aparecen casi
+   todos con numero propio, en una celda de un tercio de ancho. */
 
 /**
  * Las metricas que se pueden seguir en el tiempo.
@@ -431,18 +424,24 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
                 <Stat label={L.stats.unforcedShort} value={`${stats.totals.unforcedErrors}`} />
               </View>
 
-              {/* Los que provoco, en su propia celda: la misma que la ficha del partido, para
-                  que las dos pantallas digan lo mismo con el mismo nombre. Sin "contra quien":
-                  en un acumulado de dos temporadas esa lista no termina mas. */}
-              <View style={s.grid}>
-                <Stat
-                  label={L.stats.forcedErrorsCaused}
-                  value={careerForcedCaused > 0 ? `${careerForcedCaused}` : '—'}
-                  sub={shotDuels(stats.totals.forcedErrorsCausedByShot)}
-                />
-                <View style={s.statCell} />
-                <View style={s.statCell} />
-              </View>
+              {/* Los que provoco: el mismo trato que en la ficha del partido, para que las dos
+                  pantallas digan lo mismo con el mismo nombre y la misma forma. A lo ancho y no
+                  en un tercio, porque el desglose por golpe no cabe en un tercio (ver
+                  `WideStat`). Sigue SIN el "contra quien": un duelo por rival, sumado en dos
+                  temporadas, no termina nunca. */}
+              <WideStat
+                label={L.stats.forcedErrorsCaused}
+                value={careerForcedCaused > 0 ? `${careerForcedCaused}` : '—'}
+                rows={[
+                  {
+                    label: L.stats.causedWith,
+                    text: tally(
+                      stats.totals.forcedErrorsCausedByShot,
+                      (k) => strokeLabels()[k as Stroke] ?? k,
+                    ),
+                  },
+                ]}
+              />
 
               <View style={s.divider} />
               <Text style={s.blockLabel}>{L.stats.serving}</Text>

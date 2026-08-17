@@ -18,6 +18,7 @@ import { Scoreboard } from './Scoreboard';
 import { shareCard } from './share';
 import { CARD_WIDTH, ShareCard } from './ShareCard';
 import { colors, pressed, radius, ripple, space, teamColor } from './theme';
+import { tally, WideStat } from './WideStat';
 
 const num = (n: number | null, suffix = ''): string =>
   n === null ? '—' : `${Math.round(n)}${suffix}`;
@@ -358,22 +359,8 @@ const duels = (
   return lines.length > 0 ? lines.join(' · ') : undefined;
 };
 
-/**
- * Con que golpe se forzaron esos errores: "2 de Saque · 1 de Bandeja".
- *
- * Mismo trato que `duels`, pero por golpe en vez de por rival — es la otra mitad de la
- * pregunta "¿como forzaste esos errores?". Antes esta ficha siempre iba a estar vacia porque
- * ningun boton cargaba `forcedByShot`; desde que la falla de resto lo carga sola (siempre
- * "Saque", ver `registerReturnFail` en MatchScreen), el dato empieza a existir.
- */
-const shotDuels = (tally: Partial<Record<Stroke, number>>): string | undefined => {
-  const labels = strokeLabels();
-  const lines = (Object.entries(tally) as Array<[Stroke, number]>)
-    .filter(([, n]) => n > 0)
-    .sort((a, b) => b[1] - a[1])
-    .map(([shot, n]) => `${n} de ${labels[shot]}`);
-  return lines.length > 0 ? lines.join(' · ') : undefined;
-};
+/* El desglose por golpe ya no se arma aca: vive en `WideStat.tsx` junto al componente que lo
+   muestra, porque la ficha del partido y el acumulado de una persona lo necesitan igual. */
 
 function PlayerCard({
   p,
@@ -435,19 +422,34 @@ function PlayerCard({
        * cada lado— y ninguna de las dos pisa a la otra. El duelo abajo (contra quien) es el
        * mismo tratamiento que ya tienen el ace y la doble falta.
        */}
-      <View style={s.grid}>
-        {/* Guion y no cero, igual que la falla en resto: si nadie cargo quien forzo, no es que
-            no provoco ninguno — es que no se sabe. Cero es un dato; nada es otra cosa. */}
-        <Stat
-          label={L.stats.forcedErrorsCaused}
-          value={forcedCaused > 0 ? `${forcedCaused}` : '—'}
-          sub={[duels(p.forcedErrorsCaused, names), shotDuels(p.forcedErrorsCausedByShot)]
-            .filter(Boolean)
-            .join('\n')}
-        />
-        <View style={s.statCell} />
-        <View style={s.statCell} />
-      </View>
+      {/**
+       * VA A LO ANCHO, NO EN UN TERCIO.
+       *
+       * Estaba como una celda del grid de tres, con las otras dos VACIAS al lado, y su desglose
+       * —contra quien y con que golpe, pegados con un salto de linea— apretado en ese tercio. Las
+       * dos listas no son igual de largas ni por casualidad: los rivales son a lo sumo DOS, pero
+       * los golpes son CATORCE. Con el ancho de un tercio, la de golpes se partia en un chorizo
+       * de siete renglones abajo del numero.
+       *
+       * Ahora ocupa el ancho que ya tenia reservado —las celdas vacias eran ese ancho, sin
+       * usar— y cada lista lleva su rotulo, asi que se entiende cual es cual sin adivinar.
+       */}
+      <WideStat
+        label={L.stats.forcedErrorsCaused}
+        /* Guion y no cero, igual que la falla en resto: si nadie cargo quien forzo, no es que
+           no provoco ninguno — es que no se sabe. Cero es un dato; nada es otra cosa. */
+        value={forcedCaused > 0 ? `${forcedCaused}` : '—'}
+        rows={[
+          {
+            label: L.stats.causedAgainst,
+            text: tally(p.forcedErrorsCaused, (id) => names[id] ?? id),
+          },
+          {
+            label: L.stats.causedWith,
+            text: tally(p.forcedErrorsCausedByShot, (k) => strokeLabels()[k as Stroke] ?? k),
+          },
+        ]}
+      />
 
       <View style={s.divider} />
       <Text style={s.blockLabel}>{L.stats.serving}</Text>
@@ -610,6 +612,7 @@ const s = StyleSheet.create({
   statLabel: { color: colors.textDim, fontSize: 12, fontWeight: '600', textAlign: 'center' },
   /** Sin `tabular-nums`: aca ya no van solo cifras, van los duelos ("3 a Beto · 1 a Bea"). */
   statSub: { color: colors.textFaint, fontSize: 11, textAlign: 'center' },
+
 
   /**
    * Parte la tarjeta en las dos mitades del partido: la que sacas y la que restas.

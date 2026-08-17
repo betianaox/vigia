@@ -252,6 +252,8 @@ export const it: Dict = {
     doubleFaultsForced: 'Doppi avversari',
     returnErrorPct: 'Errore in risposta',
     forcedErrorsCaused: 'Errori provocati',
+    causedAgainst: 'A chi',
+    causedWith: 'Con quale',
 
     winnersOverErrors: 'W / ENF',
 

@@ -273,6 +273,8 @@ export const en: Dict = {
     doubleFaultsForced: 'Their doubles',
     returnErrorPct: 'Return miss',
     forcedErrorsCaused: 'Errors forced',
+    causedAgainst: 'Against',
+    causedWith: 'With',
 
     winnersOverErrors: 'W / UE',
 
