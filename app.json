@@ -18,7 +18,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.vigia.padel"
+      "package": "com.imagostack.vigia"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -43,11 +43,14 @@
         }
       ]
     ],
+    "owner": "imagostack",
     "extra": {
+      "expo-navigation-bar": {
+        "enforceContrast": false
+      },
       "eas": {
-        "projectId": "56581546-5fdb-4e77-9860-3ce167be1143"
+        "projectId": "b1a95230-2ef3-4d43-9f5f-0ce48a5eb7e5"
       }
-    },
-    "owner": "imagosys"
+    }
   }
 }
