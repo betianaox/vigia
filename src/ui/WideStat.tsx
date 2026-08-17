@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors, space } from './theme';
+import { useColors } from './theme-context';
+import { space, type Colors } from './theme';
 
 /**
  * UNA METRICA QUE SE LLEVA EL ANCHO ENTERO, porque su desglose no cabe en un tercio.
@@ -27,6 +29,9 @@ export function WideStat({
   /** Cada dimension del desglose. Una fila sin datos no se dibuja. */
   rows: { label: string; text: string | undefined }[];
 }) {
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+
   /**
    * Una fila SIN datos no se dibuja: "Con qué —" no informa nada y le mete ruido al bloque. El
    * numero de arriba ya distingue el cero del "no se sabe", que es donde esa distincion importa.
@@ -69,7 +74,8 @@ export function tally(
   return lines.length > 0 ? lines.join(' · ') : undefined;
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Colors) =>
+  StyleSheet.create({
   /**
    * Alineada a la izquierda y no centrada a proposito: la celda que reemplaza era la PRIMERA de
    * un grid de tres, asi que su numero ya vivia a la izquierda de la tarjeta. Centrarlo lo
@@ -79,8 +85,8 @@ const s = StyleSheet.create({
 
   // Mismos valores que el `Stat` de las dos pantallas: es la misma clase de dato, con el mismo
   // peso visual. Lo unico que cambia es el ancho que se le da al desglose.
-  value: { color: colors.text, fontSize: 20, fontWeight: '800' },
-  label: { color: colors.textDim, fontSize: 12, fontWeight: '600' },
+  value: { color: c.text, fontSize: 20, fontWeight: '800' },
+  label: { color: c.textDim, fontSize: 12, fontWeight: '600' },
 
   row: { flexDirection: 'row', gap: space.sm, alignSelf: 'stretch' },
   /**
@@ -88,7 +94,7 @@ const s = StyleSheet.create({
    * "Contra quem". Prefiero que empuje y que las dos filas queden un pelo desalineadas antes que
    * truncar un rotulo — desalineado se lee, truncado no.
    */
-  rowLabel: { color: colors.textFaint, fontSize: 11, fontWeight: '800', minWidth: 64 },
+  rowLabel: { color: c.textFaint, fontSize: 11, fontWeight: '800', minWidth: 64 },
   /** Se lleva el resto del ancho: es el que tenia que envolver bien y no podia. */
-  rowText: { color: colors.textFaint, fontSize: 11, flex: 1 },
+  rowText: { color: c.textFaint, fontSize: 11, flex: 1 },
 });

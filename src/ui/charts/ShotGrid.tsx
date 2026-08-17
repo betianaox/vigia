@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import type { MatchConfig, PlayerId, Stroke, TeamId } from '../../engine';
@@ -5,7 +6,8 @@ import type { MatchStats, PlayerStats } from '../../engine/stats';
 import { L } from '../../i18n';
 import { FixedText as Text } from '../FixedText';
 import { strokeLabels } from '../shots';
-import { colors, space } from '../theme';
+import { useColors } from '../theme-context';
+import { space, type Colors } from '../theme';
 
 /** Lo que rindio UN golpe en las manos de UNA persona. */
 interface Cell {
@@ -96,6 +98,9 @@ export function ShotGrid({
   colorA: string;
   colorB: string;
 }) {
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+
   const tint = [colorA, colorA, colorB, colorB];
 
   return (
@@ -104,8 +109,8 @@ export function ShotGrid({
           como corresponde a un grafico. Si el que la recibe ya vio la app, no lee nada de esto. */}
       <View style={s.legend}>
         {[
-          [L.stats.winners, colors.winnerChart],
-          [L.stats.unforcedLegend, colors.errorUnforcedChart],
+          [L.stats.winners, c.winnerChart],
+          [L.stats.unforcedLegend, c.errorUnforcedChart],
         ].map(([label, color]) => (
           <View key={label} style={s.legendItem}>
             <View style={[s.swatch, { backgroundColor: color }]} />
@@ -129,15 +134,15 @@ export function ShotGrid({
             {strokeLabels()[r.shot]}
           </Text>
 
-          {r.cells.map((c, i) => (
+          {r.cells.map((cell, i) => (
             <View key={i} style={s.cell}>
-              {c === null ? (
+              {cell === null ? (
                 // Un guion, no tres ceros: nadie cargo los golpes de esta persona.
                 <Text style={s.none}>—</Text>
               ) : (
                 <>
-                  <Text style={[s.n, { color: colors.winnerChart }]}>{c.winners}</Text>
-                  <Text style={[s.n, { color: colors.errorUnforcedChart }]}>{c.unforced}</Text>
+                  <Text style={[s.n, { color: c.winnerChart }]}>{cell.winners}</Text>
+                  <Text style={[s.n, { color: c.errorUnforcedChart }]}>{cell.unforced}</Text>
                 </>
               )}
             </View>
@@ -148,11 +153,12 @@ export function ShotGrid({
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Colors) =>
+  StyleSheet.create({
   legend: { flexDirection: 'row', gap: space.md, paddingBottom: space.sm },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   swatch: { width: 9, height: 9, borderRadius: 2 },
-  legendText: { color: colors.textDim, fontSize: 11, fontWeight: '700' },
+  legendText: { color: c.textDim, fontSize: 11, fontWeight: '700' },
 
   head: { flexDirection: 'row', alignItems: 'flex-end', paddingBottom: 5 },
   /** El nombre de pila, centrado sobre SUS tres numeros. */
@@ -163,7 +169,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 6,
     borderTopWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
   },
   /**
    * 76, no 84: los cuatro golpes de la tarjeta son cortos ("Bandeja" es el mas largo) y los ocho
@@ -171,7 +177,7 @@ const s = StyleSheet.create({
    * aguantar dos cifras.
    */
   label: { width: 76 },
-  labelText: { color: colors.textDim, fontSize: 13, fontWeight: '600' },
+  labelText: { color: c.textDim, fontSize: 13, fontWeight: '600' },
 
   /** Los tres numeros de una persona, juntos: se leen como un grupo, no como tres columnas. */
   cell: { flex: 1, flexDirection: 'row', justifyContent: 'center' },
@@ -183,5 +189,5 @@ const s = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   /** Apagado a proposito: la ausencia de dato no compite con los datos. */
-  none: { color: colors.textFaint, fontSize: 15, fontWeight: '800' },
+  none: { color: c.textFaint, fontSize: 15, fontWeight: '800' },
 });

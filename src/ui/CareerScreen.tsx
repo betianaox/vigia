@@ -14,7 +14,8 @@ import { useRoster } from './roster';
 import { ShotStack } from './charts/ShotStack';
 import { strokeLabels } from './shots';
 import { Trend, type TrendPoint } from './charts/Trend';
-import { alpha, colors, pressed, radius, ripple, space } from './theme';
+import { useColors } from './theme-context';
+import { alpha, pressed, radius, ripple, space, type Colors } from './theme';
 import { tally, WideStat } from './WideStat';
 
 const tick = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -77,11 +78,11 @@ export interface Metric {
   lowerIsBetter?: boolean;
 }
 
-const metrics = (): Metric[] => [
+const metrics = (c: Colors): Metric[] => [
   {
     key: 'ratio',
     label: L.stats.winnersPerError,
-    color: colors.ballChart,
+    color: c.ballChart,
     from: (ps) => {
       const w = sum(ps, (s) => s.winners);
       const e = sum(ps, (s) => s.unforcedErrors);
@@ -92,14 +93,14 @@ const metrics = (): Metric[] => [
   {
     key: 'primero',
     label: L.stats.firstServeIn,
-    color: colors.aceChart,
+    color: c.aceChart,
     from: (ps) => pct(sum(ps, (s) => s.firstServesIn), sum(ps, (s) => s.servePointsPlayed)),
     format: (v) => `${Math.round(v)}%`,
   },
   {
     key: 'gana1',
     label: L.stats.wonWithFirstLong,
-    color: colors.ballChart,
+    color: c.ballChart,
     from: (ps) =>
       pct(sum(ps, (s) => s.firstServePointsWon), sum(ps, (s) => s.firstServesIn)),
     format: (v) => `${Math.round(v)}%`,
@@ -108,7 +109,7 @@ const metrics = (): Metric[] => [
     /** Por partido, no en bruto: un bloque de diez y uno de tres no se comparan en total. */
     key: 'enf',
     label: L.stats.unforcedErrors,
-    color: colors.worse,
+    color: c.worse,
     from: (ps) => (ps.length === 0 ? null : sum(ps, (s) => s.unforcedErrors) / ps.length),
     format: (v) => v.toFixed(1),
     lowerIsBetter: true,
@@ -116,7 +117,7 @@ const metrics = (): Metric[] => [
   {
     key: 'resto',
     label: L.stats.returnErrorPct,
-    color: colors.worse,
+    color: c.worse,
     from: (ps) => {
       const fallas = sum(ps, (s) => s.returnErrorsForced + s.returnErrorsUnforced);
       // Guion, no cero: si nunca se uso el boton dedicado, no se sabe (ver StatsScreen).
@@ -128,9 +129,12 @@ const metrics = (): Metric[] => [
 ];
 
 export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: () => void }) {
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+
   const { nameOf } = useRoster();
   const [metric, setMetric] = useState<ReturnType<typeof metrics>[number]['key']>('ratio');
-  const m = metrics().find((x) => x.key === metric)!;
+  const m = metrics(c).find((x) => x.key === metric)!;
 
   /**
    * LOS BLOQUES SE CUENTAN DESDE EL ULTIMO PARTIDO HACIA ATRAS.
@@ -240,7 +244,7 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
           size={26}
           subtitle={nameOf(stats.player, stats.totals.name)}
           subject
-          tint={colors.ball}
+          tint={c.ball}
         />
         <Pressable
           style={({ pressed: p }) => [s.close, p && pressed]}
@@ -248,7 +252,7 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
           onPress={onClose}
           hitSlop={10}
         >
-          <MaterialIcons name="close" size={24} color={colors.text} />
+          <MaterialIcons name="close" size={24} color={c.text} />
         </Pressable>
       </View>
 
@@ -285,10 +289,10 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
                 label={L.stats.winnersOverErrors}
                 accent={
                   noData || stats.totals.winners === stats.totals.unforcedErrors
-                    ? colors.text
+                    ? c.text
                     : stats.totals.winners > stats.totals.unforcedErrors
-                      ? colors.winnerChart
-                      : colors.errorUnforcedChart
+                      ? c.winnerChart
+                      : c.errorUnforcedChart
                 }
               />
               </View>
@@ -310,7 +314,7 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
             {/* LA PELICULA. El acumulado deja de moverse a los treinta partidos; esto no. */}
             <Section title={L.stats.evolution} subtitle={L.stats.evolutionSub}>
               <View style={s.chips}>
-                {metrics().map((x) => (
+                {metrics(c).map((x) => (
                   <Pressable
                     key={x.key}
                     style={({ pressed: p }) => [
@@ -363,7 +367,7 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
                   <MaterialIcons
                     name="chevron-left"
                     size={26}
-                    color={blockIndex >= blocks.length - 1 ? colors.textFaint : colors.text}
+                    color={blockIndex >= blocks.length - 1 ? c.textFaint : c.text}
                   />
                 </Pressable>
 
@@ -388,7 +392,7 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
                   <MaterialIcons
                     name="chevron-right"
                     size={26}
-                    color={blockIndex === 0 ? colors.textFaint : colors.text}
+                    color={blockIndex === 0 ? c.textFaint : c.text}
                   />
                 </Pressable>
               </View>
@@ -397,7 +401,7 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
                   y no contesta "¿cuanto?" — y las dos preguntas se hacen. Cada fila es una
                   metrica sobre ESTE bloque, sumando contadores (ver `from`). */}
               <View style={s.blockTable}>
-                {metrics().map((x) => (
+                {metrics(c).map((x) => (
                   <View key={x.key} style={s.blockRow}>
                     <Text style={s.blockRowLabel} numberOfLines={1}>
                       {x.label}
@@ -534,7 +538,7 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
                 <Section title={L.stats.winners} subtitle={L.stats.byShot}>
                   <ShotStack
                     columns={shots.winners}
-                    color={colors.winnerChart}
+                    color={c.winnerChart}
                     scale={shots.scale}
                   />
                 </Section>
@@ -550,7 +554,7 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
                 <Section title={L.stats.unforcedErrors} subtitle={L.stats.byShot}>
                   <ShotStack
                     columns={shots.unforced}
-                    color={colors.errorUnforcedChart}
+                    color={c.errorUnforcedChart}
                     scale={shots.scale}
                   />
                 </Section>
@@ -573,7 +577,7 @@ export function CareerScreen({ stats, onClose }: { stats: CareerStats; onClose: 
              */}
             {compare && (
               <Section title={L.stats.beforeAfter} subtitle={L.stats.beforeAfterSub(compare.n)}>
-                {metrics().map((x) => (
+                {metrics(c).map((x) => (
                   <Delta
                     key={x.key}
                     metric={x}
@@ -599,6 +603,9 @@ function Big({
   label: string;
   accent?: string;
 }) {
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+
   return (
     <View style={s.bigCell}>
       {/* Se achica solo si no entra. El ancho de "87/69" no es fijo: crece con los partidos
@@ -640,12 +647,15 @@ function Delta({
   before: number | null;
   after: number | null;
 }) {
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+
   const known = before !== null && after !== null;
   const diff = known ? after - before : 0;
   /** Sin cambio real no hay color: un delta de cero no es ni bueno ni malo. */
   const better = metric.lowerIsBetter ? diff < 0 : diff > 0;
   const flat = !known || Math.abs(diff) < 1e-9;
-  const tone = flat ? colors.textDim : better ? colors.winnerChart : colors.errorUnforcedChart;
+  const tone = flat ? c.textDim : better ? c.winnerChart : c.errorUnforcedChart;
 
   /** La barra ocupa lo que cambio, sobre el mayor de los dos: la fila quieta queda corta. */
   const span = known ? Math.max(Math.abs(before), Math.abs(after), 1e-9) : 1;
@@ -679,6 +689,9 @@ function Section({
   subtitle?: string;
   children: React.ReactNode;
 }) {
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+
   return (
     <View style={s.section}>
       <View style={s.sectionHead}>
@@ -691,6 +704,9 @@ function Section({
 }
 
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+
   return (
     <View style={s.statCell}>
       <Text style={s.statValue}>{value}</Text>
@@ -700,8 +716,9 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
   );
 }
 
-const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
+const makeStyles = (c: Colors) =>
+  StyleSheet.create({
+  root: { flex: 1, backgroundColor: c.bg },
 
   head: {
     flexDirection: 'row',
@@ -713,14 +730,14 @@ const s = StyleSheet.create({
   },
   close: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginRight: -8 },
 
-  scroll: { flex: 1, borderTopWidth: 1, borderColor: colors.border },
+  scroll: { flex: 1, borderTopWidth: 1, borderColor: c.border },
   list: { padding: space.md, gap: space.lg, paddingTop: space.lg, paddingBottom: space.xl },
 
   /** El retrato: quien sos, en cinco numeros. Es lo que se mira primero y no se lee, se ve. */
   portrait: {
     padding: space.md,
     borderRadius: radius.md,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
   },
   portraitRow: { flexDirection: 'row' },
   /** El pie del retrato: cuantos partidos quedaron a medias. Pill gris —estado, no cantidad—,
@@ -731,26 +748,26 @@ const s = StyleSheet.create({
     borderRadius: radius.sm,
     paddingHorizontal: 8,
     paddingVertical: 3,
-    backgroundColor: alpha(colors.text, 0.08),
+    backgroundColor: alpha(c.text, 0.08),
   },
-  portraitTagText: { color: colors.textDim, fontSize: 11, fontWeight: '700' },
+  portraitTagText: { color: c.textDim, fontSize: 11, fontWeight: '700' },
   /**
    * Cinco celdas en el ancho de un telefono. El valor mas ancho, W/ENF ("100/71"), crece con los
    * partidos jugados, asi que se achica solo (`adjustsFontSizeToFit`) si algun dia no entra.
    */
   bigCell: { flex: 1, alignItems: 'center', gap: 3, paddingHorizontal: 2 },
-  bigValue: { color: colors.text, fontSize: 20, fontWeight: '900' },
-  bigLabel: { color: colors.textDim, fontSize: 11, fontWeight: '700' },
+  bigValue: { color: c.text, fontSize: 20, fontWeight: '900' },
+  bigLabel: { color: c.textDim, fontSize: 11, fontWeight: '700' },
 
   section: { gap: space.sm },
   sectionHead: { flexDirection: 'row', alignItems: 'baseline', gap: space.sm },
-  sectionTitle: { color: colors.text, fontSize: 13, fontWeight: '900', letterSpacing: 0.8 },
-  sectionSub: { flex: 1, color: colors.textFaint, fontSize: 12.5, fontWeight: '600' },
+  sectionTitle: { color: c.text, fontSize: 13, fontWeight: '900', letterSpacing: 0.8 },
+  sectionSub: { flex: 1, color: c.textFaint, fontSize: 12.5, fontWeight: '600' },
   card: {
     padding: space.md,
     gap: space.md,
     borderRadius: radius.md,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
   },
 
   /**
@@ -771,37 +788,37 @@ const s = StyleSheet.create({
     paddingHorizontal: 4,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: alpha(colors.text, 0.2),
-    backgroundColor: colors.surfaceAlt,
+    borderColor: alpha(c.text, 0.2),
+    backgroundColor: c.surfaceAlt,
   },
-  chipOn: { backgroundColor: alpha(colors.text, 0.16), borderColor: alpha(colors.text, 0.5) },
+  chipOn: { backgroundColor: alpha(c.text, 0.16), borderColor: alpha(c.text, 0.5) },
   chipText: {
-    color: colors.textFaint,
+    color: c.textFaint,
     fontSize: 12,
     fontWeight: '700',
     textAlign: 'center',
     lineHeight: 15,
   },
-  chipTextOn: { color: colors.text, fontWeight: '900' },
+  chipTextOn: { color: c.text, fontWeight: '900' },
 
   /** El mismo cuerpo que la grilla de la pantalla del partido: las dos cuentan lo mismo. */
   grid: { flexDirection: 'row' },
   statCell: { flex: 1, alignItems: 'center', gap: 2 },
-  statValue: { color: colors.text, fontSize: 20, fontWeight: '800' },
-  statLabel: { color: colors.textDim, fontSize: 12, fontWeight: '600', textAlign: 'center' },
-  statSub: { color: colors.textFaint, fontSize: 11 },
+  statValue: { color: c.text, fontSize: 20, fontWeight: '800' },
+  statLabel: { color: c.textDim, fontSize: 12, fontWeight: '600', textAlign: 'center' },
+  statSub: { color: c.textFaint, fontSize: 11 },
 
   blockLabel: {
-    color: colors.textDim,
+    color: c.textDim,
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 1.4,
   },
-  divider: { height: 1, backgroundColor: colors.border },
+  divider: { height: 1, backgroundColor: c.border },
 
-  empty: { color: colors.textFaint, fontSize: 13, lineHeight: 19, padding: space.md },
+  empty: { color: c.textFaint, fontSize: 13, lineHeight: 19, padding: space.md },
   /** La frase que reemplaza la grilla de ceros: mismo tono que la de la evolucion. */
-  noData: { color: colors.textFaint, fontSize: 13, lineHeight: 19 },
+  noData: { color: c.textFaint, fontSize: 13, lineHeight: 19 },
 
   /** La navegacion de bloques: dos flechas y el rango, centrado entre ellas. */
   blockNav: {
@@ -811,7 +828,7 @@ const s = StyleSheet.create({
     marginTop: space.sm,
   },
   blockArrow: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  blockLabelText: { color: colors.textDim, fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
+  blockLabelText: { color: c.textDim, fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
 
   /** Los numeros del bloque: una fila por metrica, el nombre a la izquierda y el valor a la derecha. */
   blockTable: { marginTop: space.sm, gap: 2 },
@@ -821,16 +838,16 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 6,
     borderTopWidth: 1,
-    borderTopColor: alpha(colors.text, 0.06),
+    borderTopColor: alpha(c.text, 0.06),
   },
-  blockRowLabel: { flex: 1, color: colors.textDim, fontSize: 13, fontWeight: '600' },
-  blockRowValue: { color: colors.text, fontSize: 15, fontWeight: '900' },
+  blockRowLabel: { flex: 1, color: c.textDim, fontSize: 13, fontWeight: '600' },
+  blockRowValue: { color: c.text, fontSize: 15, fontWeight: '900' },
 
   /** Antes y ahora. El ancho de la barra ES el dato: la fila quieta queda visiblemente corta. */
   deltaRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingVertical: 7 },
-  deltaLabel: { width: '32%', color: colors.textDim, fontSize: 12, fontWeight: '600' },
-  deltaBefore: { width: 42, textAlign: 'right', color: colors.textFaint, fontSize: 12, fontWeight: '700' },
-  deltaTrack: { flex: 1, height: 6, borderRadius: 3, backgroundColor: alpha(colors.text, 0.08) },
+  deltaLabel: { width: '32%', color: c.textDim, fontSize: 12, fontWeight: '600' },
+  deltaBefore: { width: 42, textAlign: 'right', color: c.textFaint, fontSize: 12, fontWeight: '700' },
+  deltaTrack: { flex: 1, height: 6, borderRadius: 3, backgroundColor: alpha(c.text, 0.08) },
   deltaFill: { height: '100%', borderRadius: 3, minWidth: 3 },
   deltaAfter: { width: 46, textAlign: 'right', fontSize: 14, fontWeight: '900' },
 });

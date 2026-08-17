@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { StyleSheet, Text, View, type TextStyle } from 'react-native';
 
-import { colors, space } from '../theme';
+import { useColors } from '../theme-context';
+import { space, type Colors } from '../theme';
 
 export interface Cell {
   text: string;
@@ -59,7 +61,7 @@ export function HeadToHead({
    * nombres pasan a ser los que sostienen la lectura. Crecen y se encienden.
    */
   nameSize = 12.5,
-  nameColor = colors.textDim,
+  nameColor,
   /**
    * Y MENOS NEGRITA CUANTO MAS GRANDE. Un nombre chico necesita peso para no desaparecer; uno
    * grande no, y con 800 encima grita. Se lee mejor un cuerpo mas grande y un trazo mas liviano.
@@ -94,6 +96,12 @@ export function HeadToHead({
   labelSize?: number;
   allowFontScaling?: boolean;
 }) {
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+
+  /* El default no puede ir en la firma: alli todavia no existe el tema. */
+  const nombreColor = nameColor ?? c.textDim;
+
   return (
     <View style={s.root}>
       {/* La cabecera declara el orden una sola vez: arriba el primero, abajo el segundo. */}
@@ -108,7 +116,7 @@ export function HeadToHead({
                 style={[s.headName, {
                     fontSize: nameSize,
                     lineHeight: nameSize + 4,
-                    color: nameColor,
+                    color: nombreColor,
                     fontWeight: nameWeight,
                   }]}
                 numberOfLines={1}
@@ -130,7 +138,7 @@ export function HeadToHead({
                   {
                     fontSize: nameSize,
                     lineHeight: nameSize + 4,
-                    color: nameColor,
+                    color: nombreColor,
                     fontWeight: nameWeight,
                   },
                 ]}
@@ -212,7 +220,8 @@ export function HeadToHead({
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Colors) =>
+  StyleSheet.create({
   root: {},
 
   header: { flexDirection: 'row', justifyContent: 'space-between', paddingBottom: space.sm },
@@ -220,10 +229,10 @@ const s = StyleSheet.create({
   headSideRight: { justifyContent: 'flex-end' },
   swatch: { width: 10, height: 10, borderRadius: 3 },
   /** El texto va en tokens de texto, nunca en el color de la serie. */
-  headName: { color: colors.textDim, fontSize: 12.5, fontWeight: '700', lineHeight: 17 },
+  headName: { color: c.textDim, fontSize: 12.5, fontWeight: '700', lineHeight: 17 },
   headNameRight: { textAlign: 'right' },
 
-  sep: { height: 1, backgroundColor: colors.border },
+  sep: { height: 1, backgroundColor: c.border },
 
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: space.sm },
   side: { flex: 1, gap: 4 },
@@ -237,7 +246,7 @@ const s = StyleSheet.create({
   value: {
     minWidth: 38,
     textAlign: 'center',
-    color: colors.text,
+    color: c.text,
     fontSize: 13,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
@@ -256,7 +265,7 @@ const s = StyleSheet.create({
     minHeight: 32,
     textAlignVertical: 'center',
     textAlign: 'center',
-    color: colors.textDim,
+    color: c.textDim,
     fontSize: 12,
     lineHeight: 15,
     fontWeight: '600',

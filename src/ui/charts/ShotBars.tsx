@@ -1,9 +1,11 @@
+import { useMemo } from 'react';
 import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import type { ShotLine } from '../../engine/stats';
 import { L } from '../../i18n';
 import { strokeLabels } from '../shots';
-import { colors, radius, space } from '../theme';
+import { useColors } from '../theme-context';
+import { radius, space, type Colors } from '../theme';
 
 const BAR = 12;
 const GAP = 2; // el separador es un hueco del color de la superficie, no un borde
@@ -32,6 +34,9 @@ const NAME_MAX_SCALE = 1.6;
  * Cada barra se escala contra el golpe MAS usado, asi se ve de un vistazo cuales pesan.
  */
 export function ShotBars({ lines }: { lines: ShotLine[] }) {
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+
   const { fontScale } = useWindowDimensions();
   const nameWidth = Math.round(NAME_W * Math.min(fontScale, NAME_MAX_SCALE));
 
@@ -48,9 +53,9 @@ export function ShotBars({ lines }: { lines: ShotLine[] }) {
         {/* Los colores de GRAFICO, no los de los botones: mismo significado, medio tono de voz.
             Con treinta barras a la vez, el semaforo saturado cansa la vista en diez segundos. */}
         {[
-          [L.stats.winners, colors.winnerChart],
-          [L.stats.forcedShort, colors.errorForcedChart],
-          [L.stats.unforcedLegend, colors.errorUnforcedChart],
+          [L.stats.winners, c.winnerChart],
+          [L.stats.forcedShort, c.errorForcedChart],
+          [L.stats.unforcedLegend, c.errorUnforcedChart],
         ].map(([label, color]) => (
           <View key={label} style={s.legendItem}>
             <View style={[s.swatch, { backgroundColor: color }]} />
@@ -71,8 +76,8 @@ export function ShotBars({ lines }: { lines: ShotLine[] }) {
             <View style={[s.stack, { flex: l.total / max }]}>
               {(
                 [
-                  [l.winners, colors.winnerChart],
-                  [l.unforced, colors.errorUnforcedChart],
+                  [l.winners, c.winnerChart],
+                  [l.unforced, c.errorUnforcedChart],
                 ] as Array<[number, string]>
               )
                 .filter(([n]) => n > 0)
@@ -104,26 +109,27 @@ export function ShotBars({ lines }: { lines: ShotLine[] }) {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Colors) =>
+  StyleSheet.create({
   root: { gap: space.sm },
-  empty: { color: colors.textFaint, fontSize: 12, fontStyle: 'italic' },
+  empty: { color: c.textFaint, fontSize: 12, fontStyle: 'italic' },
 
   legend: { flexDirection: 'row', gap: space.md, flexWrap: 'wrap' },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   swatch: { width: 9, height: 9, borderRadius: 3 },
-  legendText: { color: colors.textDim, fontSize: 11.5, fontWeight: '600' },
+  legendText: { color: c.textDim, fontSize: 11.5, fontWeight: '600' },
 
   row: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   /** El mismo cuerpo que en la hoja de golpes: un golpe se llama igual en toda la app.
       El ancho lo pone el componente, que es el unico que sabe cuanto crecio la letra. */
-  name: { color: colors.textDim, fontSize: 13, lineHeight: 16, fontWeight: '600' },
+  name: { color: c.textDim, fontSize: 13, lineHeight: 16, fontWeight: '600' },
   track: { flex: 1, flexDirection: 'row', height: BAR, alignItems: 'center' },
   stack: { flexDirection: 'row', height: BAR },
   seg: { height: BAR },
   total: {
     minWidth: 22,
     textAlign: 'right',
-    color: colors.text,
+    color: c.text,
     fontSize: 14,
     fontWeight: '800',
     fontVariant: ['tabular-nums'],

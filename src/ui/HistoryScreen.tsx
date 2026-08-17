@@ -21,7 +21,8 @@ import { Brand } from './Brand';
 import { Confirm } from './Confirm';
 import { PlayerField } from './PlayerField';
 import { useRoster } from './roster';
-import { alpha, colors, pressed, radius, ripple, space, teamColor } from './theme';
+import { useColors } from './theme-context';
+import { alpha, dimmed, pressed, radius, ripple, space, teamColor, type Colors } from './theme';
 
 const tick = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
@@ -90,6 +91,9 @@ export function HistoryScreen({
 }) {
   // El plantel sale del contexto: una sola fuente, y un renombre se ve en todas las pantallas.
   const { players: roster, all: everyone, canon, reload: reloadRoster } = useRoster();
+
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
 
   /**
    * El nombre de una persona, resuelto AL CANONICO.
@@ -269,14 +273,14 @@ export function HistoryScreen({
       {/* La ✕ cierra, y es la misma de la hoja de golpes y de las estadisticas. A la derecha:
           ahi vive el cerrar, y el logo deja de estar aplastado contra una flecha. */}
       <View style={s.head}>
-        <Brand size={26} subtitle={L.history.title} tint={colors.ball} />
+        <Brand size={26} subtitle={L.history.title} tint={c.ball} />
         <Pressable
           style={({ pressed: pr }) => [s.close, pr && pressed]}
           android_ripple={{ ...ripple, borderless: true }}
           onPress={onBack}
           hitSlop={10}
         >
-          <MaterialIcons name="close" size={24} color={colors.text} />
+          <MaterialIcons name="close" size={24} color={c.text} />
         </Pressable>
       </View>
 
@@ -318,11 +322,11 @@ export function HistoryScreen({
              * de barras— para el mismo destino. Dos dibujos para una sola cosa hacen dudar de si son
              * la misma cosa.
              */}
-            <MaterialIcons name="person" size={22} color={colors.textDim} />
+            <MaterialIcons name="person" size={22} color={c.textDim} />
             <Text style={s.careerText} numberOfLines={1}>
               {L.history.career(chosen.name.split(' ')[0]!)}
             </Text>
-            <MaterialIcons name="bar-chart" size={24} color={colors.textDim} />
+            <MaterialIcons name="bar-chart" size={24} color={c.textDim} />
           </Pressable>
         )}
 
@@ -407,7 +411,7 @@ export function HistoryScreen({
           android_ripple={ripple}
           onPress={() => void runExport()}
         >
-          <MaterialIcons name="save-alt" size={18} color={colors.textDim} />
+          <MaterialIcons name="save-alt" size={18} color={c.textDim} />
           <Text style={s.backupText}>{L.history.export}</Text>
         </Pressable>
 
@@ -416,7 +420,7 @@ export function HistoryScreen({
           android_ripple={ripple}
           onPress={() => void runImport()}
         >
-          <MaterialIcons name="file-upload" size={18} color={colors.textDim} />
+          <MaterialIcons name="file-upload" size={18} color={c.textDim} />
           <Text style={s.backupText}>{L.history.import}</Text>
         </Pressable>
       </View>
@@ -477,6 +481,8 @@ export function HistoryScreen({
  * encendidos a la vez, uno por fila, diciendo cosas distintas.
  */
 function Chip({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) {
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
   return (
     <Pressable
       style={({ pressed: pr }) => [s.chip, on && s.chipOn, pr && pressed]}
@@ -486,7 +492,7 @@ function Chip({ label, on, onPress }: { label: string; on: boolean; onPress: () 
       <Text style={[s.chipText, on && s.chipTextOn]} numberOfLines={1}>
         {label}
       </Text>
-      {on && <MaterialIcons name="close" size={15} color={colors.text} />}
+      {on && <MaterialIcons name="close" size={15} color={c.text} />}
     </Pressable>
   );
 }
@@ -529,6 +535,9 @@ function Row({
   onResume: () => void;
   onDelete: () => void;
 }) {
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+
   const line = (t: TeamId) => {
     const lost = m.finished && m.winner !== t;
     return (
@@ -537,7 +546,7 @@ function Row({
          uno: se leia "Carla Mendez / Diego Per…". La lista scrollea, asi que el alto no cuesta
          nada; el nombre de alguien cortado, si. */
       <Text
-        style={[s.team, { color: teamColor(t) }, lost && s.lost]}
+        style={[s.team, { color: teamColor(t, c) }, lost && s.lost]}
         numberOfLines={2}
       >
         {teamText(m, t, resolve)}
@@ -598,7 +607,7 @@ function Row({
       </View>
 
       <View style={s.actions}>
-        <MaterialIcons name="bar-chart" size={22} color={colors.textDim} />
+        <MaterialIcons name="bar-chart" size={22} color={c.textDim} />
 
         {/* SOLO EN LOS QUE QUEDARON A MEDIAS. El log es la unica verdad: cualquier partido
             guardado se puede seguir jugando, y esta es la unica fila donde eso tiene sentido
@@ -613,7 +622,7 @@ function Row({
             onPress={onResume}
             hitSlop={8}
           >
-            <MaterialIcons name="play-circle-outline" size={22} color={colors.cta} />
+            <MaterialIcons name="play-circle-outline" size={22} color={c.cta} />
           </Pressable>
         )}
 
@@ -628,15 +637,16 @@ function Row({
           {/* ROJO, Y NO GRIS. Es la unica accion de la app que destruye algo — un partido borrado
               no vuelve, con todas sus estadisticas adentro. Estaba pintado igual que un chevron.
               El color no esta para llamar la atencion: esta para que la mano dude medio segundo. */}
-          <MaterialIcons name="delete-outline" size={22} color={colors.errorUnforcedChart} />
+          <MaterialIcons name="delete-outline" size={22} color={c.errorUnforcedChart} />
         </Pressable>
       </View>
     </Pressable>
   );
 }
 
-const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
+const makeStyles = (c: Colors) =>
+  StyleSheet.create({
+  root: { flex: 1, backgroundColor: c.bg },
 
   head: {
     flexDirection: 'row',
@@ -667,10 +677,10 @@ const s = StyleSheet.create({
     paddingHorizontal: space.md,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderColor: c.border,
+    backgroundColor: c.surface,
   },
-  careerText: { flex: 1, color: colors.text, fontSize: 15, fontWeight: '800' },
+  careerText: { flex: 1, color: c.text, fontSize: 15, fontWeight: '800' },
 
   periods: { flexDirection: 'row', gap: space.sm },
   /** Alto MINIMO: con la letra del sistema en grande, la pastilla crece en vez de recortar. */
@@ -683,12 +693,12 @@ const s = StyleSheet.create({
     paddingHorizontal: space.md,
     borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: alpha(colors.text, 0.2),
-    backgroundColor: colors.surfaceAlt,
+    borderColor: alpha(c.text, 0.2),
+    backgroundColor: c.surfaceAlt,
   },
-  chipOn: { backgroundColor: alpha(colors.text, 0.16), borderColor: alpha(colors.text, 0.5) },
-  chipText: { color: colors.textFaint, fontSize: 13, fontWeight: '700' },
-  chipTextOn: { color: colors.text, fontWeight: '900' },
+  chipOn: { backgroundColor: alpha(c.text, 0.16), borderColor: alpha(c.text, 0.5) },
+  chipText: { color: c.textFaint, fontSize: 13, fontWeight: '700' },
+  chipTextOn: { color: c.text, fontWeight: '900' },
 
   list: { padding: space.lg, paddingTop: 0, gap: space.sm },
 
@@ -700,8 +710,8 @@ const s = StyleSheet.create({
   backup: {
     flexDirection: 'row',
     borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.surface,
+    borderTopColor: c.border,
+    backgroundColor: c.surface,
   },
   backupBtn: {
     flex: 1,
@@ -711,7 +721,7 @@ const s = StyleSheet.create({
     gap: 6,
     paddingVertical: space.md,
   },
-  backupText: { color: colors.textDim, fontSize: 13, fontWeight: '700' },
+  backupText: { color: c.textDim, fontSize: 13, fontWeight: '700' },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -719,15 +729,15 @@ const s = StyleSheet.create({
     padding: space.md,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderColor: c.border,
+    backgroundColor: c.surface,
   },
   rowMain: { flex: 1, gap: 2 },
   team: { fontSize: 15.5, fontWeight: '800' },
-  lost: { opacity: 0.45 },
+  lost: dimmed(c),
   /** El resultado: es lo primero que se busca de un partido viejo. Va mas grande que los nombres. */
   score: {
-    color: colors.text,
+    color: c.text,
     fontSize: 17,
     fontWeight: '900',
     fontVariant: ['tabular-nums'],
@@ -743,7 +753,7 @@ const s = StyleSheet.create({
    */
   /** Lo que identifica al partido: cuando fue. Solo en su renglon, encendido. */
   metaWhen: {
-    color: colors.textDim,
+    color: c.textDim,
     fontSize: 13,
     lineHeight: 18,
     fontWeight: '700',
@@ -782,10 +792,10 @@ const s = StyleSheet.create({
     paddingVertical: 3,
     paddingHorizontal: space.sm,
     borderRadius: radius.sm,
-    backgroundColor: alpha(colors.text, 0.08),
+    backgroundColor: alpha(c.text, 0.08),
   },
   tagText: {
-    color: colors.textFaint,
+    color: c.textFaint,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.4,
@@ -807,8 +817,8 @@ const s = StyleSheet.create({
    * mirar una vez. Este vive en una lista de veinte filas, y ahi un color saturado chilla — que es
    * justo el problema que veniamos arreglando.
    */
-  tagCount: { backgroundColor: alpha(colors.aceChart, 0.18) },
-  tagCountText: { color: colors.aceChart },
+  tagCount: { backgroundColor: alpha(c.aceChart, 0.18) },
+  tagCountText: { color: c.aceChart },
 
   /** Los dos iconos juntos, en fila. */
   actions: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
@@ -817,5 +827,5 @@ const s = StyleSheet.create({
   trash: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginRight: -6 },
   trashOn: { opacity: 0.6 },
 
-  empty: { color: colors.textFaint, fontSize: 13, lineHeight: 19, padding: space.md },
+  empty: { color: c.textFaint, fontSize: 13, lineHeight: 19, padding: space.md },
 });

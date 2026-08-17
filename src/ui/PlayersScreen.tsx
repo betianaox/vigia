@@ -18,7 +18,8 @@ import { Brand } from './Brand';
 import { Confirm } from './Confirm';
 import { PlayerField } from './PlayerField';
 import { useRoster } from './roster';
-import { alpha, colors, pressed, radius, ripple, space } from './theme';
+import { useColors } from './theme-context';
+import { alpha, pressed, radius, ripple, space, type Colors } from './theme';
 
 const tick = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
@@ -78,6 +79,10 @@ export function PlayersScreen({
 }) {
   // Del contexto: una sola fuente para el plantel, en toda la app.
   const { players: roster, merges, canon, reload } = useRoster();
+
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+
   const [index, setIndex] = useState<MatchSummary[]>([]);
   /** Lo escrito en el buscador. Filtra la lista y nada mas: aca no hay nada que "elegir". */
   const [query, setQuery] = useState('');
@@ -199,14 +204,14 @@ export function PlayersScreen({
   return (
     <SafeAreaView style={s.root}>
       <View style={s.head}>
-        <Brand size={26} subtitle={L.players.title} tint={colors.ball} />
+        <Brand size={26} subtitle={L.players.title} tint={c.ball} />
         <Pressable
           style={({ pressed: pr }) => [s.close, pr && pressed]}
           android_ripple={{ ...ripple, borderless: true }}
           onPress={onBack}
           hitSlop={10}
         >
-          <MaterialIcons name="close" size={24} color={colors.text} />
+          <MaterialIcons name="close" size={24} color={c.text} />
         </Pressable>
       </View>
 
@@ -255,7 +260,7 @@ export function PlayersScreen({
             <MaterialIcons
               name="person"
               size={24}
-              color={ghost ? colors.textFaint : colors.textDim}
+              color={ghost ? c.textFaint : c.textDim}
             />
             <View style={s.rowMain}>
               <Text style={[s.name, ghost && s.nameGhost]} numberOfLines={1}>
@@ -303,7 +308,7 @@ export function PlayersScreen({
               }}
               hitSlop={8}
             >
-              <MaterialIcons name="edit" size={22} color={colors.textFaint} />
+              <MaterialIcons name="edit" size={22} color={c.textFaint} />
             </Pressable>
 
             {/**
@@ -335,11 +340,11 @@ export function PlayersScreen({
                 <MaterialIcons
                   name="delete-outline"
                   size={24}
-                  color={colors.errorUnforcedChart}
+                  color={c.errorUnforcedChart}
                 />
               </Pressable>
             ) : (
-              <MaterialIcons name="bar-chart" size={24} color={colors.textDim} />
+              <MaterialIcons name="bar-chart" size={24} color={c.textDim} />
             )}
           </Pressable>
           );
@@ -411,6 +416,9 @@ function Rename({
   /** False si jugaron juntas: entonces NO son la misma persona, y no hay nada que ofrecer. */
   canMerge: (other: Player) => boolean;
 }) {
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+
   const clash = error?.kind === 'ya_existe' ? error.other : null;
   const mergeable = clash ? canMerge(clash) : false;
 
@@ -430,7 +438,7 @@ function Rename({
             value={value}
             onChangeText={onChange}
             placeholder={L.players.namePlaceholder}
-            placeholderTextColor={colors.textFaint}
+            placeholderTextColor={c.textFaint}
             autoCapitalize="words"
             autoCorrect={false}
             autoFocus
@@ -484,7 +492,7 @@ function Rename({
                 android_ripple={ripple}
                 onPress={() => onMerge(clash)}
               >
-                <MaterialIcons name="merge" size={18} color={colors.text} />
+                <MaterialIcons name="merge" size={18} color={c.text} />
                 <Text style={s.dialogOkText}>{L.players.merge}</Text>
               </Pressable>
             ) : (
@@ -503,8 +511,9 @@ function Rename({
   );
 }
 
-const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
+const makeStyles = (c: Colors) =>
+  StyleSheet.create({
+  root: { flex: 1, backgroundColor: c.bg },
 
   head: {
     flexDirection: 'row',
@@ -532,14 +541,14 @@ const s = StyleSheet.create({
     padding: space.md,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderColor: c.border,
+    backgroundColor: c.surface,
   },
   rowMain: { flex: 1, gap: 2 },
   /** Peso de lista, no de titulo: en una lista de nombres, un 800 hace que cada renglon grite. */
-  name: { color: colors.text, fontSize: 16, fontWeight: '600' },
+  name: { color: c.text, fontSize: 16, fontWeight: '600' },
   /** Sin partidos: se ve, pero no compite con la gente que si jugo. */
-  nameGhost: { color: colors.textDim },
+  nameGhost: { color: c.textDim },
   /**
    * Estaba en 11, que es tamaño de nota al pie — y no es una nota al pie: es LA UNICA razon para
    * mirar este renglon dos veces. El nombre ya lo sabes; lo que no sabes es cuanto jugaste con esa
@@ -547,7 +556,7 @@ const s = StyleSheet.create({
    */
   /** La pastilla y la fecha, en la misma linea: el dato y su contexto, en ese orden. */
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginTop: 4 },
-  meta: { flexShrink: 1, color: colors.textFaint, fontSize: 13, lineHeight: 18, fontWeight: '600' },
+  meta: { flexShrink: 1, color: c.textFaint, fontSize: 13, lineHeight: 18, fontWeight: '600' },
 
   /**
    * LA MISMA PLACA QUE LAS MARCAS DEL HISTORIAL. Una sola forma en toda la app: se aprende una vez.
@@ -560,10 +569,10 @@ const s = StyleSheet.create({
     paddingVertical: 3,
     paddingHorizontal: space.sm,
     borderRadius: radius.sm,
-    backgroundColor: alpha(colors.text, 0.08),
+    backgroundColor: alpha(c.text, 0.08),
   },
   countText: {
-    color: colors.textFaint,
+    color: c.textFaint,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.4,
@@ -578,10 +587,10 @@ const s = StyleSheet.create({
    * tiene nada detras. Se queda en gris, que es lo que dicen tambien su nombre apagado y el tachito
    * que la acompaña.
    */
-  countOn: { backgroundColor: alpha(colors.aceChart, 0.18) },
-  countOnText: { color: colors.aceChart },
+  countOn: { backgroundColor: alpha(c.aceChart, 0.18) },
+  countOnText: { color: c.aceChart },
 
-  empty: { color: colors.textFaint, fontSize: 14.5, lineHeight: 21, padding: space.md },
+  empty: { color: c.textFaint, fontSize: 14.5, lineHeight: 21, padding: space.md },
 
   /** Apagado y al margen: abrir el juego de la persona es lo que se hace siempre; renombrar, casi nunca. */
   edit: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
@@ -600,11 +609,11 @@ const s = StyleSheet.create({
     gap: space.sm,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: alpha(colors.text, 0.14),
-    backgroundColor: colors.surface,
+    borderColor: alpha(c.text, 0.14),
+    backgroundColor: c.surface,
   },
-  dialogTitle: { color: colors.text, fontSize: 19, fontWeight: '900' },
-  dialogNote: { color: colors.textDim, fontSize: 14, lineHeight: 20 },
+  dialogTitle: { color: c.text, fontSize: 19, fontWeight: '900' },
+  dialogNote: { color: c.textDim, fontSize: 14, lineHeight: 20 },
 
   /** `minHeight`, no `height`: con la letra del sistema en grande el campo crece en vez de recortar. */
   input: {
@@ -614,14 +623,14 @@ const s = StyleSheet.create({
     paddingHorizontal: space.md,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: alpha(colors.text, 0.25),
-    backgroundColor: colors.surfaceAlt,
-    color: colors.text,
+    borderColor: alpha(c.text, 0.25),
+    backgroundColor: c.surfaceAlt,
+    color: c.text,
     fontSize: 16,
     fontWeight: '700',
   },
   /** El error vive PEGADO al campo que lo causo, no en un cartel aparte. */
-  error: { color: colors.errorUnforcedChart, fontSize: 13, lineHeight: 18, fontWeight: '600' },
+  error: { color: c.errorUnforcedChart, fontSize: 13, lineHeight: 18, fontWeight: '600' },
 
   /**
    * La oferta de unir. NO es un cartel de error: es una pregunta con una respuesta a mano.
@@ -634,12 +643,12 @@ const s = StyleSheet.create({
     padding: space.md,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: alpha(colors.ball, 0.35),
-    backgroundColor: alpha(colors.ball, 0.07),
+    borderColor: alpha(c.ball, 0.35),
+    backgroundColor: alpha(c.ball, 0.07),
   },
-  mergeText: { color: colors.text, fontSize: 14.5, lineHeight: 21 },
+  mergeText: { color: c.text, fontSize: 14.5, lineHeight: 21 },
   mergeName: { fontWeight: '900' },
-  mergeNote: { color: colors.textDim, fontSize: 12.5, lineHeight: 18 },
+  mergeNote: { color: c.textDim, fontSize: 12.5, lineHeight: 18 },
 
   dialogActions: { flexDirection: 'row', gap: space.sm, marginTop: space.md },
   /** Alto MINIMO: con la letra grande, el boton crece y la palabra no se parte. */
@@ -656,10 +665,10 @@ const s = StyleSheet.create({
   },
   dialogCancel: {
     borderWidth: 1,
-    borderColor: alpha(colors.text, 0.2),
-    backgroundColor: colors.surfaceAlt,
+    borderColor: alpha(c.text, 0.2),
+    backgroundColor: c.surfaceAlt,
   },
-  dialogCancelText: { color: colors.textDim, fontSize: 15, fontWeight: '800' },
-  dialogOk: { backgroundColor: colors.cta },
-  dialogOkText: { color: colors.text, fontSize: 15, fontWeight: '900' },
+  dialogCancelText: { color: c.textDim, fontSize: 15, fontWeight: '800' },
+  dialogOk: { backgroundColor: c.cta },
+  dialogOkText: { color: c.text, fontSize: 15, fontWeight: '900' },
 });

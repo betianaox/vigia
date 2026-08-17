@@ -19,7 +19,7 @@ import { useMetrics, type Metrics } from './metrics';
 import { usePulse } from './pulse';
 import { useRoster } from './roster';
 import { useColors } from './theme-context';
-import { alpha, radius, teamColor, type Colors } from './theme';
+import { alpha, dimmed, radius, teamColor, type Colors } from './theme';
 
 /**
  * Tanteador estilo transmision: cada numero en su casillero, los sets terminados en gris,
@@ -429,7 +429,7 @@ const makeStyles = (m: Metrics, c: Colors) => {
       textAlignVertical: 'center',
     },
     /** Terminado el partido, el perdedor se apaga: el ganador se lee solo. */
-    lost: { opacity: 0.45 },
+    lost: dimmed(c),
 
     // ---- Los casilleros: abarcan las dos lineas del equipo ----
     cell: {

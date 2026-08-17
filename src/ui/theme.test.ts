@@ -74,19 +74,8 @@ describe('nadie congela los colores', () => {
    */
   const PENDIENTES = [
     'src/ui/Brand.tsx',
-    'src/ui/CareerScreen.tsx',
     'src/ui/Confirm.tsx',
-    'src/ui/HistoryScreen.tsx',
-    'src/ui/PlayersScreen.tsx',
     'src/ui/ScoreboardPreview.tsx',
-    'src/ui/StatsScreen.tsx',
-    'src/ui/WideStat.tsx',
-    'src/ui/charts/HeadToHead.tsx',
-    'src/ui/charts/ShotBars.tsx',
-    'src/ui/charts/ShotGrid.tsx',
-    'src/ui/charts/ShotStack.tsx',
-    'src/ui/charts/TeamCompare.tsx',
-    'src/ui/charts/Trend.tsx',
   ];
 
   it('ninguna pantalla NUEVA arma sus estilos con colores congelados', async () => {

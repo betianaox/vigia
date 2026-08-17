@@ -1,7 +1,9 @@
+import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { L } from '../../i18n';
-import { alpha, colors, radius, space } from '../theme';
+import { useColors } from '../theme-context';
+import { alpha, radius, space, type Colors } from '../theme';
 
 export interface TrendPoint {
   at: number;
@@ -35,6 +37,9 @@ export function Trend({
   format: (v: number) => string;
   color: string;
 }) {
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+
   const values = points.map((p) => p.value).filter((v): v is number => v !== null);
 
   if (values.length < 2) {
@@ -93,7 +98,8 @@ export function Trend({
 const when = (t: number): string =>
   new Date(t).toLocaleDateString('es', { day: 'numeric', month: 'short' });
 
-const s = StyleSheet.create({
+const makeStyles = (c: Colors) =>
+  StyleSheet.create({
   root: { gap: space.sm },
 
   plot: { height: 120, justifyContent: 'flex-end' },
@@ -103,22 +109,22 @@ const s = StyleSheet.create({
 
   /** El promedio: es la referencia contra la que se miden las barras, no un dato mas. */
   avgLine: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', alignItems: 'center' },
-  avgDash: { flex: 1, height: 1, backgroundColor: alpha(colors.text, 0.5) },
+  avgDash: { flex: 1, height: 1, backgroundColor: alpha(c.text, 0.5) },
   /** La etiqueta se recorta su propio fondo del color de la TARJETA, para leerse sobre la barra. */
   avgText: {
-    color: colors.text,
+    color: c.text,
     fontSize: 10,
     fontWeight: '900',
     marginLeft: 4,
     paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: radius.sm,
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: c.surfaceAlt,
     overflow: 'hidden',
   },
 
   axis: { flexDirection: 'row', justifyContent: 'space-between' },
-  axisText: { color: colors.textFaint, fontSize: 10, fontWeight: '700' },
+  axisText: { color: c.textFaint, fontSize: 10, fontWeight: '700' },
 
-  empty: { color: colors.textFaint, fontSize: 12, lineHeight: 18 },
+  empty: { color: c.textFaint, fontSize: 12, lineHeight: 18 },
 });

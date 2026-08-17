@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -17,7 +17,8 @@ import { useRoster } from './roster';
 import { Scoreboard } from './Scoreboard';
 import { shareCard } from './share';
 import { CARD_WIDTH, ShareCard } from './ShareCard';
-import { colors, pressed, radius, ripple, space, teamColor } from './theme';
+import { useColors } from './theme-context';
+import { pressed, radius, ripple, space, teamColor, type Colors } from './theme';
 import { tally, WideStat } from './WideStat';
 
 const num = (n: number | null, suffix = ''): string =>
@@ -43,11 +44,14 @@ const num = (n: number | null, suffix = ''): string =>
 const wOverE = (p: Pick<PlayerStats, 'winners' | 'unforcedErrors'>): string =>
   `${p.winners}/${p.unforcedErrors}`;
 
-const wOverEColor = (p: Pick<PlayerStats, 'winners' | 'unforcedErrors'>): string => {
-  if (p.winners === p.unforcedErrors) return colors.text;
+const wOverEColor = (
+  p: Pick<PlayerStats, 'winners' | 'unforcedErrors'>,
+  c: Colors,
+): string => {
+  if (p.winners === p.unforcedErrors) return c.text;
   // Los de grafico, no los de boton: en esta pantalla el verde y el rojo ya son los suaves, y
   // dos verdes distintos que significan lo mismo es peor que un color feo.
-  return p.winners > p.unforcedErrors ? colors.winnerChart : colors.errorUnforcedChart;
+  return p.winners > p.unforcedErrors ? c.winnerChart : c.errorUnforcedChart;
 };
 
 /**
@@ -160,6 +164,9 @@ export function StatsScreen({
   /** Cerrar y volver a lo que estabas: la cancha, o el historial. */
   onClose: () => void;
 }) {
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+
   const { nameOf } = useRoster();
   const stats = computeStats(config, events);
   const over = state.finished || finishedEarly;
@@ -193,14 +200,14 @@ export function StatsScreen({
           significado —cerra esto y volve a lo que estabas—. Va a la derecha, que es donde
           vive el cerrar, y de paso el logo respira a la izquierda. */}
       <View style={s.head}>
-        <Brand size={26} subtitle={L.stats.title} tint={colors.ball} />
+        <Brand size={26} subtitle={L.stats.title} tint={c.ball} />
         <Pressable
           style={({ pressed: p }) => [s.close, p && pressed]}
           android_ripple={{ ...ripple, borderless: true }}
           onPress={onClose}
           hitSlop={10}
         >
-          <MaterialIcons name="close" size={24} color={colors.text} />
+          <MaterialIcons name="close" size={24} color={c.text} />
         </Pressable>
       </View>
 
@@ -233,8 +240,8 @@ export function StatsScreen({
                 rows={playerRows(stats, config, true)}
                 playersA={playerNames(config, 'A', nameOf)}
                 playersB={playerNames(config, 'B', nameOf)}
-                colorA={colors.teamAFill}
-                colorB={colors.teamBFill}
+                colorA={c.teamAFill}
+                colorB={c.teamBFill}
               />
             </Section>
 
@@ -290,7 +297,7 @@ export function StatsScreen({
         >
           {/* El de Android, no el de iOS: la cajita con la flecha hacia arriba es un simbolo de
               otra plataforma, y aca nadie lo aprendio. Este es el que ya vieron mil veces. */}
-          <MaterialIcons name="share" size={20} color={colors.text} />
+          <MaterialIcons name="share" size={20} color={c.text} />
           <Text style={s.btnGhostText}>{L.stats.share}</Text>
         </Pressable>
       </View>
@@ -327,6 +334,9 @@ function Section({
   bare?: boolean;
   children: React.ReactNode;
 }) {
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+
   return (
     <View style={s.section}>
       <View style={s.sectionHead}>
@@ -372,8 +382,12 @@ function PlayerCard({
   /** De que lado juega: "Drive" o "Revés". */
   side: string;
 }) {
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+
   const { nameOf } = useRoster();
-  const c = teamColor(p.team);
+  /** El color del EQUIPO de esta ficha. No confundir con `c`, que es el tema. */
+  const teamC = teamColor(p.team, c);
   const first = pct(p.firstServesIn, p.servePointsPlayed);
   const won1 = pct(p.firstServePointsWon, p.firstServesIn);
   const won2 = pct(p.secondServePointsWon, p.secondServePointsPlayed);
@@ -384,7 +398,7 @@ function PlayerCard({
   return (
     <View style={s.player}>
       <View style={s.cardHead}>
-        <View style={[s.dot, { backgroundColor: c }]} />
+        <View style={[s.dot, { backgroundColor: teamC }]} />
         <Text style={s.cardName} numberOfLines={1}>
           {nameOf(p.id, p.name)}
         </Text>
@@ -394,10 +408,10 @@ function PlayerCard({
             mismo que diez del otro. Pero CUANTO no significan depende del nivel, del estilo, del
             rival y del dia — y de eso la app no sabe nada. Si insinuara la conclusion estaria
             opinando disfrazada de dato. Se le da el hecho al entrenador; la lectura es suya. */}
-        <Text style={[s.cardSide, { color: c }]}>{side}</Text>
+        <Text style={[s.cardSide, { color: teamC }]}>{side}</Text>
 
         <View style={s.ratioBox}>
-          <Text style={[s.ratioValue, { color: wOverEColor(p) }]}>{wOverE(p)}</Text>
+          <Text style={[s.ratioValue, { color: wOverEColor(p, c) }]}>{wOverE(p)}</Text>
           <Text style={s.ratioLabel}>{L.stats.winnersOverErrors}</Text>
         </View>
       </View>
@@ -527,6 +541,9 @@ function PlayerCard({
 }
 
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+
   return (
     <View style={s.statCell}>
       <Text style={s.statValue}>{value}</Text>
@@ -536,8 +553,9 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
   );
 }
 
-const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
+const makeStyles = (c: Colors) =>
+  StyleSheet.create({
+  root: { flex: 1, backgroundColor: c.bg },
   /** Existe, esta dibujada, y nadie la ve. Es lo que la camara necesita para poder sacarle la foto. */
   offscreen: { position: 'absolute', left: -CARD_WIDTH * 2, top: 0 },
   /**
@@ -554,31 +572,31 @@ const s = StyleSheet.create({
     flex: 1,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
   },
   list: { padding: space.md, gap: space.lg, paddingTop: space.lg, paddingBottom: space.xl },
-  empty: { color: colors.textFaint, textAlign: 'center', marginTop: space.xl },
+  empty: { color: c.textFaint, textAlign: 'center', marginTop: space.xl },
 
   /** El `gap` tambien separa las tarjetas cuando la seccion es `bare` (una por jugador). */
   section: { gap: space.sm },
   sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   sectionDot: { width: 8, height: 8, borderRadius: radius.pill },
   sectionTitle: {
-    color: colors.text,
+    color: c.text,
     fontSize: 13,
     fontWeight: '900',
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
-  sectionSub: { color: colors.textFaint, fontSize: 12.5, fontWeight: '600' },
+  sectionSub: { color: c.textFaint, fontSize: 12.5, fontWeight: '600' },
 
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radius.lg,
     padding: space.md,
     gap: space.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
   },
 
   /**
@@ -594,24 +612,24 @@ const s = StyleSheet.create({
     borderRadius: radius.lg,
     padding: space.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
   },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   dot: { width: 10, height: 10, borderRadius: radius.pill },
-  cardName: { color: colors.text, fontSize: 17, fontWeight: '800' },
+  cardName: { color: c.text, fontSize: 17, fontWeight: '800' },
   /** Del color de su equipo, y apagado: es un dato de contexto, no un numero mas. */
   cardSide: { flex: 1, fontSize: 12, fontWeight: '700', opacity: 0.75 },
   ratioBox: { alignItems: 'flex-end' },
   /** El COLOR ya lo destaca. Con el tamaño y el peso encima, gritaba. */
-  ratioValue: { color: colors.text, fontSize: 16, fontWeight: '800' },
-  ratioLabel: { color: colors.textFaint, fontSize: 10, fontWeight: '800', letterSpacing: 0.6 },
+  ratioValue: { color: c.text, fontSize: 16, fontWeight: '800' },
+  ratioLabel: { color: c.textFaint, fontSize: 10, fontWeight: '800', letterSpacing: 0.6 },
 
   grid: { flexDirection: 'row' },
   statCell: { flex: 1, alignItems: 'center', gap: 2 },
-  statValue: { color: colors.text, fontSize: 20, fontWeight: '800' },
-  statLabel: { color: colors.textDim, fontSize: 12, fontWeight: '600', textAlign: 'center' },
+  statValue: { color: c.text, fontSize: 20, fontWeight: '800' },
+  statLabel: { color: c.textDim, fontSize: 12, fontWeight: '600', textAlign: 'center' },
   /** Sin `tabular-nums`: aca ya no van solo cifras, van los duelos ("3 a Beto · 1 a Bea"). */
-  statSub: { color: colors.textFaint, fontSize: 11, textAlign: 'center' },
+  statSub: { color: c.textFaint, fontSize: 11, textAlign: 'center' },
 
 
   /**
@@ -622,7 +640,7 @@ const s = StyleSheet.create({
    * definicion. Sobre fondo oscuro, textFaint se leia como negro.
    */
   blockLabel: {
-    color: colors.textDim,
+    color: c.textDim,
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 1.4,
@@ -630,7 +648,7 @@ const s = StyleSheet.create({
     marginBottom: 2,
   },
 
-  divider: { height: 1, backgroundColor: colors.border },
+  divider: { height: 1, backgroundColor: c.border },
 
   head: {
     flexDirection: 'row',
@@ -642,8 +660,8 @@ const s = StyleSheet.create({
   },
   close: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginRight: -8 },
 
-  overNote: { color: colors.textFaint, fontSize: 12, textAlign: 'center' },
-  actions: { padding: space.md, gap: space.sm, backgroundColor: colors.surface },
+  overNote: { color: c.textFaint, fontSize: 12, textAlign: 'center' },
+  actions: { padding: space.md, gap: space.sm, backgroundColor: c.surface },
   // Sin flex: dentro de un contenedor en columna, flex:1 colapsa el boton y le come el texto.
   btn: {
     flexDirection: 'row',
@@ -653,6 +671,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  btnGhost: { backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border },
-  btnGhostText: { color: colors.text, fontWeight: '700', fontSize: 15 },
+  btnGhost: { backgroundColor: c.surfaceAlt, borderWidth: 1, borderColor: c.border },
+  btnGhostText: { color: c.text, fontWeight: '700', fontSize: 15 },
 });

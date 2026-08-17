@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { alpha, colors, radius, space } from '../theme';
+import { useColors } from '../theme-context';
+import { alpha, dimmed, radius, space, type Colors } from '../theme';
 
 export interface CompareRow {
   label: string;
@@ -25,6 +27,9 @@ export interface CompareRow {
  * de la pantalla que la contiene.
  */
 export function TeamCompare({ rows }: { rows: CompareRow[] }) {
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+
   return (
     <View style={s.root}>
       {rows.map((r) => {
@@ -60,21 +65,21 @@ export function TeamCompare({ rows }: { rows: CompareRow[] }) {
         const flipped = r.lowerIsBetter === true;
         const tied = r.aValue === r.bValue;
         const errColor = (wins: boolean): string =>
-          tied || wins ? colors.neutralFill : colors.worse;
+          tied || wins ? c.neutralFill : c.worse;
 
-        const aColor = flipped ? errColor(aWins) : colors.teamAFill;
-        const bColor = flipped ? errColor(bWins) : colors.teamBFill;
+        const aColor = flipped ? errColor(aWins) : c.teamAFill;
+        const bColor = flipped ? errColor(bWins) : c.teamBFill;
 
         return (
           <View key={r.label} style={s.row}>
             <View style={s.head}>
-              <Text style={[s.value, s.valueA, { color: colors.teamA }, !aWins && s.dim]}>
+              <Text style={[s.value, s.valueA, { color: c.teamA }, !aWins && s.dim]}>
                 {r.a}
               </Text>
               <Text style={s.label} numberOfLines={1}>
                 {r.label}
               </Text>
-              <Text style={[s.value, s.valueB, { color: colors.teamB }, !bWins && s.dim]}>
+              <Text style={[s.value, s.valueB, { color: c.teamB }, !bWins && s.dim]}>
                 {r.b}
               </Text>
             </View>
@@ -92,7 +97,8 @@ export function TeamCompare({ rows }: { rows: CompareRow[] }) {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Colors) =>
+  StyleSheet.create({
   root: { gap: space.md },
   row: { gap: 6 },
 
@@ -101,11 +107,11 @@ const s = StyleSheet.create({
   valueA: { textAlign: 'left' },
   valueB: { textAlign: 'right' },
   /** El que no gana esa fila se apaga. El ganador se lee sin comparar. */
-  dim: { opacity: 0.45 },
+  dim: dimmed(c),
   label: {
     flex: 1,
     textAlign: 'center',
-    color: colors.textDim,
+    color: c.textDim,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -114,7 +120,7 @@ const s = StyleSheet.create({
     height: 8,
     borderRadius: radius.pill,
     overflow: 'hidden',
-    backgroundColor: alpha(colors.text, 0.08),
+    backgroundColor: alpha(c.text, 0.08),
   },
   fill: { height: '100%' },
 });

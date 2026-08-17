@@ -213,6 +213,16 @@ const light: Colors = {
   winner: '#16A34A',
   errorForced: '#D4A106',
   errorUnforced: '#E62E52',
+
+  /**
+   * EL CELESTE DEL ACE. Sobre la tarjeta blanca de la cancha arrancaba en 2.14 — el mismo
+   * problema que el resto de los colores pensados contra el negro. Llega a 3.19, que es el
+   * umbral de lo que se dibuja con el: una pastilla con su etiqueta, no texto corrido.
+   *
+   * Sigue siendo el celeste del saque y no se acerca a ningun otro color de la cancha: el
+   * semaforo es verde-amarillo-rojo y el sacador ahora es negro.
+   */
+  ace: '#0E9AD4',
 };
 
 export const themes = { oscuro: dark, claro: light } as const;
@@ -232,6 +242,19 @@ export const colors = dark;
  * sin migrar siguen compilando —con el oscuro, que es el default de la app— y la migracion puede
  * ir de a una. Cuando no quede ninguna sin migrar, el parametro deja de tener default.
  */
+/**
+ * EL QUE VA PERDIENDO SE APAGA — pero apagar no quiere decir lo mismo en los dos temas.
+ *
+ * Estaba escrito como `opacity: 0.45` en tres lugares: el tanteador, el historial y la barra de
+ * comparacion. Sobre el fondo negro, bajar la opacidad OSCURECE, y el color se sigue recortando
+ * contra el fondo. Sobre el fondo claro hace exactamente lo contrario: ACLARA, o sea empuja el
+ * color hacia el mismo blanco de atras, y el numero del que va perdiendo casi desaparece.
+ *
+ * Es la misma regla dando resultados opuestos, asi que la regla no puede ser un numero fijo. En
+ * claro se apaga menos, lo justo para que se lea que es secundario sin que se borre.
+ */
+export const dimmed = (c: Colors) => ({ opacity: c === light ? 0.68 : 0.45 });
+
 export const teamColor = (team: 'A' | 'B', c: Colors = dark): string =>
   team === 'A' ? c.teamA : c.teamB;
 

@@ -1,10 +1,12 @@
+import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { ShotTally } from '../../engine/stats';
 import type { Stroke } from '../../engine';
 import { L } from '../../i18n';
 import { strokeLabels } from '../shots';
-import { alpha, colors, radius, space } from '../theme';
+import { useColors } from '../theme-context';
+import { alpha, radius, space, type Colors } from '../theme';
 
 /** Un partido: cuantos golpes de cada tipo, en esta categoria. */
 export interface StackColumn {
@@ -40,6 +42,9 @@ export function ShotStack({
   color: string;
   scale: number;
 }) {
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+
   // Los golpes mas usados de esta categoria, de mayor a menor. El resto cae en "Otros".
   const totals: ShotTally = {};
   for (const c of columns) {
@@ -146,7 +151,8 @@ export function ShotStack({
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Colors) =>
+  StyleSheet.create({
   root: { gap: space.sm },
 
   plot: { flexDirection: 'row', alignItems: 'flex-end', height: 96, gap: 3 },
@@ -157,15 +163,15 @@ const s = StyleSheet.create({
     width: '100%',
     minHeight: 3,
     borderTopWidth: 1,
-    borderTopColor: colors.surface,
+    borderTopColor: c.surface,
   },
 
   legend: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   key: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   swatch: { width: 9, height: 9, borderRadius: radius.sm },
-  keyText: { color: colors.textDim, fontSize: 10, fontWeight: '700' },
+  keyText: { color: c.textDim, fontSize: 10, fontWeight: '700' },
   /** El numero pisa mas fuerte que el nombre: el nombre ya lo dice el color. */
-  keyCount: { color: colors.text, fontSize: 10, fontWeight: '900' },
+  keyCount: { color: c.text, fontSize: 10, fontWeight: '900' },
 
-  empty: { color: colors.textFaint, fontSize: 12 },
+  empty: { color: c.textFaint, fontSize: 12 },
 });
