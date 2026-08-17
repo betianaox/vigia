@@ -188,6 +188,31 @@ const light: Colors = {
    */
   teamA: '#8B5CF6',
   teamB: '#D2600A',
+
+  /**
+   * EL SACADOR: NEGRO, NO BLANCO. En la cancha, al que saca se lo marca con un borde de este
+   * color. Sobre el fondo oscuro el blanco lo recortaba; sobre una tarjeta blanca, un borde
+   * blanco es invisible — el que saca dejaba de distinguirse justo en la pantalla donde mas
+   * importa.
+   *
+   * Sigue valiendo la regla original: no compite con ninguna accion, porque no es ninguno de los
+   * colores del semaforo ni del boton verde. Solo cambia de extremo.
+   */
+  serve: '#0F172A',
+
+  /**
+   * EL SEMAFORO, UN PASO MAS OSCURO. Son los botones de la cancha, y en el tema claro van sobre
+   * una tarjeta blanca en vez del fondo negro.
+   *
+   * El amarillo es el unico que no se puede arreglar del todo: sobre blanco arranca en 1.53 y
+   * ni oscureciendolo bastante pasa de ~2.9, porque un amarillo luminoso contra blanco tiene ese
+   * techo. Bajarlo hasta que cumpla lo convierte en mostaza y deja de leerse como el amarillo del
+   * error forzado. Se baja lo que se puede sin perder el color, y el resto del trabajo lo hace la
+   * pastilla de fondo, que le da un contorno propio.
+   */
+  winner: '#16A34A',
+  errorForced: '#D4A106',
+  errorUnforced: '#E62E52',
 };
 
 export const themes = { oscuro: dark, claro: light } as const;

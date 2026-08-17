@@ -224,13 +224,13 @@ function Vigia({ onLanguage }: { onLanguage: () => void }) {
    * QUE HAY DETRAS DE LAS BARRAS, que no siempre es el fondo del tema.
    *
    * La barra de abajo es transparente, asi que sus iconos se apoyan en lo que dibuje la app ahi
-   * mismo. Y hay dos pantallas que NO usan el fondo del tema: el inicio, que lleva la foto de la
-   * cancha, y el partido a medias, que va sobre negro. Las dos son oscuras en los dos temas.
+   * mismo. Y hay UNA pantalla que no usa el fondo del tema: el inicio, que lleva la foto de la
+   * cancha — oscura en los dos temas.
    *
    * Atando los iconos al tema y no a lo que hay detras, en el tema claro quedaban oscuros sobre
-   * la foto oscura del inicio — es decir, invisibles justo en la primera pantalla que se ve.
+   * esa foto: invisibles justo en la primera pantalla que se ve.
    */
-  const fondoOscuro = oscuro || screen.name === 'home' || screen.name === 'resume';
+  const fondoOscuro = oscuro || screen.name === 'home';
 
   /**
    * EL FONDO DETRAS DE LA BARRA TRANSPARENTE.

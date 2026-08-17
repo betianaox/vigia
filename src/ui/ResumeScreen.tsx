@@ -9,7 +9,8 @@ import type { SavedMatch } from '../store/matches';
 import { L } from '../i18n';
 import { Brand } from './Brand';
 import { Scoreboard } from './Scoreboard';
-import { alpha, colors, pressed, radius, ripple, space } from './theme';
+import { useColors } from './theme-context';
+import { alpha, colors, pressed, radius, ripple, space, type Colors } from './theme';
 
 const tick = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
@@ -19,8 +20,9 @@ const tick = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
  * ruido. Mientras haya un partido en curso, es acá donde se aterriza al volver a la app; el
  * inicio con sus tres puertas queda un paso más allá, detrás de "Terminar".
  *
- * Fondo negro, no el de marca: la tarjeta es lo único que tiene que brillar. Un fondo con
- * personalidad al lado del tanteador competiría con el único dato que importa.
+ * Fondo LISO —el del tema, claro u oscuro— y no el de marca: la tarjeta es lo único que tiene
+ * que brillar. Un fondo con personalidad al lado del tanteador competiría con el único dato que
+ * importa.
  */
 export function ResumeScreen({
   match,
@@ -43,10 +45,13 @@ export function ResumeScreen({
    */
   const state = useMemo(() => reduce(match.config, match.events), [match]);
 
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+
   return (
     <SafeAreaView style={s.root}>
       <View style={s.body}>
-        <Brand size={30} subtitle={L.setup.onCourt} tint={colors.ball} />
+        <Brand size={30} subtitle={L.setup.onCourt} tint={c.ball} />
 
         {/* Arriba de todo, chico y apagado: dice QUE es esta tarjeta, y después se calla. No
             compite con lo único que importa mirar, que es el tanteo. */}
@@ -68,6 +73,7 @@ export function ResumeScreen({
               onResume(match);
             }}
           >
+            {/* Blanco fijo: va sobre el verde del boton, que es el mismo en los dos temas. */}
             <MaterialIcons name="play-arrow" size={22} color={colors.text} />
             <Text style={s.btnText}>{L.setup.resume}</Text>
           </Pressable>
@@ -86,7 +92,7 @@ export function ResumeScreen({
             }}
           >
             {/* Play y stop: el par que ya existe en el mundo. */}
-            <MaterialIcons name="stop" size={22} color={colors.textDim} />
+            <MaterialIcons name="stop" size={22} color={c.textDim} />
             <Text style={s.btnTextDim}>{L.setup.end}</Text>
           </Pressable>
         </View>
@@ -95,8 +101,9 @@ export function ResumeScreen({
   );
 }
 
-const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
+const makeStyles = (c: Colors) =>
+  StyleSheet.create({
+  root: { flex: 1, backgroundColor: c.bg },
   body: {
     flex: 1,
     justifyContent: 'center',
@@ -105,7 +112,7 @@ const s = StyleSheet.create({
     gap: space.md,
   },
 
-  eyebrow: { color: colors.textDim, fontSize: 11, fontWeight: '900', letterSpacing: 1.5 },
+  eyebrow: { color: c.textDim, fontSize: 11, fontWeight: '900', letterSpacing: 1.5 },
   /** El tanteador trae su propio fondo: `overflow` lo recorta al radio en vez de dejar esquinas. */
   board: { borderRadius: radius.sm, overflow: 'hidden' },
 
@@ -124,8 +131,9 @@ const s = StyleSheet.create({
     paddingHorizontal: space.md,
     borderRadius: radius.sm,
   },
-  go: { flex: 3, backgroundColor: colors.cta },
-  end: { flex: 2, borderWidth: 1, borderColor: alpha(colors.text, 0.2) },
+  go: { flex: 3, backgroundColor: c.cta },
+  end: { flex: 2, borderWidth: 1, borderColor: alpha(c.text, 0.2) },
+  /** Blanco fijo por lo mismo que el icono: el fondo verde no cambia con el tema. */
   btnText: { color: colors.text, fontSize: 15, fontWeight: '900' },
-  btnTextDim: { color: colors.textDim, fontSize: 15, fontWeight: '800' },
+  btnTextDim: { color: c.textDim, fontSize: 15, fontWeight: '800' },
 });

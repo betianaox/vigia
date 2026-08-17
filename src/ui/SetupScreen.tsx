@@ -20,7 +20,7 @@ import { PlayerField } from './PlayerField';
 import { useRoster } from './roster';
 import { Select } from './Select';
 import { useColors } from './theme-context';
-import { alpha, pressed, radius, ripple, space, teamColor, type Colors } from './theme';
+import { alpha, colors, pressed, radius, ripple, space, teamColor, type Colors } from './theme';
 
 const tick = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 /** El golpe seco con el que aterriza el sorteo. */
@@ -811,7 +811,8 @@ const makeStyles = (c: Colors) =>
     borderRadius: radius.md,
     backgroundColor: c.cta,
   },
-  startText: { color: c.text, fontSize: 17, fontWeight: '900' },
+  /** Blanco fijo: va sobre el verde, que es el mismo color en los dos temas. */
+  startText: { color: colors.text, fontSize: 17, fontWeight: '900' },
   /**
    * Deshabilitado NO es "el mismo boton mas transparente": el lima al 35% sobre fondo oscuro
    * da un verde oliva sucio que no se lee como apagado, se lee como roto. Se apaga cambiando

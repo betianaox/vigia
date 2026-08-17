@@ -112,7 +112,7 @@ export function HomeScreen({
                 onNewMatch();
               }}
             >
-              <MaterialIcons name="play-arrow" size={26} color={c.text} />
+              <MaterialIcons name="play-arrow" size={26} color={colors.text} />
               <Text style={s.primaryText}>{L.setup.newMatch}</Text>
             </Pressable>
 
@@ -236,7 +236,8 @@ const makeStyles = (c: Colors) =>
     borderRadius: radius.md,
     backgroundColor: c.cta,
   },
-  primaryText: { color: c.text, fontSize: 18, fontWeight: '900' },
+  /** Blanco fijo: va sobre el verde, que es el mismo color en los dos temas. */
+  primaryText: { color: colors.text, fontSize: 18, fontWeight: '900' },
 
   /** `flexWrap` y no una fila fija: una puerta nueva cae en su propio renglon, sin rediseñar. */
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },

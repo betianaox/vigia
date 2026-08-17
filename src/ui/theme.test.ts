@@ -78,7 +78,6 @@ describe('nadie congela los colores', () => {
     'src/ui/Confirm.tsx',
     'src/ui/HistoryScreen.tsx',
     'src/ui/PlayersScreen.tsx',
-    'src/ui/ResumeScreen.tsx',
     'src/ui/ScoreboardPreview.tsx',
     'src/ui/StatsScreen.tsx',
     'src/ui/WideStat.tsx',

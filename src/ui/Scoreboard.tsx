@@ -18,7 +18,8 @@ import { CHAR, fitWidth } from './layout';
 import { useMetrics, type Metrics } from './metrics';
 import { usePulse } from './pulse';
 import { useRoster } from './roster';
-import { alpha, colors, radius, teamColor } from './theme';
+import { useColors } from './theme-context';
+import { alpha, radius, teamColor, type Colors } from './theme';
 
 /**
  * Tanteador estilo transmision: cada numero en su casillero, los sets terminados en gris,
@@ -104,7 +105,8 @@ export function Scoreboard({
 }) {
   const m = useMetrics();
   const { nameOf } = useRoster();
-  const s = useMemo(() => makeStyles(m), [m]);
+  const c = useColors();
+  const s = useMemo(() => makeStyles(m, c), [m, c]);
   const boxW = width ?? m.availW;
 
   const names = useMemo(
@@ -211,6 +213,8 @@ function Flash({
   style: StyleProp<ViewStyle>;
   children: React.ReactNode;
 }) {
+  const c = useColors();
+
   return (
     <Animated.View
       style={[
@@ -226,7 +230,7 @@ function Flash({
           StyleSheet.absoluteFill,
           {
             borderRadius: radius.sm,
-            backgroundColor: teamColor(team),
+            backgroundColor: teamColor(team, c),
             opacity: v.interpolate({ inputRange: [0, 1], outputRange: [0, 0.45] }),
           },
         ]}
@@ -256,6 +260,7 @@ function TeamBlock({
   nameSize: number;
 }) {
   const { nameOf } = useRoster();
+  const c = useColors();
 
   const mine = pulse?.team === team ? pulse : null;
   const pPoints = usePulse(mine?.cell === 'points' ? mine.at : 0);
@@ -293,7 +298,7 @@ function TeamBlock({
                   guarda adentro. Asi, renombrar a alguien cambia tambien sus partidos viejos. La
                   copia queda de paracaidas por si esa persona ya no esta en la tabla. */}
               <Text
-                style={[s.name, { fontSize: nameSize, color: teamColor(team) }, lost && s.lost]}
+                style={[s.name, { fontSize: nameSize, color: teamColor(team, c) }, lost && s.lost]}
                 numberOfLines={1}
                 ellipsizeMode="tail"
               >
@@ -331,11 +336,11 @@ function TeamBlock({
           style={[
             s.cell,
             s.cellPoints,
-            state.isGoldenPoint && { backgroundColor: colors.golden, borderColor: colors.golden },
+            state.isGoldenPoint && { backgroundColor: c.golden, borderColor: c.golden },
           ]}
         >
           <Text
-            style={[s.num, s.pointsText, state.isGoldenPoint && { color: colors.onLight }]}
+            style={[s.num, s.pointsText, state.isGoldenPoint && { color: c.onLight }]}
             numberOfLines={1}
             adjustsFontSizeToFit
           >
@@ -347,27 +352,27 @@ function TeamBlock({
   );
 }
 
-const makeStyles = (m: Metrics) => {
+const makeStyles = (m: Metrics, c: Colors) => {
   const b = m.board;
   /** El casillero en vivo es mas ancho: ahi entran "40", "AD" y los dos digitos del tiebreak. */
   const pointsW = b.cellW + Math.round(b.cellW * 0.5);
 
   return StyleSheet.create({
     root: {
-      backgroundColor: colors.surface,
+      backgroundColor: c.surface,
       paddingHorizontal: b.padH,
       paddingVertical: b.padV,
       gap: b.rowGap,
     },
 
     headRow: { flexDirection: 'row', alignItems: 'center', gap: b.gap, height: b.header },
-    label: { flex: 1, fontSize: b.small, fontWeight: '900', color: colors.golden, letterSpacing: 1.2 },
+    label: { flex: 1, fontSize: b.small, fontWeight: '900', color: c.golden, letterSpacing: 1.2 },
     headCell: { width: b.cellW },
     headWide: { width: pointsW },
     headText: {
       fontSize: b.small,
       fontWeight: '800',
-      color: colors.textFaint,
+      color: c.textFaint,
       letterSpacing: 1,
       textAlign: 'center',
     },
@@ -377,7 +382,7 @@ const makeStyles = (m: Metrics) => {
     divider: {
       height: StyleSheet.hairlineWidth,
       marginLeft: b.ballSlot,
-      backgroundColor: colors.border,
+      backgroundColor: c.border,
     },
 
     // ---- Los dos jugadores, uno arriba del otro ----
@@ -388,8 +393,8 @@ const makeStyles = (m: Metrics) => {
       width: b.ball,
       height: b.ball,
       borderRadius: radius.pill,
-      backgroundColor: colors.ball,
-      shadowColor: colors.ball,
+      backgroundColor: c.ball,
+      shadowColor: c.ball,
       shadowOpacity: 0.9,
       shadowRadius: 4,
       elevation: 4,
@@ -437,18 +442,18 @@ const makeStyles = (m: Metrics) => {
     num: { fontVariant: ['tabular-nums'], textAlign: 'center' },
 
     setCell: { flexDirection: 'row', justifyContent: 'center' },
-    setText: { fontSize: b.setNum, fontWeight: '700', color: colors.textFaint },
-    setWon: { color: colors.text },
+    setText: { fontSize: b.setNum, fontWeight: '700', color: c.textFaint },
+    setWon: { color: c.text },
     sup: {
       fontSize: b.sup,
       fontWeight: '800',
-      color: colors.textFaint,
+      color: c.textFaint,
       marginBottom: Math.round(b.setNum * 0.45),
       marginLeft: 1,
     },
 
-    cellGames: { backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border },
-    gamesText: { fontSize: b.setNum, fontWeight: '800', color: colors.text },
+    cellGames: { backgroundColor: c.surfaceAlt, borderWidth: 1, borderColor: c.border },
+    gamesText: { fontSize: b.setNum, fontWeight: '800', color: c.text },
 
     // El casillero en vivo: el unico encendido de todo el tanteador.
     cellPoints: {
@@ -457,6 +462,6 @@ const makeStyles = (m: Metrics) => {
       borderWidth: 1,
       borderColor: alpha('#FFFFFF', 0.35),
     },
-    pointsText: { fontSize: b.liveNum, fontWeight: '900', color: colors.text },
+    pointsText: { fontSize: b.liveNum, fontWeight: '900', color: c.text },
   });
 };
