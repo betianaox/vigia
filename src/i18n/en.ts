@@ -297,4 +297,64 @@ export const en: Dict = {
     oneMatch: 'Not enough data.',
     noPoints: 'Not enough data.',
   },
+
+  welcome: {
+    title: 'Welcome to Vigía',
+    text: 'To learn how to use the app, open Help.',
+    help: 'Help',
+    close: 'Close',
+  },
+
+  help: {
+    title: 'Help',
+    openLabel: 'Help and settings',
+    close: 'Close',
+
+    steps: [
+      {
+        title: 'You watch. The app writes.',
+        text: 'It is run by someone standing off the court: the coach, someone on the bench, a friend.',
+      },
+      {
+        title: 'All four, on court',
+        text: 'Each one shows up where they play: who is on the forehand side and who is on the backhand side in each pair.',
+      },
+      {
+        title: 'Who serves first',
+        text: 'It is drawn, and you can correct it by hand. The forehand player starts, at the beginning of each set you can change it.',
+      },
+      {
+        title: 'Tap what happened on the point',
+        text: 'Winner, forced error or unforced error. Nothing else.',
+      },
+      {
+        title: 'And with which stroke',
+        text: 'The stroke sheet opens: smash, bandeja, víbora, volley. Configurable in this section.',
+      },
+      {
+        title: 'The score takes care of itself',
+        text: 'Serves, side changes and tie-breaks come from the rulebook.',
+      },
+      {
+        title: 'Broadcast-level statistics',
+        text: 'Winners, errors, aces and break points, like on a professional broadcast. Every match is saved.',
+      },
+      {
+        title: 'Each player’s progress',
+        text: 'Everyone builds up their own matches, so you can follow how they improve over time.',
+      },
+      {
+        title: 'A card for the group chat',
+        text: 'The whole match in one image, ready to share on WhatsApp.',
+      },
+    ],
+
+    settings: 'Settings',
+    privacy: 'Privacy policy',
+    contact: 'Contact us',
+    version: 'Vigía {v}',
+
+    startHint:
+      'To begin, tap {icon} New match. If you leave a match unfinished, you can pick it up later from History.',
+  },
 };

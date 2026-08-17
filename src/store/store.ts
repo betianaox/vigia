@@ -56,6 +56,11 @@ export interface Prefs {
   changeEnds: ChangeEndsRule;
   shotPrompt: ShotPrompt;
   language: LangPref;
+  /**
+   * Si ya se mostro la bienvenida. Se pone en true la primera vez que se cierra, y de ahi en
+   * adelante la pantalla solo se abre a pedido, con el boton de ayuda del inicio.
+   */
+  seenWelcome: boolean;
 }
 
 /** La primera vez que se abre la app. De ahi en adelante manda lo ultimo que se uso. */
@@ -86,6 +91,13 @@ export const DEFAULT_PREFS: Prefs = {
    * otro— no para hacerle tomar una decision a alguien que no la pidio.
    */
   language: 'auto',
+
+  /**
+   * Nadie la vio todavia. Como `loadPrefs` completa con los defaults, el que ya venia usando la
+   * app tambien la va a ver una vez —y esta bien: la pantalla es nueva, y explica cosas que hasta
+   * ahora no estaban escritas en ningun lado.
+   */
+  seenWelcome: false,
 };
 
 /**

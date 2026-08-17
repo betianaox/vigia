@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { seedSeason } from '../dev/seed';
 import { L } from '../i18n';
+import { HELP_ICON } from './HelpScreen';
 import { useRoster } from './roster';
 import { alpha, colors, pressed, radius, ripple, space } from './theme';
 
@@ -33,10 +34,12 @@ export function HomeScreen({
   onNewMatch,
   onHistory,
   onPlayers,
+  onHelp,
 }: {
   onNewMatch: () => void;
   onHistory: () => void;
   onPlayers: () => void;
+  onHelp: () => void;
 }) {
   /* Sembrar una temporada entera tarda unos segundos en un telefono: el motor juega cada punto
      de cada partido. Sin este contador el boton parece colgado y uno lo toca de nuevo. */
@@ -56,8 +59,27 @@ export function HomeScreen({
   return (
     <ImageBackground source={BG} style={s.root} resizeMode="cover">
       <SafeAreaView style={s.safe}>
+        {/* LA AYUDA VA ARRIBA A LA DERECHA, NO COMO UNA CUARTA PUERTA.
+            Abajo estan las tres cosas que se pueden HACER con la app; la ayuda no es una cuarta
+            cosa que hacer, es lo que se busca cuando algo no se entiende. Metida entre las
+            puertas competiria con ellas por la mirada; arriba, a la altura del logo, esta donde
+            uno la busca en cualquier app y no le quita peso a "Partido nuevo". */}
         <View style={s.head}>
           <Image source={LOGO} style={s.logo} resizeMode="contain" />
+
+          <Pressable
+            style={({ pressed: pr }) => [s.help, pr && pressed]}
+            android_ripple={{ ...ripple, borderless: true }}
+            onPress={() => {
+              tick();
+              onHelp();
+            }}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel={L.help.openLabel}
+          >
+            <MaterialIcons name={HELP_ICON} size={26} color={colors.text} />
+          </Pressable>
         </View>
 
         {/* TODO LO DE ABAJO SE ANCLA AL PISO, NO AL TECHO. `s.bottom` es flex:1 con
@@ -165,6 +187,25 @@ const s = StyleSheet.create({
   head: { alignItems: 'center', paddingTop: space.xl },
   /** El ancho manda, el alto sale de la proporcion real del archivo (ver `LOGO_RATIO`). */
   logo: { width: 180, height: 180 / LOGO_RATIO },
+
+  /**
+   * ABSOLUTO, para que el logo siga CENTRADO.
+   *
+   * Con el boton en el flujo, el `head` tendria que ser una fila y el logo se correria a la
+   * izquierda para hacerle lugar — el logo de la marca cambiaria de lugar por agregar un boton de
+   * ayuda. Sacandolo del flujo, la portada queda igual que antes y el boton se apoya en la
+   * esquina. El area tactil es de 44 y ademas lleva `hitSlop`: el icono se ve chico, pero se toca
+   * con el pulgar sin apuntar.
+   */
+  help: {
+    position: 'absolute',
+    right: 0,
+    top: space.xl,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   /** Ancla todo lo de abajo al piso de la pantalla, no al techo (ver comentario en el JSX). */
   bottom: { flex: 1, justifyContent: 'flex-end', gap: space.md },

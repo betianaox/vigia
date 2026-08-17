@@ -276,4 +276,64 @@ export const pt: Dict = {
     oneMatch: 'Dados insuficientes.',
     noPoints: 'Dados insuficientes.',
   },
+
+  welcome: {
+    title: 'Bem-vindo ao Vigía',
+    text: 'Para saber como usar a app, entra em Ajuda.',
+    help: 'Ajuda',
+    close: 'Fechar',
+  },
+
+  help: {
+    title: 'Ajuda',
+    openLabel: 'Ajuda e ajustes',
+    close: 'Fechar',
+
+    steps: [
+      {
+        title: 'Tu vês. A app anota.',
+        text: 'É usada por alguém que está fora do campo: o treinador, alguém do banco, um amigo.',
+      },
+      {
+        title: 'Os quatro, na quadra',
+        text: 'Cada um aparece no lugar que ocupa: quem joga de direita e quem de esquerda em cada dupla.',
+      },
+      {
+        title: 'Quem saca primeiro',
+        text: 'Sorteia-se, e podes corrigir à mão. Começa sacando o de direita, no início de cada set podes mudar.',
+      },
+      {
+        title: 'Toca no que aconteceu no ponto',
+        text: 'Winner, erro forçado ou erro não forçado. Mais nada.',
+      },
+      {
+        title: 'E com que batida foi',
+        text: 'Abre-se a folha de batidas: smash, bandeja, víbora, voleio. Configurável nesta secção.',
+      },
+      {
+        title: 'O placar faz-se sozinho',
+        text: 'Os serviços, as trocas de lado e os tie-breaks saem do regulamento.',
+      },
+      {
+        title: 'Estatísticas de nível profissional',
+        text: 'Winners, erros, aces e break points, como numa transmissão. Cada jogo fica guardado.',
+      },
+      {
+        title: 'A evolução de cada jogador',
+        text: 'Cada pessoa acumula os seus jogos, e podes acompanhar como progride com o tempo.',
+      },
+      {
+        title: 'Um cartão para o grupo',
+        text: 'O jogo todo numa imagem, pronta para partilhar no WhatsApp.',
+      },
+    ],
+
+    settings: 'Ajustes',
+    privacy: 'Política de privacidade',
+    contact: 'Escreve-nos',
+    version: 'Vigía {v}',
+
+    startHint:
+      'Para começar, toca em {icon} Jogo novo. Se deixares um jogo por terminar, segues depois a partir do Histórico.',
+  },
 };

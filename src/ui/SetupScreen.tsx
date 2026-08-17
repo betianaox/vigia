@@ -14,7 +14,7 @@ import {
   savePrefs,
 } from '../store/store';
 import type { Prefs } from '../store/store';
-import { L, LANG_NAMES, resolveLang, setLanguage, type Lang, type LangPref } from '../i18n';
+import { L } from '../i18n';
 import { Brand } from './Brand';
 import { PlayerField } from './PlayerField';
 import { useRoster } from './roster';
@@ -79,36 +79,8 @@ const changeEnds = () =>
     { value: 'nunca', label: L.setup.changeEndsOptions.nunca },
   ] as const;
 
-/**
- * Las dos maneras de cargar un golpe. La primera es el default, y es la que enseña.
- *
- * Cada una viene CON SU EXPLICACION, porque en el selector la descripcion va adentro de la
- * opcion: no hay que leer un renglon aparte para saber que hace la que no elegiste.
- */
-const shotPrompts = () =>
-  [
-    {
-      value: 'siempre',
-      label: L.setup.shotPrompts.siempre,
-      desc: L.setup.shotPromptHints.siempre,
-    },
-    {
-      value: 'opcional',
-      label: L.setup.shotPrompts.opcional,
-      desc: L.setup.shotPromptHints.opcional,
-    },
-  ] as const;
-
-/**
- * Los idiomas. `auto` primero: es el default y significa "segui al telefono" — al lado, entre
- * parentesis, el idioma que le toca hoy, para que elegirlo no sea elegir a ciegas.
- *
- * Los nombres NO se traducen: quien busca "Português" lo busca escrito asi (ver `LANG_NAMES`).
- */
-const languages = (): Array<{ value: LangPref; label: string }> => [
-  { value: 'auto', label: `${L.setup.languageAuto} · ${LANG_NAMES[resolveLang('auto')]}` },
-  ...(Object.keys(LANG_NAMES) as Lang[]).map((k) => ({ value: k, label: LANG_NAMES[k] })),
-];
+/* Los golpes y los idiomas se eligen ahora en la pantalla de ayuda: son de la app y no del
+   partido de hoy. Sus opciones se fueron con ellos, a `HelpScreen`. */
 
 /**
  * Como se para la pareja cuando saca. Es por PAREJA, no por partido — cada equipo elige.
@@ -131,18 +103,11 @@ const formationOptions = () =>
 export function SetupScreen({
   onStart,
   onBack,
-  onLanguage,
 }: {
   onStart: (config: MatchConfig) => void;
   /** Volver al inicio. El formulario ya no es la raiz: tiene su propio boton de volver, y
       ademas atiende el back de Android (ver App.tsx). */
   onBack: () => void;
-  /**
-   * Cambio el idioma. El diccionario ya esta cambiado cuando esto se llama: lo unico que falta es
-   * que React redibuje la app entera, y eso solo lo puede hacer quien esta MAS ARRIBA que todas
-   * las pantallas — este formulario redibujandose a si mismo dejaria el resto en el idioma viejo.
-   */
-  onLanguage: () => void;
 }) {
   // El plantel sale del contexto: una sola fuente en toda la app.
   const { players: roster, reload } = useRoster();
@@ -217,22 +182,10 @@ export function SetupScreen({
       .slice(0, 4);
   };
 
-  /**
-   * Una preferencia DE LA APP: se guarda al tocarla, no al empezar el partido.
-   *
-   * Las del partido (el formato, el tercer set) se guardan recien en `start`, y esta bien: no son
-   * una configuracion, son EL RECUERDO DE COMO JUGASTE LA ULTIMA VEZ — si abandonaste el
-   * formulario, no jugaste, y no hay nada que recordar.
-   *
-   * Estas dos son otra cosa. Cambiar el idioma y perderlo porque no llegaste a empezar un partido
-   * seria absurdo: no tiene nada que ver con ningun partido.
-   */
-  const setAppPref = (patch: Partial<Prefs>) =>
-    setPrefs((x) => {
-      const next = { ...x, ...patch };
-      void savePrefs(next);
-      return next;
-    });
+  /* El guardado inmediato se fue con las preferencias de la app: lo que queda aca —el formato, el
+     tercer set— NO es una configuracion, es el recuerdo de como jugaste la ultima vez, y por eso
+     se guarda recien en `start`. Si abandonaste el formulario, no jugaste, y no hay nada que
+     recordar. La escritura al tocar vive ahora en `App.tsx`, junto a las prefs. */
 
   const start = async () => {
     if (!ready) return;
@@ -510,44 +463,17 @@ export function SetupScreen({
             <Text style={s.hint}>{L.setup.remembered}</Text>
 
             {/**
-             * LO DE LA APP, NO LO DEL PARTIDO. Y NO LO DICE NINGUN CARTEL: LO DICE LA FORMA.
+             * ACA VIVIAN EL IDIOMA Y EL MODO DE CARGAR LOS GOLPES, Y SE FUERON.
              *
-             * Todo lo de arriba se elige para el partido de hoy y cambia de una vez a otra. Estas
-             * dos no: son como te gusta a VOS usar la app, y una vez puestas no se tocan mas.
-             * Meterlas entre los botones era ponerlas en la misma bolsa que el reglamento.
+             * No eran del partido de hoy: eran de la APP. Y estando aca, cambiar el idioma
+             * obligaba a empezar a crear un partido —abrir el formulario, desplegar las
+             * avanzadas, bajar hasta el final— para tocar algo que no tiene nada que ver con el
+             * partido que se esta cargando.
              *
-             * Se separan con un componente distinto —un selector en vez de botones— y con un
-             * corte mas ancho que las lineas de arriba. Nadie tiene que leer que son otra cosa:
-             * se ve que son otra cosa. Y van ULTIMAS porque se llega hasta aca UNA vez.
+             * Ahora estan en la pantalla de ayuda (`HelpScreen`), que es la que se abre sola la
+             * primera vez y despues queda a un toque del inicio. Las avanzadas quedaron con el
+             * reglamento y nada mas, que es de lo que las avanzadas hablan.
              */}
-            <View style={s.panelCut} />
-
-            {/**
-             * El default es "Preguntar siempre" a proposito (ver `DEFAULT_PREFS`): es la unica
-             * opcion de toda la lista que le enseña algo al que no sabe — le cuenta que los golpes
-             * se pueden registrar, que es el diferencial entero de la app. El que no quiere que le
-             * pregunten lo apaga una vez y no lo ve nunca mas.
-             */}
-            <Select
-              title={L.setup.shotPrompt}
-              options={shotPrompts()}
-              value={prefs.shotPrompt}
-              onChange={(v) => setAppPref({ shotPrompt: v as Prefs['shotPrompt'] })}
-            />
-
-            <Select
-              title={L.setup.language}
-              options={languages()}
-              value={prefs.language}
-              onChange={(v) => {
-                /* Primero se cambia el diccionario, despues se avisa: `onLanguage` redibuja la
-                   app entera, y tiene que encontrar el diccionario nuevo ya puesto. Sin reiniciar
-                   nada y sin pantalla intermedia — se toca y ya esta. */
-                setLanguage(v as LangPref);
-                setAppPref({ language: v as LangPref });
-                onLanguage();
-              }}
-            />
           </View>
         )}
 
@@ -843,19 +769,9 @@ const s = StyleSheet.create({
   },
   /** Sutil: separa sin dibujar cajas adentro de la caja. */
   panelRule: { height: StyleSheet.hairlineWidth, backgroundColor: alpha(colors.text, 0.12) },
-  /**
-   * EL CORTE. Separa el reglamento del partido de lo que es de la app.
-   *
-   * No es la misma linea de arriba con otro nombre: las de arriba separan opciones HERMANAS, y
-   * esta separa dos CATEGORIAS. Por eso pesa mas —mas aire arriba y abajo, y la linea un punto
-   * mas viva— y por eso el componente que viene despues es otro. Las dos señales dicen lo mismo,
-   * que es lo que hace que no haga falta escribirlo.
-   */
-  panelCut: {
-    height: StyleSheet.hairlineWidth,
-    marginTop: space.sm,
-    backgroundColor: alpha(colors.text, 0.22),
-  },
+  /* Aca vivia EL CORTE, la linea que separaba el reglamento del partido de lo que era de la app.
+     Se fue con ellas: en este panel ya no conviven dos categorias, asi que no hay nada que
+     cortar. */
   /** Cada formacion con su propia linea arriba, sin romper el `gap` del panel. */
   panelBlock: { gap: space.lg },
 

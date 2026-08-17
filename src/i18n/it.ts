@@ -276,4 +276,64 @@ export const it: Dict = {
     oneMatch: 'Dati insufficienti.',
     noPoints: 'Dati insufficienti.',
   },
+
+  welcome: {
+    title: 'Benvenuto in Vigía',
+    text: 'Per sapere come si usa l’app, entra in Aiuto.',
+    help: 'Aiuto',
+    close: 'Chiudi',
+  },
+
+  help: {
+    title: 'Aiuto',
+    openLabel: 'Aiuto e impostazioni',
+    close: 'Chiudi',
+
+    steps: [
+      {
+        title: 'Tu guardi. L’app scrive.',
+        text: 'La usa qualcuno che sta fuori dal campo: l’allenatore, qualcuno in panchina, un amico.',
+      },
+      {
+        title: 'Tutti e quattro, in campo',
+        text: 'Ognuno compare nel posto che occupa: chi gioca di diritto e chi di rovescio in ogni coppia.',
+      },
+      {
+        title: 'Chi serve per primo',
+        text: 'Si sorteggia, e si può correggere a mano. Inizia il giocatore di diritto, all’inizio di ogni set si può cambiare.',
+      },
+      {
+        title: 'Tocca che cosa è successo nel punto',
+        text: 'Winner, errore forzato o errore non forzato. Nient’altro.',
+      },
+      {
+        title: 'E con quale colpo',
+        text: 'Si apre la scheda dei colpi: smash, bandeja, víbora, volée. Configurabile in questa sezione.',
+      },
+      {
+        title: 'Il punteggio si fa da solo',
+        text: 'Servizi, cambi di campo e tie-break escono dal regolamento.',
+      },
+      {
+        title: 'Statistiche da telecronaca',
+        text: 'Winner, errori, ace e break point, come in una trasmissione. Ogni partita resta salvata.',
+      },
+      {
+        title: 'L’evoluzione di ogni giocatore',
+        text: 'Ognuno accumula le proprie partite, e puoi seguire come migliora nel tempo.',
+      },
+      {
+        title: 'Una scheda per il gruppo',
+        text: 'L’intera partita in una sola immagine, pronta da condividere su WhatsApp.',
+      },
+    ],
+
+    settings: 'Impostazioni',
+    privacy: 'Informativa sulla privacy',
+    contact: 'Scrivici',
+    version: 'Vigía {v}',
+
+    startHint:
+      'Per iniziare, tocca {icon} Partita nuova. Se lasci una partita non finita, la riprendi dallo Storico.',
+  },
 };

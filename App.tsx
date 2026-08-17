@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { LOCALE, setLanguage } from './src/i18n';
-import { loadPrefs } from './src/store/store';
+import { loadPrefs, savePrefs, type Prefs } from './src/store/store';
 
 import { reduce } from './src/engine';
 import { career, type CareerStats } from './src/engine/career';
@@ -20,7 +20,9 @@ import {
   type SavedMatch,
 } from './src/store/matches';
 import { CareerScreen } from './src/ui/CareerScreen';
+import { HelpScreen } from './src/ui/HelpScreen';
 import { HistoryScreen } from './src/ui/HistoryScreen';
+import { WelcomeOverlay } from './src/ui/WelcomeOverlay';
 import { HomeScreen } from './src/ui/HomeScreen';
 import { PlayersScreen } from './src/ui/PlayersScreen';
 import { ResumeScreen } from './src/ui/ResumeScreen';
@@ -70,7 +72,12 @@ type Screen =
    * anota de cual: cerrar tiene que devolverte a donde estabas, no a un lugar que elegimos
    * nosotros.
    */
-  | { name: 'career'; stats: CareerStats; from: 'players' | 'history' };
+  | { name: 'career'; stats: CareerStats; from: 'players' | 'history' }
+  /**
+   * Ayuda y ajustes. Se abre SIEMPRE a pedido, con el boton del inicio: la primera vez no se abre
+   * esta pantalla sino un dialogo chico encima del inicio (ver `WelcomeOverlay`).
+   */
+  | { name: 'help' };
 
 /**
  * El dueño del partido.
@@ -131,6 +138,22 @@ function Vigia({ onLanguage }: { onLanguage: () => void }) {
   /** El partido a medias que quedo de la vez pasada, para poder ofrecer retomarlo. */
   const [resumable, setResumable] = useState<SavedMatch | null>(null);
 
+  /**
+   * Las preferencias viven aca porque ahora las miran DOS pantallas: el formulario, para el
+   * reglamento del partido, y la de ayuda, para el idioma y los golpes. Con una copia en cada
+   * una, cambiar el idioma en una dejaria a la otra con el valor viejo hasta remontarla.
+   */
+  const [prefs, setPrefs] = useState<Prefs | null>(null);
+
+  const setPref = useCallback((patch: Partial<Prefs>) => {
+    setPrefs((x) => {
+      if (!x) return x;
+      const next = { ...x, ...patch };
+      void savePrefs(next);
+      return next;
+    });
+  }, []);
+
   // Al abrir la app: si habia un partido sin terminar, se ofrece seguirlo.
   useEffect(() => {
     void (async () => {
@@ -143,6 +166,33 @@ function Vigia({ onLanguage }: { onLanguage: () => void }) {
       } else await setCurrentId(null); // el archivo no esta: no dejar un puntero colgado
     })();
   }, []);
+
+  /**
+   * EL SALUDO DE LA PRIMERA VEZ.
+   *
+   * No cambia de pantalla: es un dialogo chico ENCIMA de lo que haya, asi que la primera impresion
+   * sigue siendo la app y no un manual. Por eso vive en su propio estado y no en `Screen` — no es
+   * un lugar al que se navega, es algo que aparece arriba.
+   *
+   * El flag se escribe al CERRARLO, no al abrirlo: si la app muere mientras esta abierto, la
+   * proxima vez se vuelve a ofrecer en lugar de perderse para siempre.
+   */
+  const [welcome, setWelcome] = useState(false);
+
+  useEffect(() => {
+    void (async () => {
+      const p = await loadPrefs();
+      setPrefs(p);
+      if (!p.seenWelcome) setWelcome(true);
+    })();
+  }, []);
+
+  /** Las dos salidas del saludo lo dan por visto: la que entra a la ayuda y la que se va. */
+  const closeWelcome = (goToHelp: boolean) => {
+    setPref({ seenWelcome: true });
+    setWelcome(false);
+    if (goToHelp) setScreen({ name: 'help' });
+  };
 
   /** Cada evento: se actualiza en memoria y se escribe a disco. La escritura nunca bloquea. */
   const onEvents = useCallback(
@@ -308,16 +358,40 @@ function Vigia({ onLanguage }: { onLanguage: () => void }) {
         <SetupScreen
           onStart={start}
           onBack={() => setScreen({ name: 'home' })}
-          /* El formulario ya cambio el diccionario; esto es lo que hace que React se entere. */
+        />
+      ) : screen.name === 'help' && prefs ? (
+        /* `prefs` es la condicion y no un default: la pantalla ofrece cambiar el idioma y los
+           golpes, y dibujarla con valores inventados mostraria seleccionada una opcion que no es
+           la que esta guardada. */
+        <HelpScreen
+          prefs={prefs}
+          onPref={setPref}
           onLanguage={onLanguage}
+          onClose={() => setScreen({ name: 'home' })}
+          /* Solo lo usa el boton de `__DEV__`: vuelve a marcar el saludo como no visto, sale al
+             inicio y lo abre — que es exactamente lo que ve alguien que instala la app. */
+          onReplayWelcome={() => {
+            setPref({ seenWelcome: false });
+            setScreen({ name: 'home' });
+            setWelcome(true);
+          }}
         />
       ) : (
         <HomeScreen
           onNewMatch={() => setScreen({ name: 'setup' })}
           onHistory={() => setScreen({ name: 'history' })}
           onPlayers={() => setScreen({ name: 'players' })}
+          onHelp={() => setScreen({ name: 'help' })}
         />
       )}
+
+      {/* ENCIMA DE TODO, y fuera del arbol de pantallas: no es un lugar al que se navega. Va
+          ultimo para que quede por arriba de la pantalla que se este dibujando, sea cual sea. */}
+      <WelcomeOverlay
+        visible={welcome}
+        onHelp={() => closeWelcome(true)}
+        onClose={() => closeWelcome(false)}
+      />
     </SafeAreaProvider>
   );
 }

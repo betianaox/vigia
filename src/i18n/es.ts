@@ -426,4 +426,106 @@ export const es = {
     oneMatch: 'Datos insuficientes.',
     noPoints: 'Datos insuficientes.',
   },
+
+  /**
+   * LA PANTALLA DE AYUDA — que la primera vez es la BIENVENIDA.
+   *
+   * Es una sola pantalla con dos modos, no dos pantallas. La primera vez se abre sola y explica
+   * de que se trata; despues se llega con el boton de ayuda del inicio, para releerla o para
+   * cambiar el idioma. Un carrusel de onboarding habria servido solo para lo primero: nadie
+   * vuelve a abrir un carrusel, y entonces el idioma y la privacidad seguirian sin tener casa.
+   *
+   * LO QUE HAY QUE EXPLICAR ES EL ROL, no los botones. Que la app la maneje alguien que esta
+   * AFUERA de la cancha no se le ocurre a nadie solo, y sin eso la pantalla de un partido no se
+   * entiende. Los botones se descubren tocando; el rol, no.
+   */
+  /**
+   * EL SALUDO DE LA PRIMERA VEZ. Chico, encima del inicio, y nada mas.
+   *
+   * La primera impresion de la app tiene que ser LA APP —la cancha, el logo, el boton verde— y no
+   * un manual. Un onboarding a pantalla completa le pone un trámite adelante a alguien que todavia
+   * no sabe si le interesa: lo unico que hace falta la primera vez es decirle DONDE esta la ayuda
+   * el dia que la necesite.
+   */
+  welcome: {
+    title: 'Bienvenido a Vigía',
+    text: 'Para saber cómo usar la app, entra en Ayuda.',
+    /** El boton lleva el MISMO icono que va a tener el de ayuda: se lo presenta, no se lo cuenta. */
+    help: 'Ayuda',
+    /** "Cerrar" y no "Salir": salir se lee como salir DE LA APP, y lo unico que cierra es esto. */
+    close: 'Cerrar',
+  },
+
+  help: {
+    /** Va como subtitulo de la marca, igual que en el resto de las pantallas. */
+    title: 'Ayuda',
+    /** Etiqueta accesible del boton del inicio: lo que lee un lector de pantalla. */
+    openLabel: 'Ayuda y ajustes',
+    close: 'Cerrar',
+
+    /**
+     * Los seis pasos, en orden. El ICONO NO ESTA ACA: se empareja por posicion en la pantalla,
+     * porque un icono no se traduce y no tiene nada que hacer en un archivo de idioma.
+     */
+    steps: [
+      {
+        title: 'Tú miras. La app anota.',
+        text: 'La maneja alguien que está afuera de la cancha: el entrenador, alguien del banco, un amigo.',
+      },
+      {
+        title: 'Los cuatro, en la cancha',
+        text: 'Cada uno aparece en el lugar que ocupa: quién juega de drive y quién de revés en cada pareja.',
+      },
+      {
+        title: 'Quién saca primero',
+        text: 'Se sortea, y se puede corregir a mano. Empieza sacando el drive, al principio de cada set se puede cambiar.',
+      },
+      {
+        title: 'Toca qué pasó en el punto',
+        text: 'Winner, error forzado o error no forzado. Nada más que eso.',
+      },
+      {
+        title: 'Y con qué golpe fue',
+        text: 'Se abre la hoja de golpes: remate, bandeja, víbora, volea. Configurable en esta sección.',
+      },
+      {
+        title: 'El marcador se hace solo',
+        text: 'Los saques, los cambios de lado y los tie-breaks salen del reglamento.',
+      },
+      {
+        title: 'Estadísticas de nivel profesional',
+        text: 'Winners, errores, aces y break points, como en una transmisión. Cada partido queda guardado.',
+      },
+      {
+        title: 'La evolución de cada jugador',
+        text: 'Cada persona acumula sus partidos, y puedes seguir cómo progresa con el tiempo.',
+      },
+      {
+        title: 'Una tarjeta para el grupo',
+        text: 'El partido entero en una imagen, lista para compartir por WhatsApp.',
+      },
+    ],
+
+    settings: 'Ajustes',
+    privacy: 'Política de privacidad',
+    contact: 'Escríbenos',
+    /** {v} es la version que declara `app.json`: no se escribe a mano en ningun lado. */
+    version: 'Vigía {v}',
+
+    /**
+     * POR DONDE SE EMPIEZA. `{icon}` se reemplaza por el icono de verdad, dibujado dentro de la
+     * frase: nombrar un boton obliga a salir a buscarlo, mostrarlo no.
+     *
+     * Manda a HISTORIAL y no a las estadisticas: el boton para seguir un partido a medias vive en
+     * la fila de ese partido, en el historial (ver `HistoryScreen`).
+     *
+     * Y NO dice ademas que la app lo ofrece al abrirla, aunque sea cierto: eso solo pasa con el
+     * ultimo que quedo a medias, y contarlo al lado del historial —de donde se retoma CUALQUIERA—
+     * hace parecer que son dos caminos equivalentes. Uno solo funciona siempre.
+     */
+    /* "Sin terminar" y no "a medias": es la MISMA palabra que ya usa el historial para marcar
+       esos partidos. Dos formas de nombrar lo mismo obligan a deducir que son lo mismo. */
+    startHint:
+      'Para empezar, toca {icon} Partido nuevo. Si dejas un partido sin terminar, lo sigues después desde Historial.',
+  },
 };
