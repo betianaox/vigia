@@ -88,10 +88,91 @@ describe('nadie congela el diccionario', () => {
    * correr los renglones. Sin esto, un `const GAP = 2; // ...` no parecia terminar (el `;` no
    * quedaba al final del renglon) y el test se comia las lineas siguientes.
    */
-  const withoutComments = (src: string): string =>
-    src
-      .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
-      .replace(/\/\/[^\n]*/g, (m) => ' '.repeat(m.length));
+  /**
+   * Borra los comentarios y deja todo lo demas donde estaba (los reemplaza por espacios, asi las
+   * lineas y las columnas no se mueven).
+   *
+   * RECORRE CARACTER POR CARACTER Y NO CON UN REGEX, por una razon concreta: un regex de `//`
+   * tambien corta adentro de un string, y `'https://play.google.com/…'` tiene dos barras. Cuando
+   * eso paso, este test empezo a fallar en una constante que declaraba una URL —nada que ver con
+   * el diccionario— y el mensaje de error apuntaba a un lugar que no tenia el problema. Un guard
+   * que acusa al inocente se termina ignorando, que es peor que no tenerlo.
+   */
+  const withoutComments = (src: string): string => {
+    let out = '';
+    // Que estamos atravesando: nada, un string (con su comilla), o un comentario.
+    let quote: string | null = null;
+    let comment: 'line' | 'block' | null = null;
+
+    for (let i = 0; i < src.length; i++) {
+      const c = src[i]!;
+      const next = src[i + 1];
+
+      if (comment) {
+        // Los saltos de linea se conservan SIEMPRE: es lo que mantiene la numeracion.
+        if (comment === 'line' && c === '\n') comment = null;
+        else if (comment === 'block' && c === '*' && next === '/') {
+          comment = null;
+          out += '  ';
+          i++;
+          continue;
+        }
+        out += c === '\n' ? '\n' : ' ';
+        continue;
+      }
+
+      if (quote) {
+        // Una comilla escapada no cierra el string.
+        if (c === '\\') {
+          out += src.slice(i, i + 2);
+          i++;
+          continue;
+        }
+        if (c === quote) quote = null;
+        out += c;
+        continue;
+      }
+
+      if (c === '/' && next === '/') {
+        comment = 'line';
+        out += ' ';
+        continue;
+      }
+      if (c === '/' && next === '*') {
+        comment = 'block';
+        out += ' ';
+        continue;
+      }
+      if (c === '"' || c === "'" || c === '`') quote = c;
+      out += c;
+    }
+
+    return out;
+  };
+
+  /**
+   * EL GUARD TAMBIEN SE PRUEBA. El de abajo solo sirve si borra los comentarios y NADA MAS: si se
+   * come parte del codigo, acusa a archivos sanos; si deja pasar un comentario, no ve al culpable.
+   */
+  it('saca los comentarios sin tocar lo que hay adentro de un string', () => {
+    // El caso que lo rompio: `https://` tiene dos barras y no es un comentario.
+    const url = withoutComments('const U = `https://play.google.com/x`;');
+    expect(url).toContain('play.google.com');
+    expect(url).toContain(';');
+
+    // Y lo que si tiene que borrar.
+    expect(withoutComments('const A = 1; // L.stats')).not.toMatch(/\bL\./);
+    expect(withoutComments('const B = 2; /* L.stats */')).not.toMatch(/\bL\./);
+
+    // Un comentario despues de un string con barras: el string queda, el comentario no.
+    const mixto = withoutComments("const C = 'a//b'; // L.stats");
+    expect(mixto).toContain("'a//b'");
+    expect(mixto).not.toMatch(/\bL\./);
+
+    // La numeracion de lineas no se mueve: de eso depende que el error apunte al lugar correcto.
+    const tresLineas = withoutComments('const A = 1;\n// L.stats\nconst B = 2;');
+    expect(tresLineas.split('\n')).toHaveLength(3);
+  });
 
   it('ningun archivo lee `L` en una constante de modulo', async () => {
     const files = [join(ROOT, 'App.tsx'), ...(await sources(join(ROOT, 'src')))];
