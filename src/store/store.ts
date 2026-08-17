@@ -9,6 +9,7 @@ import type {
   ThirdSetFormat,
 } from '../engine';
 import type { LangPref } from '../i18n';
+import type { ThemeName } from '../ui/theme';
 
 /**
  * El guardado local. Es lo unico que persiste hoy, y es a proposito el pedazo mas aburrido
@@ -68,6 +69,8 @@ export interface Prefs {
    * y volver a llegar al mismo hito no vuelve a preguntar.
    */
   lastReviewAsk: number;
+  /** Claro u oscuro. Se cambia en caliente desde la ayuda y se recuerda. */
+  theme: ThemeName;
 }
 
 /** La primera vez que se abre la app. De ahi en adelante manda lo ultimo que se uso. */
@@ -108,6 +111,13 @@ export const DEFAULT_PREFS: Prefs = {
 
   /** Nunca se pidio. El primer hito es el tercer partido terminado. */
   lastReviewAsk: 0,
+
+  /**
+   * OSCURO. La app se usa al costado de una cancha, muchas veces de noche y con luz artificial,
+   * mirando la pantalla de reojo entre punto y punto. El claro esta para quien lo prefiera, no
+   * para reemplazarlo.
+   */
+  theme: 'oscuro',
 };
 
 /**

@@ -507,6 +507,13 @@ export const es = {
     ],
 
     settings: 'Ajustes',
+    /** Claro u oscuro. El default es oscuro: la app se usa al borde de una cancha, de noche. */
+    theme: 'Tema',
+    themes: { oscuro: 'Oscuro', claro: 'Claro' },
+    themeHints: {
+      oscuro: 'Para la cancha de noche y con luz artificial.',
+      claro: 'Para mirarla con sol de frente.',
+    },
     privacy: 'Política de privacidad',
     contact: 'Escríbenos',
     /**

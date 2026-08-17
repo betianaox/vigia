@@ -1,4 +1,21 @@
-export const colors = {
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * LOS DOS TEMAS
+ * ─────────────────────────────────────────────────────────────────────────────
+ * El OSCURO es el original y no se toca: es el que se probó gris por gris contra una cancha de
+ * noche, y el default de la app.
+ *
+ * El CLARO arranca como una COPIA del oscuro, con los fondos y los textos dados vuelta y nada
+ * más. No es pereza: es el método. Cambiando solo eso, la app se vuelve clara de golpe y lo que
+ * queda mal se ve solo — un violeta que sobre negro respiraba y sobre blanco grita, una barra que
+ * desaparece. Se corrige lo que falla, mirándolo, en vez de adivinar treinta tonos de una.
+ *
+ * Los colores de DATOS (los equipos, el semáforo de gráficos, el lima) siguen siendo los del
+ * oscuro a propósito, y casi seguro haya que rehacerlos: están validados contra `#141B24` con
+ * cuatro criterios —banda de luminosidad, croma, separación para daltonismo y contraste— y esa
+ * validación no se hereda al cambiar el fondo.
+ */
+const dark = {
   bg: '#0A0E13',
   surface: '#141B24',
   surfaceAlt: '#1B2531',
@@ -102,8 +119,78 @@ export const colors = {
   onLight: '#0A0E13',
 } as const;
 
-export const teamColor = (team: 'A' | 'B'): string =>
-  team === 'A' ? colors.teamA : colors.teamB;
+/** La forma que los dos temas tienen que cumplir. Falta un color: no compila. */
+export type Colors = { [K in keyof typeof dark]: string };
+
+/**
+ * EL CLARO. Por ahora, el oscuro con los fondos y los textos dados vuelta.
+ *
+ * El fondo NO es blanco puro: un blanco a pantalla completa en una app que se mira muchas veces
+ * seguidas durante un partido cansa la vista, que es exactamente la razón por la que el oscuro
+ * tampoco es negro puro. Es un gris muy claro, y las superficies —las tarjetas— van en blanco,
+ * así se despegan del fondo sin necesidad de un borde más fuerte.
+ */
+const light: Colors = {
+  ...dark,
+
+  bg: '#EEF1F5',
+  surface: '#FFFFFF',
+  surfaceAlt: '#F5F7FA',
+  border: '#D3DBE4',
+
+  text: '#0F172A',
+  textDim: '#4A5A6B',
+  textFaint: '#7C8B9C',
+
+  /** El texto que va ENCIMA de un color claro sigue siendo oscuro: no se da vuelta. */
+  onLight: '#0A0E13',
+
+  /**
+   * EL LIMA, OSCURECIDO. El de la marca (#D9F92F) tiene 1.06 de contraste contra este fondo:
+   * no es que se lea poco, es que no se ve. Sobre el negro de la cancha brilla; sobre casi
+   * blanco desaparece.
+   *
+   * Se probaron dos pasos. El que pasa 4.5:1 —el umbral del TEXTO chico— se iba a verde militar
+   * y perdia la identidad de la marca. Este cumple 3.50 contra el fondo, que es el umbral que
+   * corresponde de verdad a lo que se pinta con el: el logo, los iconos, las pastillas. Ninguno
+   * es texto de doce puntos.
+   *
+   * El tono se mantiene —hue 66 contra los 70 del original—, asi que sigue leyendose como el
+   * mismo lima, un paso mas grave y apenas mas amarillo: al oscurecer un verde-amarillo, el ojo
+   * lo empieza a leer como oliva, y correrlo unos grados hacia el amarillo lo devuelve a la
+   * familia del original sin tocar el brillo.
+   *
+   * En el INICIO no hace falta: alli el lima va sobre la foto de la cancha, que es oscura en los
+   * dos temas, y por eso ese logo no se tiñe con el color del tema.
+   */
+  ball: '#7D8A0A',
+  /**
+   * El lima de GRAFICOS. Sigue la misma regla que en el oscuro —grita menos que el otro— pero al
+   * reves: aca gritar menos es acercarse al fondo, no alejarse. Queda en 3.03, que es lo que
+   * necesita una barra grande, donde el area ya hace la mitad del trabajo.
+   */
+  ballChart: '#8A9C14',
+};
+
+export const themes = { oscuro: dark, claro: light } as const;
+
+/** Cuál de los dos. Vive en las preferencias, y el default es el oscuro. */
+export type ThemeName = keyof typeof themes;
+
+/**
+ * El tema por defecto, y el que usan los pocos lugares que NO pueden pedirlo por contexto —el
+ * `ripple`, que es una constante de módulo, y la tarjeta compartible, que se dibuja siempre
+ * oscura porque se manda a WhatsApp y ahí no hay tema.
+ */
+export const colors = dark;
+
+/**
+ * El color del equipo. El tema va SEGUNDO y con default a proposito: asi las pantallas todavia
+ * sin migrar siguen compilando —con el oscuro, que es el default de la app— y la migracion puede
+ * ir de a una. Cuando no quede ninguna sin migrar, el parametro deja de tener default.
+ */
+export const teamColor = (team: 'A' | 'B', c: Colors = dark): string =>
+  team === 'A' ? c.teamA : c.teamB;
 
 /** Relleno translucido sobre fondo oscuro: el color se lee sin gritar. */
 export const alpha = (hex: string, a: number): string =>

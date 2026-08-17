@@ -1,10 +1,12 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useMemo } from 'react';
 import { Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { L } from '../i18n';
 import { HELP_ICON } from './HelpScreen';
-import { alpha, colors, pressed, radius, ripple, space } from './theme';
+import { useColors } from './theme-context';
+import { alpha, colors, pressed, radius, ripple, space, type Colors } from './theme';
 
 const tick = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
@@ -37,6 +39,9 @@ export function WelcomeOverlay({
   /** Cerrar y quedarse donde estaba. */
   onClose: () => void;
 }) {
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+
   return (
     <Modal
       visible={visible}
@@ -78,6 +83,8 @@ export function WelcomeOverlay({
                 onHelp();
               }}
             >
+              {/* Blanco fijo, no `c.text`: va sobre el verde del boton, que es el mismo en los
+                  dos temas. Siguiendo al tema, en el claro seria texto oscuro sobre verde. */}
               <MaterialIcons name={HELP_ICON} size={20} color={colors.text} />
               <Text style={s.primaryText}>{L.welcome.help}</Text>
             </Pressable>
@@ -88,7 +95,8 @@ export function WelcomeOverlay({
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Colors) =>
+  StyleSheet.create({
   veil: {
     flex: 1,
     backgroundColor: alpha('#000000', 0.72),
@@ -104,10 +112,10 @@ const s = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 360,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
     padding: space.lg,
     gap: space.sm,
     alignItems: 'center',
@@ -116,9 +124,9 @@ const s = StyleSheet.create({
   /** Esta pelota ya viene con su volumen y su luz: derecha, sin girar. */
   ball: { width: 38, height: 38, marginBottom: space.xs },
 
-  title: { color: colors.text, fontSize: 19, fontWeight: '900', textAlign: 'center' },
+  title: { color: c.text, fontSize: 19, fontWeight: '900', textAlign: 'center' },
   text: {
-    color: colors.textDim,
+    color: c.textDim,
     fontSize: 14,
     lineHeight: 20,
     textAlign: 'center',
@@ -145,9 +153,9 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
   },
-  ghostText: { color: colors.textDim, fontSize: 15, fontWeight: '800' },
+  ghostText: { color: c.textDim, fontSize: 15, fontWeight: '800' },
 
   primary: {
     flex: 1,
@@ -158,7 +166,8 @@ const s = StyleSheet.create({
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.cta,
+    backgroundColor: c.cta,
   },
+  /** Blanco fijo por lo mismo que el icono de al lado: el fondo verde no cambia con el tema. */
   primaryText: { color: colors.text, fontSize: 15, fontWeight: '900' },
 });

@@ -1,9 +1,10 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { alpha, colors, pressed, radius, ripple, space } from './theme';
+import { useColors } from './theme-context';
+import { alpha, pressed, radius, ripple, space, type Colors } from './theme';
 
 const tick = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
@@ -39,6 +40,9 @@ export function Select({
   value: string;
   onChange: (value: string) => void;
 }) {
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+
   const [open, setOpen] = useState(false);
   const current = options.find((o) => o.value === value);
 
@@ -88,7 +92,7 @@ export function Select({
             {current?.desc && <Text style={s.fieldDesc}>{current.desc}</Text>}
           </View>
 
-          <MaterialIcons name="expand-more" size={22} color={colors.textDim} />
+          <MaterialIcons name="expand-more" size={22} color={c.textDim} />
         </Pressable>
       </View>
 
@@ -110,7 +114,7 @@ export function Select({
                 onPress={() => setOpen(false)}
                 hitSlop={8}
               >
-                <MaterialIcons name="close" size={22} color={colors.text} />
+                <MaterialIcons name="close" size={22} color={c.text} />
               </Pressable>
             </View>
 
@@ -134,7 +138,7 @@ export function Select({
                   {/* El tilde ocupa su lugar SIEMPRE, este o no: sin esto, la opcion elegida
                       tiene menos ancho de texto que las otras y el renglon salta al elegir. */}
                   <View style={s.checkSlot}>
-                    {on && <MaterialIcons name="check" size={20} color={colors.text} />}
+                    {on && <MaterialIcons name="check" size={20} color={c.text} />}
                   </View>
                 </Pressable>
               );
@@ -146,11 +150,12 @@ export function Select({
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Colors) =>
+  StyleSheet.create({
   /** El mismo bloque que un grupo de botones: titulo arriba, control abajo, mismo aire. */
   block: { gap: space.sm },
   title: {
-    color: colors.textFaint,
+    color: c.textFaint,
     fontSize: 11.5,
     fontWeight: '900',
     letterSpacing: 1.5,
@@ -167,18 +172,18 @@ const s = StyleSheet.create({
     paddingHorizontal: space.md,
     borderRadius: radius.sm,
     borderWidth: 1,
-    borderColor: alpha(colors.text, 0.2),
-    backgroundColor: colors.surfaceAlt,
+    borderColor: alpha(c.text, 0.2),
+    backgroundColor: c.surfaceAlt,
   },
   fieldText: { flex: 1, gap: 2 },
   /** Lo que esta puesto va encendido: es el dato, no el titulo. */
-  value: { color: colors.text, fontSize: 14, fontWeight: '700' },
-  fieldDesc: { color: colors.textFaint, fontSize: 12.5, lineHeight: 17 },
+  value: { color: c.text, fontSize: 14, fontWeight: '700' },
+  fieldDesc: { color: c.textFaint, fontSize: 12.5, lineHeight: 17 },
 
   bg: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#000B' },
   sheet: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     padding: space.md,
     paddingBottom: space.xl,
     gap: space.xs,
@@ -189,7 +194,7 @@ const s = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', height: 44 },
   headText: {
     flex: 1,
-    color: colors.textFaint,
+    color: c.textFaint,
     fontSize: 12,
     fontWeight: '900',
     letterSpacing: 1.5,
@@ -210,13 +215,13 @@ const s = StyleSheet.create({
   },
   /** La elegida se enciende con el mismo relleno que un boton puesto: un solo vocabulario. */
   optionOn: {
-    backgroundColor: alpha(colors.text, 0.1),
-    borderColor: alpha(colors.text, 0.35),
+    backgroundColor: alpha(c.text, 0.1),
+    borderColor: alpha(c.text, 0.35),
   },
   optionText: { flex: 1, gap: 2 },
-  optionLabel: { color: colors.textDim, fontSize: 15, fontWeight: '700' },
-  optionLabelOn: { color: colors.text, fontWeight: '900' },
-  optionDesc: { color: colors.textFaint, fontSize: 12.5, lineHeight: 17 },
+  optionLabel: { color: c.textDim, fontSize: 15, fontWeight: '700' },
+  optionLabelOn: { color: c.text, fontWeight: '900' },
+  optionDesc: { color: c.textFaint, fontSize: 12.5, lineHeight: 17 },
 
   checkSlot: { width: 20, alignItems: 'center' },
 });

@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Image, ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -8,7 +8,8 @@ import { seedSeason } from '../dev/seed';
 import { L } from '../i18n';
 import { HELP_ICON } from './HelpScreen';
 import { useRoster } from './roster';
-import { alpha, colors, pressed, radius, ripple, space } from './theme';
+import { useColors } from './theme-context';
+import { alpha, colors, pressed, radius, ripple, space, type Colors } from './theme';
 
 const tick = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
@@ -56,6 +57,11 @@ export function HomeScreen({
    */
   const { reload: reloadRoster } = useRoster();
 
+  /* Los colores del tema activo, y los estilos armados con ellos. El `useMemo` no es un lujo:
+     sin el, `StyleSheet.create` correria en cada dibujo. Con el, corre una vez por tema. */
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+
   return (
     <ImageBackground source={BG} style={s.root} resizeMode="cover">
       <SafeAreaView style={s.safe}>
@@ -78,6 +84,9 @@ export function HomeScreen({
             accessibilityRole="button"
             accessibilityLabel={L.help.openLabel}
           >
+            {/* BLANCO EN LOS DOS TEMAS, no `c.text`: este icono no se apoya en el fondo de la
+                app sino en la FOTO de la cancha, que es oscura siempre. Siguiendo al tema, en el
+                claro se volveria oscuro sobre una imagen oscura y desapareceria. */}
             <MaterialIcons name={HELP_ICON} size={26} color={colors.text} />
           </Pressable>
         </View>
@@ -103,7 +112,7 @@ export function HomeScreen({
                 onNewMatch();
               }}
             >
-              <MaterialIcons name="play-arrow" size={26} color={colors.text} />
+              <MaterialIcons name="play-arrow" size={26} color={c.text} />
               <Text style={s.primaryText}>{L.setup.newMatch}</Text>
             </Pressable>
 
@@ -116,7 +125,7 @@ export function HomeScreen({
                   onHistory();
                 }}
               >
-                <MaterialIcons name="history" size={22} color={colors.text} />
+                <MaterialIcons name="history" size={22} color={c.text} />
                 <Text style={s.doorText}>{L.setup.history}</Text>
               </Pressable>
 
@@ -128,7 +137,7 @@ export function HomeScreen({
                   onPlayers();
                 }}
               >
-                <MaterialIcons name="groups" size={22} color={colors.text} />
+                <MaterialIcons name="groups" size={22} color={c.text} />
                 <Text style={s.doorText}>{L.setup.players}</Text>
               </Pressable>
             </View>
@@ -165,7 +174,7 @@ export function HomeScreen({
               <MaterialIcons
                 name={sembrando ? 'hourglass-top' : 'science'}
                 size={16}
-                color={colors.textFaint}
+                color={c.textFaint}
               />
               <Text style={s.seedText}>
                 {sembrando
@@ -180,8 +189,9 @@ export function HomeScreen({
   );
 }
 
-const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
+const makeStyles = (c: Colors) =>
+  StyleSheet.create({
+  root: { flex: 1, backgroundColor: c.bg },
   safe: { flex: 1, padding: space.lg },
 
   head: { alignItems: 'center', paddingTop: space.xl },
@@ -224,9 +234,9 @@ const s = StyleSheet.create({
     gap: space.sm,
     height: 60,
     borderRadius: radius.md,
-    backgroundColor: colors.cta,
+    backgroundColor: c.cta,
   },
-  primaryText: { color: colors.text, fontSize: 18, fontWeight: '900' },
+  primaryText: { color: c.text, fontSize: 18, fontWeight: '900' },
 
   /** `flexWrap` y no una fila fija: una puerta nueva cae en su propio renglon, sin rediseñar. */
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
@@ -240,10 +250,10 @@ const s = StyleSheet.create({
     height: 56,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: alpha(colors.text, 0.35),
-    backgroundColor: alpha(colors.bg, 0.55),
+    borderColor: alpha(c.text, 0.35),
+    backgroundColor: alpha(c.bg, 0.55),
   },
-  doorText: { color: colors.text, fontSize: 15, fontWeight: '800' },
+  doorText: { color: c.text, fontSize: 15, fontWeight: '800' },
 
   seed: {
     alignSelf: 'center',
@@ -253,5 +263,5 @@ const s = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 10,
   },
-  seedText: { color: colors.textFaint, fontSize: 12, fontWeight: '700' },
+  seedText: { color: c.textFaint, fontSize: 12, fontWeight: '700' },
 });

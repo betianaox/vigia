@@ -2,11 +2,12 @@ import * as SplashScreen from 'expo-splash-screen';
 import { NavigationBar } from 'expo-navigation-bar';
 import { StatusBar } from 'expo-status-bar';
 import * as StoreReview from 'expo-store-review';
+import * as SystemUI from 'expo-system-ui';
 import { useCallback, useEffect, useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { LOCALE, setLanguage } from './src/i18n';
-import { loadPrefs, savePrefs, type Prefs } from './src/store/store';
+import { DEFAULT_PREFS, loadPrefs, savePrefs, type Prefs } from './src/store/store';
 
 import { reduce } from './src/engine';
 import { career, type CareerStats } from './src/engine/career';
@@ -30,6 +31,8 @@ import { HomeScreen } from './src/ui/HomeScreen';
 import { PlayersScreen } from './src/ui/PlayersScreen';
 import { ResumeScreen } from './src/ui/ResumeScreen';
 import { RosterProvider, useRoster } from './src/ui/roster';
+import { ThemeProvider } from './src/ui/theme-context';
+import { themes } from './src/ui/theme';
 import { MatchScreen } from './src/ui/MatchScreen';
 import { ScoreboardPreview } from './src/ui/ScoreboardPreview';
 import { SetupScreen } from './src/ui/SetupScreen';
@@ -213,6 +216,33 @@ function Vigia({ onLanguage }: { onLanguage: () => void }) {
     await StoreReview.requestReview().catch(() => {});
   }, [prefs, setPref]);
 
+  /** El tema activo. Antes de leer el disco se asume el default, que es el oscuro. */
+  const themeName = prefs?.theme ?? DEFAULT_PREFS.theme;
+  const oscuro = themeName === 'oscuro';
+
+  /**
+   * QUE HAY DETRAS DE LAS BARRAS, que no siempre es el fondo del tema.
+   *
+   * La barra de abajo es transparente, asi que sus iconos se apoyan en lo que dibuje la app ahi
+   * mismo. Y hay dos pantallas que NO usan el fondo del tema: el inicio, que lleva la foto de la
+   * cancha, y el partido a medias, que va sobre negro. Las dos son oscuras en los dos temas.
+   *
+   * Atando los iconos al tema y no a lo que hay detras, en el tema claro quedaban oscuros sobre
+   * la foto oscura del inicio — es decir, invisibles justo en la primera pantalla que se ve.
+   */
+  const fondoOscuro = oscuro || screen.name === 'home' || screen.name === 'resume';
+
+  /**
+   * EL FONDO DETRAS DE LA BARRA TRANSPARENTE.
+   *
+   * La barra de abajo no tiene color propio: se ve la app a traves. Pero el sistema necesita
+   * saber que pintar en el hueco que queda cuando ninguna pantalla llega hasta ahi, y eso es lo
+   * que se le dice aca. Sin esto, al pasar al tema claro queda una franja negra abajo.
+   */
+  useEffect(() => {
+    void SystemUI.setBackgroundColorAsync(themes[themeName].bg).catch(() => {});
+  }, [themeName]);
+
   /** Las dos salidas del saludo lo dan por visto: la que entra a la ayuda y la que se va. */
   const closeWelcome = (goToHelp: boolean) => {
     setPref({ seenWelcome: true });
@@ -333,17 +363,24 @@ function Vigia({ onLanguage }: { onLanguage: () => void }) {
   };
 
   return (
+    /* El tema envuelve TODO, igual que el plantel: cualquier pantalla puede pedir los colores
+       del momento, y cambiarlo redibuja la app entera sin remontar nada. */
+    <ThemeProvider name={themeName}>
     <SafeAreaProvider>
-      <StatusBar style="light" />
+      {/* La de arriba y la de abajo siguen al tema: iconos claros sobre el oscuro, oscuros sobre
+          el claro. Si no, en el tema claro la hora y los botones de Android quedan blancos sobre
+          blanco y desaparecen. */}
+      <StatusBar style={fondoOscuro ? 'light' : 'dark'} />
 
-      {/* La barra de navegacion de Android, abajo. Sin esto queda CLARA en los telefonos que
-          usan tres botones —un rectangulo blanco pegado a una app oscura— porque Android le
-          dibuja un velo de contraste por su cuenta. Ese velo se apaga en el plugin
-          (`enforceContrast: false`) y aca se pide barra oscura con iconos claros.
+      {/* LA BARRA DE ABAJO NO SE PINTA: SE DEJA TRANSPARENTE.
+          En Expo 57 (edge-to-edge) ya lo es; lo que la ensuciaba era el velo de contraste que
+          Android le dibuja encima, y eso se apaga en el plugin (`enforceContrast: false`). El
+          fondo que se ve detras es el de la app, y lo pone `SystemUI` mas arriba — asi sirve para
+          los DOS temas sin pintarla de ningun color propio.
 
-          `dark` es "barra oscura con contenido claro", al reves de lo que uno diria: es la
-          convencion de la libreria, verificada en sus tipos. */}
-      <NavigationBar style="dark" />
+          Lo unico que si cambia son los ICONOS. `dark` es "contenido claro", al reves de lo que
+          uno diria: es la convencion de la libreria, verificada en sus tipos. */}
+      <NavigationBar style={fondoOscuro ? 'dark' : 'light'} />
 
       {PREVIEW ? (
         <ScoreboardPreview />
@@ -431,5 +468,6 @@ function Vigia({ onLanguage }: { onLanguage: () => void }) {
         onClose={() => closeWelcome(false)}
       />
     </SafeAreaProvider>
+    </ThemeProvider>
   );
 }

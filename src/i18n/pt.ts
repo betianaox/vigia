@@ -329,6 +329,12 @@ export const pt: Dict = {
     ],
 
     settings: 'Ajustes',
+    theme: 'Tema',
+    themes: { oscuro: 'Escuro', claro: 'Claro' },
+    themeHints: {
+      oscuro: 'Para a quadra à noite, com luz artificial.',
+      claro: 'Para olhar com o sol de frente.',
+    },
     privacy: 'Política de privacidade',
     contact: 'Escreve-nos',
     rate: 'Avaliar o app',

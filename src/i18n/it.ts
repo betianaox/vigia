@@ -329,6 +329,12 @@ export const it: Dict = {
     ],
 
     settings: 'Impostazioni',
+    theme: 'Tema',
+    themes: { oscuro: 'Scuro', claro: 'Chiaro' },
+    themeHints: {
+      oscuro: 'Per il campo di sera, con la luce artificiale.',
+      claro: 'Per guardarla col sole in faccia.',
+    },
     privacy: 'Informativa sulla privacy',
     contact: 'Scrivici',
     rate: 'Valuta l’app',

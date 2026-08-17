@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Fragment } from 'react';
+import { Fragment, useMemo } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -9,7 +9,8 @@ import { L, LANG_NAMES, resolveLang, setLanguage, type Lang, type LangPref } fro
 import type { Prefs } from '../store/store';
 import { Brand } from './Brand';
 import { Select } from './Select';
-import { alpha, colors, pressed, radius, ripple, space } from './theme';
+import { useColors } from './theme-context';
+import { alpha, pressed, radius, ripple, space, type Colors } from './theme';
 
 const tick = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
@@ -84,6 +85,13 @@ const languages = (): Array<{ value: LangPref; label: string }> => [
   ...(Object.keys(LANG_NAMES) as Lang[]).map((k) => ({ value: k, label: LANG_NAMES[k] })),
 ];
 
+/** Los dos temas. El oscuro primero: es el default y el que se diseño primero. */
+const themeOptions = () =>
+  [
+    { value: 'oscuro', label: L.help.themes.oscuro, desc: L.help.themeHints.oscuro },
+    { value: 'claro', label: L.help.themes.claro, desc: L.help.themeHints.claro },
+  ] as const;
+
 /** Como se cargan los golpes. Cada opcion trae su explicacion adentro (ver `Select`). */
 const shotPrompts = () =>
   [
@@ -128,6 +136,9 @@ export function HelpScreen({
   /** Solo en desarrollo: vuelve a mostrar el saludo de la primera vez. */
   onReplayWelcome: () => void;
 }) {
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+
   const open = (url: string) => {
     tick();
     // Si no hay con que abrirlo —un telefono sin navegador, sin cliente de correo— no pasa nada.
@@ -138,7 +149,7 @@ export function HelpScreen({
   return (
     <SafeAreaView style={s.root}>
       <View style={s.head}>
-        <Brand size={26} subtitle={L.help.title} tint={colors.ball} />
+        <Brand size={26} subtitle={L.help.title} tint={c.ball} />
         <Pressable
           style={({ pressed: pr }) => [s.close, pr && pressed]}
           android_ripple={{ ...ripple, borderless: true }}
@@ -150,7 +161,7 @@ export function HelpScreen({
           accessibilityRole="button"
           accessibilityLabel={L.help.close}
         >
-          <MaterialIcons name="close" size={24} color={colors.text} />
+          <MaterialIcons name="close" size={24} color={c.text} />
         </Pressable>
       </View>
 
@@ -158,7 +169,7 @@ export function HelpScreen({
         {/* POR DONDE SE EMPIEZA, ARRIBA DE TODO. Es lo unico de esta pantalla que se necesita
             ANTES de haber usado la app; los seis pasos de abajo explican como funciona, pero esto
             dice que tocar ahora. */}
-        <Hint text={L.help.startHint} icon="play-arrow" />
+        <Hint text={L.help.startHint} />
 
         {/* LOS PASOS. Cada uno es un icono a la izquierda y dos renglones a la derecha: el titulo
             dice QUE, la linea de abajo dice COMO. El icono no decora — es el ancla que hace que
@@ -177,7 +188,7 @@ export function HelpScreen({
                   <MaterialIcons
                     name={STEP_ICONS[i] ?? 'chevron-right'}
                     size={22}
-                    color={colors.ball}
+                    color={c.ball}
                   />
                 </View>
                 <View style={s.stepText}>
@@ -211,6 +222,15 @@ export function HelpScreen({
           options={shotPrompts()}
           value={prefs.shotPrompt}
           onChange={(v) => onPref({ shotPrompt: v as Prefs['shotPrompt'] })}
+        />
+
+        {/* El tema cambia EN EL ACTO: no hay que reiniciar nada ni confirmar. Se guarda con el
+            mismo `onPref` que los demas ajustes, asi que tambien se recuerda. */}
+        <Select
+          title={L.help.theme}
+          options={themeOptions()}
+          value={prefs.theme}
+          onChange={(v) => onPref({ theme: v as Prefs['theme'] })}
         />
 
         <View style={s.divider} />
@@ -251,7 +271,7 @@ export function HelpScreen({
               onReplayWelcome();
             }}
           >
-            <MaterialIcons name="science" size={16} color={colors.textFaint} />
+            <MaterialIcons name="science" size={16} color={c.textFaint} />
             <Text style={s.devText}>Ver la bienvenida otra vez</Text>
           </Pressable>
         )}
@@ -267,21 +287,29 @@ export function HelpScreen({
  * mostrarlo al lado del nombre no deja lugar a la duda. Es el mismo icono, con el mismo color,
  * que va a estar esperando en la pantalla.
  */
-function Hint({
-  text,
-  icon,
-}: {
-  text: string;
-  icon: React.ComponentProps<typeof MaterialIcons>['name'];
-}) {
+function Hint({ text }: { text: string }) {
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+
   const [before, after] = text.split('{icon}');
 
   return (
     <View style={s.hint}>
       <Text style={s.hintText}>
         {before}
-        <MaterialIcons name={icon} size={15} color={colors.cta} />
-        {after}
+        {/* UN CARACTER, NO EL COMPONENTE DE ICONO.
+            Un icono de vector trae su propia metrica de fuente, y adentro de un parrafo se apoya
+            donde esa metrica diga: queda flotando por encima del renglon y no hay `lineHeight`
+            que lo acomode del todo. El triangulo de Unicode es texto de verdad, asi que comparte
+            la linea base con lo que lo rodea por definicion — se alinea solo, y ademas sigue el
+            tamaño de la letra del sistema si alguien la agranda. */}
+        <Text style={s.hintIcon}>{'▶'}</Text>
+        {/* ESPACIO FINO entre el triangulito y la palabra que nombra.
+            Con un espacio normal, el simbolo queda flotando entre dos palabras y se lee como una
+            pausa; pegado, se lee como lo que es — la etiqueta del boton "Partido nuevo". El
+            recorte se hace aca y no en los textos: son cuatro idiomas, y esto vale para los
+            cuatro. */}
+        {after.replace(/^\s+/, ' ')}
       </Text>
     </View>
   );
@@ -298,6 +326,9 @@ function Link({
   sub?: string;
   onPress: () => void;
 }) {
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+
   return (
     <Pressable
       style={({ pressed: pr }) => [s.link, pr && pressed]}
@@ -306,18 +337,19 @@ function Link({
       accessibilityRole="link"
       accessibilityLabel={label}
     >
-      <MaterialIcons name={icon} size={20} color={colors.textDim} />
+      <MaterialIcons name={icon} size={20} color={c.textDim} />
       <View style={s.linkText}>
         <Text style={s.linkLabel}>{label}</Text>
         {sub ? <Text style={s.linkSub}>{sub}</Text> : null}
       </View>
-      <MaterialIcons name="open-in-new" size={16} color={colors.textFaint} />
+      <MaterialIcons name="open-in-new" size={16} color={c.textFaint} />
     </Pressable>
   );
 }
 
-const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
+const makeStyles = (c: Colors) =>
+  StyleSheet.create({
+  root: { flex: 1, backgroundColor: c.bg },
 
   head: {
     flexDirection: 'row',
@@ -355,7 +387,7 @@ const s = StyleSheet.create({
    */
   stepsCut: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: alpha(colors.text, 0.12),
+    backgroundColor: alpha(c.text, 0.12),
     marginVertical: space.xs,
   },
   step: { flexDirection: 'row', gap: space.md, alignItems: 'flex-start' },
@@ -369,17 +401,17 @@ const s = StyleSheet.create({
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: alpha(colors.ball, 0.1),
+    backgroundColor: alpha(c.ball, 0.1),
   },
   /** `flex: 1` para que el texto envuelva usando el ancho que sobra, y no se corte. */
   stepText: { flex: 1, gap: 2 },
-  stepTitle: { color: colors.text, fontSize: 15, fontWeight: '800' },
-  stepBody: { color: colors.textDim, fontSize: 13, lineHeight: 19 },
+  stepTitle: { color: c.text, fontSize: 15, fontWeight: '800' },
+  stepBody: { color: c.textDim, fontSize: 13, lineHeight: 19 },
 
-  divider: { height: 1, backgroundColor: colors.border, marginVertical: space.sm },
+  divider: { height: 1, backgroundColor: c.border, marginVertical: space.sm },
 
   blockLabel: {
-    color: colors.textDim,
+    color: c.textDim,
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 1.4,
@@ -393,20 +425,28 @@ const s = StyleSheet.create({
     borderRadius: radius.md,
   },
   linkText: { flex: 1, gap: 2 },
-  linkLabel: { color: colors.text, fontSize: 15, fontWeight: '700' },
-  linkSub: { color: colors.textFaint, fontSize: 12 },
+  linkLabel: { color: c.text, fontSize: 15, fontWeight: '700' },
+  linkSub: { color: c.textFaint, fontSize: 12 },
 
-  version: { color: colors.textFaint, fontSize: 12, alignSelf: 'center' },
+  version: { color: c.textFaint, fontSize: 12, alignSelf: 'center' },
 
   /** El aviso: su propio fondo, para que se lea como una nota y no como un paso mas. */
   hint: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radius.md,
     padding: space.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
   },
-  hintText: { color: colors.textDim, fontSize: 13, lineHeight: 20 },
+  hintText: { color: c.textDim, fontSize: 13, lineHeight: 20 },
+  /**
+   * El triangulito, del verde de "esto empieza".
+   *
+   * El `lineHeight` es MENOR que el del parrafo (20) a proposito: es lo que lo sube ese pixel que
+   * le faltaba. Un simbolo lleno se apoya distinto que una letra, y con el mismo alto de linea
+   * quedaba sentado sobre el renglon en vez de acompañarlo.
+   */
+  hintIcon: { color: c.cta, fontSize: 12, lineHeight: 18 },
 
   /** Herramienta de desarrollo: apagada, chica, y lo mas lejos posible de todo lo demas. */
   dev: {
@@ -417,5 +457,5 @@ const s = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 10,
   },
-  devText: { color: colors.textFaint, fontSize: 12, fontWeight: '700' },
+  devText: { color: c.textFaint, fontSize: 12, fontWeight: '700' },
 });

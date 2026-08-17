@@ -350,6 +350,12 @@ export const en: Dict = {
     ],
 
     settings: 'Settings',
+    theme: 'Theme',
+    themes: { oscuro: 'Dark', claro: 'Light' },
+    themeHints: {
+      oscuro: 'For the court at night, under floodlights.',
+      claro: 'For looking at it with the sun in your face.',
+    },
     privacy: 'Privacy policy',
     contact: 'Contact us',
     rate: 'Rate the app',
