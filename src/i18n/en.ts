@@ -239,7 +239,8 @@ export const en: Dict = {
     unforcedErrors: 'Unforced errors',
     forcedShort: 'Forced',
     unforcedShort: 'Unforced',
-    unforcedLegend: 'Unforced',
+    errorsLegend: 'Total errors',
+    causedLegend: 'Errors caused',
 
     match: 'Match',
     playerByPlayer: 'Player by player',
@@ -272,7 +273,7 @@ export const en: Dict = {
     acesConceded: 'Aces against',
     doubleFaultsForced: 'Their doubles',
     returnErrorPct: 'Return miss',
-    forcedErrorsCaused: 'Errors forced',
+    forcedErrorsCaused: 'Errors caused',
     causedAgainst: 'Against',
     causedWith: 'With',
 

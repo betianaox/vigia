@@ -97,6 +97,27 @@ const dark = {
   aceChart: '#4E9AC0',
 
   /**
+   * LOS PUNTOS GANADOS FORZANDO EL ERROR DEL OTRO. Azul, y NO amarillo.
+   *
+   * El amarillo seria lo intuitivo —es el color del error forzado en toda la app— pero diria
+   * justo lo contrario de lo que este numero cuenta. En la cancha, amarillo es un ERROR: lo que
+   * le pasa a quien lo comete. Aca el dato es del otro lado del duelo, es lo que alguien HIZO, y
+   * pintarlo del color de un error lo convierte en una mancha mas en una fila que ya tiene rojo.
+   * El rojo si es universal para "error" y no se puede reasignar; el amarillo, en cambio, es
+   * vocabulario nuestro, y no aguanta significar las dos puntas de la misma jugada.
+   *
+   * El azul esta libre y ademas es el unico que sirve: es el tercer color que distingue todo el
+   * mundo cuando los otros dos son verde y rojo, que es exactamente el par que no separa ~1 de
+   * cada 12 varones. Contrasta 4.37 contra el fondo oscuro y 3.91 contra el claro —los dos por
+   * encima del 3:1 que pide una cifra en negrita— asi que va un solo valor para los dos temas,
+   * igual que el resto de los colores de grafico.
+   *
+   * Hue 223: a 25 grados del celeste del ace (198) y a 35 del violeta del equipo A (258). Cerca
+   * del celeste, pero el ace no se dibuja nunca en la misma tabla que esto.
+   */
+  causedChart: '#4A73D9',
+
+  /**
    * La fila del grafico donde tener MAS es ir PEOR (los errores). Es la unica que se sale del
    * violeta y el naranja, y ese cambio de color es justamente el aviso de que cambio la regla.
    *

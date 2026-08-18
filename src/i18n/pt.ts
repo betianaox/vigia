@@ -218,7 +218,8 @@ export const pt: Dict = {
     unforcedErrors: 'Erros não forçados',
     forcedShort: 'E. forçados',
     unforcedShort: 'E. não forç.',
-    unforcedLegend: 'E. não forçados',
+    errorsLegend: 'Erros totais',
+    causedLegend: 'E. provocados',
 
     match: 'Jogo',
     playerByPlayer: 'Jogador a jogador',

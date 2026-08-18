@@ -337,7 +337,18 @@ export const es = {
     unforcedErrors: 'Errores no forzados',
     forcedShort: 'E. forzados',
     unforcedShort: 'E. no forz.',
-    unforcedLegend: 'E. no forzados',
+    /**
+     * Las dos leyendas del desglose por golpe, que NO dicen lo mismo que las de arriba.
+     *
+     * El rojo agrupa: el motor suma el error forzado adentro de `unforcedByShot`, porque para
+     * quien lo comete es el mismo dato —con que golpe fallo— y separarlos ahi obligaria a mirar
+     * dos numeros para saber cuantas veces erro con la bandeja. Asi que la leyenda tiene que
+     * decir "totales" y no "no forzados", que era lo que decia y era mentira.
+     *
+     * El azul es el otro lado del duelo: los puntos que esa persona GANO haciendo errar al otro.
+     */
+    errorsLegend: 'Errores totales',
+    causedLegend: 'E. provocados',
 
     /** Las secciones. */
     match: 'Partido',

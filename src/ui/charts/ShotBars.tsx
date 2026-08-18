@@ -51,11 +51,18 @@ export function ShotBars({ lines }: { lines: ShotLine[] }) {
     <View style={s.root}>
       <View style={s.legend}>
         {/* Los colores de GRAFICO, no los de los botones: mismo significado, medio tono de voz.
-            Con treinta barras a la vez, el semaforo saturado cansa la vista en diez segundos. */}
+            Con treinta barras a la vez, el semaforo saturado cansa la vista en diez segundos.
+
+            SON DOS, NO TRES. Habia un tercer casillero amarillo, "E. forzados", para un segmento
+            que la barra no dibuja nunca: el motor suma el error forzado adentro de
+            `unforcedByShot`, asi que la barra siempre tuvo dos tramos. Una leyenda que nombra un
+            color que no aparece hace dudar de todo el resto del grafico.
+
+            Y por eso el rojo dice TOTALES: contiene los forzados y los no forzados. Decia "no
+            forzados", que era el mismo error contado al reves. */}
         {[
           [L.stats.winners, c.winnerChart],
-          [L.stats.forcedShort, c.errorForcedChart],
-          [L.stats.unforcedLegend, c.errorUnforcedChart],
+          [L.stats.errorsLegend, c.errorUnforcedChart],
         ].map(([label, color]) => (
           <View key={label} style={s.legendItem}>
             <View style={[s.swatch, { backgroundColor: color }]} />

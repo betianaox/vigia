@@ -9,10 +9,24 @@ import { strokeLabels } from '../shots';
 import { useColors } from '../theme-context';
 import { space, type Colors } from '../theme';
 
-/** Lo que rindio UN golpe en las manos de UNA persona. */
+/**
+ * Lo que rindio UN golpe en las manos de UNA persona, en tres cifras que cuentan las tres cosas
+ * que pueden pasar con un golpe: lo cerraste solo, hiciste errar al otro, o erraste vos.
+ *
+ * Las dos primeras son puntos GANADOS y por eso van juntas. Un jugador que con la bandeja no
+ * tira winners pero fuerza seis errores esta jugando bien con la bandeja, y con dos cifras eso
+ * no se veia por ningun lado: aparecia como una columna de ceros.
+ */
 interface Cell {
   winners: number;
-  unforced: number;
+  /** Los puntos que gano forzando el error del otro. El otro lado del duelo. */
+  caused: number;
+  /**
+   * TODOS sus errores con ese golpe, forzados y no forzados. Van juntos porque el motor los
+   * guarda juntos: para quien lo comete es el mismo dato —con que golpe fallo— y separarlos
+   * obligaria a sumar dos numeros de cabeza para saber cuantas veces erro con la bandeja.
+   */
+  errors: number;
 }
 
 export interface GridRow {
@@ -29,13 +43,16 @@ export interface GridRow {
 
 /** Si no tiene UN solo golpe cargado en todo el partido, no hay nada que contar. */
 const tagged = (p: PlayerStats): boolean =>
-  Object.keys(p.winnersByShot).length > 0 || Object.keys(p.unforcedByShot).length > 0;
+  Object.keys(p.winnersByShot).length > 0 ||
+  Object.keys(p.unforcedByShot).length > 0 ||
+  Object.keys(p.forcedErrorsCausedByShot).length > 0;
 
 const cellOf = (p: PlayerStats, shot: Stroke): Cell | null =>
   tagged(p)
     ? {
         winners: p.winnersByShot[shot] ?? 0,
-        unforced: p.unforcedByShot[shot] ?? 0,
+        caused: p.forcedErrorsCausedByShot[shot] ?? 0,
+        errors: p.unforcedByShot[shot] ?? 0,
       }
     : null;
 
@@ -83,8 +100,12 @@ export const shotGrid = (stats: MatchStats, config: MatchConfig): GridRow[] => {
  * uno al lado del otro, un "12" empuja a los que siguen y la celda queda corrida respecto de las
  * otras filas: alcanza con que UNA persona pegue diez voleas para que la tabla se desalinee. Con
  * el casillero, "12" ocupa lo mismo que "3", los winners de todas las filas caen en la misma
- * columna, y la tabla se lee por columna ademas de por fila. El ancho da para dos cifras — que en
- * un partido es lo que hay; tres seria un mundial de un solo golpe.
+ * columna, y la tabla se lee por columna ademas de por fila. Cada casillero da para dos cifras —
+ * que en un partido es lo que hay; tres seria un mundial de un solo golpe.
+ *
+ * Y ENTRAN LOS TRES SIN TOCAR NADA: descontada la etiqueta, a cada persona le quedan 74 puntos y
+ * tres casilleros de 21 ocupan 63. La tarjeta no crece ni un punto de alto por esto: es una cifra
+ * mas por celda, no una fila mas.
  */
 export function ShotGrid({
   rows,
@@ -110,7 +131,8 @@ export function ShotGrid({
       <View style={s.legend}>
         {[
           [L.stats.winners, c.winnerChart],
-          [L.stats.unforcedLegend, c.errorUnforcedChart],
+          [L.stats.causedLegend, c.causedChart],
+          [L.stats.errorsLegend, c.errorUnforcedChart],
         ].map(([label, color]) => (
           <View key={label} style={s.legendItem}>
             <View style={[s.swatch, { backgroundColor: color }]} />
@@ -141,8 +163,12 @@ export function ShotGrid({
                 <Text style={s.none}>—</Text>
               ) : (
                 <>
+                  {/* El orden no es decorativo: primero las dos formas de GANAR el punto, y
+                      despues la de perderlo. Leidas de izquierda a derecha, las dos primeras
+                      cifras se suman solas. */}
                   <Text style={[s.n, { color: c.winnerChart }]}>{cell.winners}</Text>
-                  <Text style={[s.n, { color: c.errorUnforcedChart }]}>{cell.unforced}</Text>
+                  <Text style={[s.n, { color: c.causedChart }]}>{cell.caused}</Text>
+                  <Text style={[s.n, { color: c.errorUnforcedChart }]}>{cell.errors}</Text>
                 </>
               )}
             </View>
