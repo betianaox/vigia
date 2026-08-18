@@ -89,4 +89,34 @@ describe('nadie congela los colores', () => {
     expect(culpables).toEqual([]);
   });
 
+  /**
+   * Y NADIE VUELVE A ESCRIBIR "UN POCO MAS CLARO QUE EL FONDO".
+   *
+   * Es el mismo error cuatro veces: el perdedor atenuado con `opacity`, el borde blanco del que
+   * saca, el boton deshabilitado, y el casillero de puntos en vivo. Los cuatro decian lo mismo
+   * —"esto va un paso mas claro"— y los cuatro se rompieron igual, porque sobre un fondo claro
+   * aclarar es acercarse al fondo, o sea desaparecer. Ninguno se ve en un `git diff` como un
+   * problema: se ve como un color.
+   *
+   * Lo que se prohibe es el BLANCO literal dentro de `alpha`, que es como se escribe esa idea.
+   * Con un color del tema —`c.text`, `c.bg`— la relacion se mantiene sola en los dos.
+   *
+   * El negro literal SI se permite, y es la unica excepcion: el velo detras de un dialogo es
+   * oscuro en todos lados, en cualquier app y con cualquier tema. Ahi el literal no es un
+   * descuido, es la decision.
+   */
+  it('nadie escribe un blanco literal adentro de alpha', async () => {
+    const archivos = await sources(join(ROOT, 'src'));
+    const culpables: string[] = [];
+
+    for (const archivo of archivos) {
+      const src = readFileSync(archivo, 'utf8');
+      // `#FFF` y `#FFFFFF`, en cualquier caja: los dos se escriben empezando por tres efes.
+      if (/alpha\(\s*['"]#[Ff]{3}/.test(src)) {
+        culpables.push(archivo.replace(ROOT, '').slice(1).replace(/\\/g, '/'));
+      }
+    }
+
+    expect(culpables).toEqual([]);
+  });
 });

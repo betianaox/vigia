@@ -264,22 +264,32 @@ export const colors = dark;
  * ir de a una. Cuando no quede ninguna sin migrar, el parametro deja de tener default.
  */
 /**
- * EL QUE VA PERDIENDO SE APAGA — pero apagar no quiere decir lo mismo en los dos temas.
+ * EL QUE PIERDE NO SE APAGA. NO HAY `dimmed`, Y NO TIENE QUE VOLVER.
  *
- * Estaba escrito como `opacity: 0.45` en tres lugares: el tanteador, el historial y la barra de
- * comparacion. Sobre el fondo negro, bajar la opacidad OSCURECE, y el color se sigue recortando
- * contra el fondo. Sobre el fondo claro hace exactamente lo contrario: ACLARA, o sea empuja el
- * color hacia el mismo blanco de atras, y el numero del que va perdiendo casi desaparece.
+ * Habia un `opacity` en tres lugares —el tanteador, el historial y la barra de comparacion— que
+ * atenuaba al perdedor. Se saco de los tres, en los dos temas, por pedido y con razon: apagar a
+ * alguien es un juicio, y esta app anota lo que paso, no reparte medallas. Perder un partido de
+ * padel un martes no es un motivo para que tu nombre se lea peor que el del otro.
  *
- * Es la misma regla dando resultados opuestos, asi que la regla no puede ser un numero fijo. En
- * claro se apaga menos, lo justo para que se lea que es secundario sin que se borre.
+ * Y ademas no hacia falta. En el tanteador el resultado esta en las columnas; en el historial,
+ * en el marcador de la fila; en la comparativa, la barra ya dice quien gano cada cosa sin leer un
+ * numero — es literalmente para lo que existe la barra. Lo que atenuar agregaba era enfasis, no
+ * informacion.
+ *
+ * De paso se va un caso feo: en la comparativa, un empate no daba ganador de ninguno de los dos
+ * lados y atenuaba a LOS DOS.
  */
-export const dimmed = (c: Colors) => ({ opacity: c === light ? 0.68 : 0.45 });
-
 export const teamColor = (team: 'A' | 'B', c: Colors = dark): string =>
   team === 'A' ? c.teamA : c.teamB;
 
-/** Relleno translucido sobre fondo oscuro: el color se lee sin gritar. */
+/**
+ * Relleno translucido: el color se lee sin gritar.
+ *
+ * Lo que se le pase tiene que ser un color DEL TEMA, no un literal. Un blanco escrito a mano aca
+ * es en realidad "un poco mas claro que el fondo", y eso deja de significar lo mismo cuando el
+ * fondo se da vuelta: sobre blanco no aclara nada. Con `c.text` o `c.bg` la relacion se mantiene
+ * sola en los dos temas. Hay una prueba que lo vigila (ver `theme.test.ts`).
+ */
 export const alpha = (hex: string, a: number): string =>
   hex + Math.round(a * 255).toString(16).padStart(2, '0');
 

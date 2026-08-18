@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
+import { MaterialIcons } from '@expo/vector-icons';
+
 import type { MatchConfig, MatchState, TeamId } from '../engine';
 /**
  * TODO EL TANTEADOR VA EN TEXTO QUE NO ESCALA (el porque, en `FixedText`).
@@ -19,7 +21,7 @@ import { useMetrics, type Metrics } from './metrics';
 import { usePulse } from './pulse';
 import { useRoster } from './roster';
 import { useColors } from './theme-context';
-import { alpha, dimmed, radius, teamColor, type Colors } from './theme';
+import { alpha, radius, teamColor, type Colors } from './theme';
 
 /**
  * Tanteador estilo transmision: cada numero en su casillero, los sets terminados en gris,
@@ -269,13 +271,38 @@ function TeamBlock({
 
   // El de drive arriba: el mismo orden que en la cancha.
   const ids = [config.teams[team].drive, config.teams[team].reves];
-  /** Terminado el partido, el perdedor se apaga: el ganador se lee solo, sin ningun icono. */
-  const lost = state.finished && state.winner !== team;
   const col = columns(state);
+  const won = state.finished && state.winner === team;
 
   return (
     <View style={s.teamRow}>
       <View style={s.names}>
+        {/**
+         * LA COPITA, Y CENTRADA ENTRE LOS DOS NOMBRES A PROPOSITO.
+         *
+         * Al lado de UNO de los dos se leeria "gano el", no "gano la pareja" — y en padel gana la
+         * pareja. Por eso no va adentro de ninguna de las dos lineas: va absoluta, ocupando el
+         * alto de las dos, en la misma columna donde durante el partido vive la pelotita del
+         * sacador. Esa columna esta libre justo cuando esta copita aparece, porque terminado el
+         * partido ya no hay quien saque.
+         *
+         * Y es lo unico que dice quien gano ahora que el perdedor no se apaga (ver `theme.ts`):
+         * antes el ganador se leia por descarte, mirando cual de los dos estaba mas gastado.
+         * Marcar al que gano es mejor que despintar al que perdio.
+         */}
+        {won && (
+          <View style={s.trophySlot} pointerEvents="none">
+            {/* Un pelin mas chica que su columna, no mucho: a 14 se perdia al lado de dos
+                nombres en mayuscula. Lo que la despegaba del texto era el aire, no el tamaño —
+                ver `paddingRight` en `trophySlot`. */}
+            <MaterialIcons
+              name="emoji-events"
+              size={Math.round(m.board.ballSlot * 0.9)}
+              color={c.trophy}
+            />
+          </View>
+        )}
+
         {ids.map((p) => {
           const serving = !state.finished && state.server === p;
           return (
@@ -286,10 +313,9 @@ function TeamBlock({
 
                     Terminado el partido no hay nada: no hay sacador, y una pelotita ahi
                     sugeriria que el juego sigue. Tampoco va una copita — al lado de UNO de
-                    los dos nombres se lee como "gano el", no "gano la pareja". El ganador ya
-                    se lee igual: el perdedor queda atenuado y el resultado esta en las
-                    columnas. La copita vive en el overlay de fin de partido, que es donde
-                    habla de la pareja entera. */}
+                    los dos nombres se lee como "gano el", no "gano la pareja". Quien gano se
+                    lee en las columnas, que es donde esta el resultado. La copita vive en el
+                    overlay de fin de partido, que es donde habla de la pareja entera. */}
                 {serving ? <View style={s.ball} /> : null}
               </View>
               {/* Si ni al tamano minimo entra, ahi si se corta con puntos suspensivos.
@@ -298,7 +324,7 @@ function TeamBlock({
                   guarda adentro. Asi, renombrar a alguien cambia tambien sus partidos viejos. La
                   copia queda de paracaidas por si esa persona ya no esta en la tabla. */}
               <Text
-                style={[s.name, { fontSize: nameSize, color: teamColor(team, c) }, lost && s.lost]}
+                style={[s.name, { fontSize: nameSize, color: teamColor(team, c) }]}
                 numberOfLines={1}
                 ellipsizeMode="tail"
               >
@@ -387,6 +413,31 @@ const makeStyles = (m: Metrics, c: Colors) => {
 
     // ---- Los dos jugadores, uno arriba del otro ----
     names: { flex: 1 },
+    /**
+     * La columna de la pelotita, ocupada de punta a punta: la copita habla de LA PAREJA.
+     *
+     * El `paddingRight` la corre un pelin a la izquierda. La pelotita del sacador es un circulo
+     * de 8 y le sobra la columna entera; la copita es un glifo ancho que casi la llena, y sin
+     * este aire arrancaba pegada a la primera letra del nombre.
+     */
+    trophySlot: {
+      position: 'absolute',
+      /**
+       * Se mete 3 en el padding del tanteador, que son 12: hay lugar de sobra y no se recorta.
+       *
+       * Es la unica forma de correrla sin pagar nada. Achicarla la hacia desaparecer al lado de
+       * los nombres en mayuscula, y agrandar la columna hubiera corrido las cuatro lineas a la
+       * derecha, robandole ancho a los nombres — que es lo que decide su tamaño de letra (ver
+       * `nameFontSize`). Al ser absoluta, moverla no empuja nada.
+       */
+      left: -3,
+      top: 0,
+      bottom: 0,
+      width: b.ballSlot,
+      paddingRight: 3,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     nameRow: { flexDirection: 'row', alignItems: 'center', height: b.nameLine },
     ballSlot: { width: b.ballSlot, alignItems: 'center', justifyContent: 'center' },
     ball: {
@@ -428,9 +479,6 @@ const makeStyles = (m: Metrics, c: Colors) => {
       includeFontPadding: false,
       textAlignVertical: 'center',
     },
-    /** Terminado el partido, el perdedor se apaga: el ganador se lee solo. */
-    lost: dimmed(c),
-
     // ---- Los casilleros: abarcan las dos lineas del equipo ----
     cell: {
       width: b.cellW,
@@ -455,12 +503,25 @@ const makeStyles = (m: Metrics, c: Colors) => {
     cellGames: { backgroundColor: c.surfaceAlt, borderWidth: 1, borderColor: c.border },
     gamesText: { fontSize: b.setNum, fontWeight: '800', color: c.text },
 
-    // El casillero en vivo: el unico encendido de todo el tanteador.
+    /**
+     * EL CASILLERO EN VIVO: el unico encendido de todo el tanteador.
+     *
+     * "Encendido" estaba escrito como blanco translucido, y esa es —otra vez— la trampa del tema
+     * claro: un velo blanco sobre una tarjeta blanca da 1.00 de contraste. No es que se viera
+     * poco, es que el casillero no existia, justo en la celda que hay que mirar entre punto y
+     * punto. El numero se seguia leyendo, porque va en `c.text`, y por eso pasaba desapercibido.
+     *
+     * Va en `c.text`, que es la misma idea escrita bien: "un velo del color de la letra". Sobre el
+     * fondo oscuro la letra es casi blanca, asi que el oscuro no se mueve —1.51 contra el 1.53 que
+     * tenia, imperceptible—; sobre el claro la letra es azul oscuro y el velo pasa a oscurecer, que
+     * es lo que "encender" quiere decir de ese lado. La regla no puede ser un color fijo cuando lo
+     * que describe es una RELACION con el fondo.
+     */
     cellPoints: {
       width: pointsW,
-      backgroundColor: alpha('#FFFFFF', 0.14),
+      backgroundColor: alpha(c.text, 0.14),
       borderWidth: 1,
-      borderColor: alpha('#FFFFFF', 0.35),
+      borderColor: alpha(c.text, 0.35),
     },
     pointsText: { fontSize: b.liveNum, fontWeight: '900', color: c.text },
   });

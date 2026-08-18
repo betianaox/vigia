@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { useColors } from '../theme-context';
-import { alpha, dimmed, radius, space, type Colors } from '../theme';
+import { alpha, radius, space, type Colors } from '../theme';
 
 export interface CompareRow {
   label: string;
@@ -73,13 +73,13 @@ export function TeamCompare({ rows }: { rows: CompareRow[] }) {
         return (
           <View key={r.label} style={s.row}>
             <View style={s.head}>
-              <Text style={[s.value, s.valueA, { color: c.teamA }, !aWins && s.dim]}>
+              <Text style={[s.value, s.valueA, { color: c.teamA }]}>
                 {r.a}
               </Text>
               <Text style={s.label} numberOfLines={1}>
                 {r.label}
               </Text>
-              <Text style={[s.value, s.valueB, { color: c.teamB }, !bWins && s.dim]}>
+              <Text style={[s.value, s.valueB, { color: c.teamB }]}>
                 {r.b}
               </Text>
             </View>
@@ -106,8 +106,6 @@ const makeStyles = (c: Colors) =>
   value: { fontSize: 20, fontWeight: '900', fontVariant: ['tabular-nums'], minWidth: 68 },
   valueA: { textAlign: 'left' },
   valueB: { textAlign: 'right' },
-  /** El que no gana esa fila se apaga. El ganador se lee sin comparar. */
-  dim: dimmed(c),
   label: {
     flex: 1,
     textAlign: 'center',

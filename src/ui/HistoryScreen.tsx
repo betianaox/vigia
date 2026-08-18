@@ -22,7 +22,7 @@ import { Confirm } from './Confirm';
 import { PlayerField } from './PlayerField';
 import { useRoster } from './roster';
 import { useColors } from './theme-context';
-import { alpha, dimmed, pressed, radius, ripple, space, teamColor, type Colors } from './theme';
+import { alpha, pressed, radius, ripple, space, teamColor, type Colors } from './theme';
 
 const tick = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
@@ -521,7 +521,7 @@ const teamText = (
   return names.join(' / ');
 };
 
-/** El ganador en el color de su equipo, el perdedor atenuado: el mismo vocabulario del tanteador. */
+/** Cada pareja en el color de su equipo, y la copita al ganador: el vocabulario del tanteador. */
 function Row({
   m,
   resolve,
@@ -539,18 +539,31 @@ function Row({
   const s = useMemo(() => makeStyles(c), [c]);
 
   const line = (t: TeamId) => {
-    const lost = m.finished && m.winner !== t;
     return (
-      /* DOS RENGLONES. Los cuatro nombres son EL dato de la fila —es como la gente reconoce un
-         partido— y con la letra del sistema en grande una pareja de nombres largos no entra en
-         uno: se leia "Carla Mendez / Diego Per…". La lista scrollea, asi que el alto no cuesta
-         nada; el nombre de alguien cortado, si. */
-      <Text
-        style={[s.team, { color: teamColor(t, c) }, lost && s.lost]}
-        numberOfLines={2}
-      >
-        {teamText(m, t, resolve)}
-      </Text>
+      <View key={t} style={s.teamLine}>
+        {/* DOS RENGLONES. Los cuatro nombres son EL dato de la fila —es como la gente reconoce un
+            partido— y con la letra del sistema en grande una pareja de nombres largos no entra en
+            uno: se leia "Carla Mendez / Diego Per…". La lista scrollea, asi que el alto no cuesta
+            nada; el nombre de alguien cortado, si. */}
+        <Text style={[s.team, { color: teamColor(t, c) }]} numberOfLines={2}>
+          {teamText(m, t, resolve)}
+        </Text>
+
+        {/**
+         * LA COPITA VA DESPUES DE LOS NOMBRES, no antes.
+         *
+         * Adelante obligaria a reservarle un hueco tambien al que perdio —si no, las dos parejas
+         * arrancarian en columnas distintas y la fila se leeria torcida— y ese hueco es sangria
+         * vacia en todas las filas de partidos sin terminar. Detras no cuesta nada: aparece donde
+         * termina el nombre y no mueve nada de lo que ya estaba.
+         *
+         * Solo en los partidos TERMINADOS: uno a medias no tiene ganador, y ponerle uno al que va
+         * arriba seria inventarlo.
+         */}
+        {m.finished && m.winner === t && (
+          <MaterialIcons name="emoji-events" size={15} color={c.trophy} style={s.trophy} />
+        )}
+      </View>
     );
   };
 
@@ -733,8 +746,29 @@ const makeStyles = (c: Colors) =>
     backgroundColor: c.surface,
   },
   rowMain: { flex: 1, gap: 2 },
-  team: { fontSize: 15.5, fontWeight: '800' },
-  lost: dimmed(c),
+  /**
+   * `flex-start` y no `center`: con una pareja de nombres largos el texto ocupa dos renglones, y
+   * centrada la copita se iria a flotar entre los dos. Tiene que quedarse en el primero, que es
+   * donde el ojo la busca.
+   *
+   * El texto NO lleva `flex: 1`: asi la copita se pega al final del nombre en vez de irse al
+   * borde derecho de la fila, donde se leeria como una marca de la fila entera y no de esta
+   * pareja — que es justo lo que no puede pasar cuando hay dos parejas, una arriba de la otra.
+   */
+  teamLine: { flexDirection: 'row', alignItems: 'flex-start', gap: 5 },
+  /**
+   * `flexShrink: 1` y no `flex: 1`, que no es lo mismo: encoger es lo que hace que una pareja de
+   * nombres largos envuelva a dos renglones en vez de empujar la copita fuera de la pantalla. En
+   * RN el default es NO encoger, asi que hay que pedirlo. Crecer, en cambio, no queremos.
+   */
+  team: { flexShrink: 1, fontSize: 15.5, fontWeight: '800' },
+  /**
+   * Baja 5, no 2. La cuenta geometrica —centrar un icono de 15 en un renglon de 20— daba 2 y a
+   * ojo quedaba alta: el icono trae su propio aire arriba, y al lado de un texto en negrita el
+   * ojo no alinea con la caja del glifo sino con el cuerpo de las letras. Se ajusto mirandolo,
+   * que es lo unico que vale para esto.
+   */
+  trophy: { marginTop: 5 },
   /** El resultado: es lo primero que se busca de un partido viejo. Va mas grande que los nombres. */
   score: {
     color: c.text,
