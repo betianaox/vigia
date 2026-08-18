@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 
-import { colors, space } from './theme';
+import { useColors } from './theme-context';
+import { space, type Colors } from './theme';
 
 /**
  * La marca. UN solo lugar en toda la app.
@@ -41,6 +43,9 @@ export function Brand({
    */
   tint?: string;
 }) {
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+
   return (
     <View style={s.row}>
       <Image
@@ -79,12 +84,13 @@ export function Brand({
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Colors) =>
+  StyleSheet.create({
   /** El subtitulo apoya en la base del logo, no en su centro: los dos se leen sobre una linea. */
   row: { flexDirection: 'row', alignItems: 'flex-end', gap: space.md },
   subtitle: {
     flexShrink: 1,
-    color: colors.textFaint,
+    color: c.textFaint,
     fontSize: 11,
     fontWeight: '800',
     /**
@@ -100,7 +106,7 @@ const s = StyleSheet.create({
   },
   /** Un nombre propio se escribe como se escribe. Ni mayusculas, ni espaciado, ni apagado. */
   subject: {
-    color: colors.text,
+    color: c.text,
     fontWeight: '900',
     letterSpacing: 0,
     textTransform: 'none',

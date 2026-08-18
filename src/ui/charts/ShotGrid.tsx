@@ -155,7 +155,7 @@ export function ShotGrid({
 
 const makeStyles = (c: Colors) =>
   StyleSheet.create({
-  legend: { flexDirection: 'row', gap: space.md, paddingBottom: space.sm },
+  legend: { flexDirection: 'row', gap: space.md, paddingBottom: 6 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   swatch: { width: 9, height: 9, borderRadius: 2 },
   legendText: { color: c.textDim, fontSize: 11, fontWeight: '700' },
@@ -167,7 +167,7 @@ const makeStyles = (c: Colors) =>
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 6,
+    paddingVertical: 5,
     borderTopWidth: 1,
     borderColor: c.border,
   },

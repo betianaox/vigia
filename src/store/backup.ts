@@ -3,7 +3,7 @@ import { readAsStringAsync, StorageAccessFramework } from 'expo-file-system/lega
 
 import { loadIndex, loadMatch, saveMatch } from './matches';
 import { loadMerges, loadPlayers, saveMerges, savePlayers } from './store';
-import { backupFileName, isBackup, mergeRosters, newMatches } from './backupRules';
+import { backupFileName, isBackup, mergeRosters, newMatches, playersInMatches } from './backupRules';
 import type { Backup, ImportResult } from './backupRules';
 import type { SavedMatch } from './summary';
 
@@ -23,7 +23,14 @@ import type { SavedMatch } from './summary';
  * para que nadie tenga que saber que son dos archivos.
  */
 
-export { BACKUP_VERSION, backupFileName, isBackup, mergeRosters, newMatches } from './backupRules';
+export {
+  BACKUP_VERSION,
+  backupFileName,
+  isBackup,
+  mergeRosters,
+  newMatches,
+  playersInMatches,
+} from './backupRules';
 export type { Backup, ImportResult } from './backupRules';
 
 /**
@@ -114,7 +121,21 @@ export const applyBackup = async (b: Backup): Promise<ImportResult> => {
   // `saveMatch` escribe el archivo y actualiza el indice: el indice se reconstruye solo.
   for (const m of add) await saveMatch(m);
 
-  const roster = mergeRosters(b.players ?? [], players);
+  /**
+   * EL PLANTEL SALE DE DOS LADOS, Y EL SEGUNDO NO ES REDUNDANTE.
+   *
+   * Primero la lista de jugadores del archivo, que es la buena: trae los nombres como estan hoy.
+   * Despues, la gente que viene adentro de los partidos que acaban de entrar — que es lo que
+   * garantiza que a NINGUN partido importado le falte alguien en la lista de jugadores. Sin eso,
+   * un partido podia aparecer en el historial con cuatro personas a las que no se les podia abrir
+   * la ficha, porque a las estadisticas individuales se entra desde ahi.
+   *
+   * El orden importa: `mergeRosters` se queda con la primera aparicion de cada id.
+   */
+  const roster = mergeRosters(
+    [...(b.players ?? []), ...playersInMatches(b.matches ?? [])],
+    players,
+  );
   if (roster.added > 0) await savePlayers(roster.roster);
 
   // Las uniones locales ganan: una decision que se tomo en ESTE telefono no la pisa un archivo.

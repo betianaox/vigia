@@ -62,19 +62,57 @@ export const newMatches = (incoming: SavedMatch[], have: Set<string>): SavedMatc
   );
 
 /**
+ * LA GENTE QUE VIENE ADENTRO DE LOS PARTIDOS.
+ *
+ * Cada partido guarda una copia entera de sus cuatro jugadores (`config.players`), y esa copia es
+ * la red de seguridad de todo esto: mientras el partido este, se sabe quienes lo jugaron.
+ *
+ * Hace falta porque el plantel y los partidos son DOS listas, y una copia puede traer la segunda
+ * sin la primera — un archivo de una version vieja, uno al que se le rompio el plantel, o
+ * simplemente uno donde alguien no quedo guardado. En ese caso el partido entraba al historial y
+ * la persona no aparecia en ningun lado: sus estadisticas individuales existian —se calculan del
+ * log, no se guardan— pero no habia por donde entrar a verlas, porque a la ficha de alguien se
+ * llega desde la lista de jugadores.
+ *
+ * Con esto la garantia deja de depender del archivo: si el partido entro, sus cuatro personas
+ * estan en el plantel.
+ */
+export const playersInMatches = (matches: SavedMatch[]): Player[] => {
+  const out = new Map<string, Player>();
+  for (const m of matches) {
+    for (const p of Object.values(m?.config?.players ?? {})) {
+      if (typeof p?.id === 'string' && typeof p.name === 'string' && !out.has(p.id)) {
+        out.set(p.id, { id: p.id, name: p.name });
+      }
+    }
+  }
+  return [...out.values()];
+};
+
+/**
  * El plantel, tambien por id.
  *
  * Dos telefonos distintos donde se escribio "Ana" por separado dan dos ids: la union deja las
  * dos, porque no hay forma de saber desde aca si son la misma persona. Para eso ya existe unir
  * jugadores, que junta los dos historiales sin tocar un solo partido (ver `mergePlayers`).
+ *
+ * `incoming` puede traer a la misma persona varias veces —la lista del archivo mas la copia que
+ * guarda cada uno de sus partidos— asi que el filtro mira tambien lo que ya agrego el mismo. El
+ * PRIMERO gana: por eso quien llama pone la lista del plantel adelante y las copias de los
+ * partidos atras. Si a alguien lo renombraron, el nombre bueno es el del plantel, no el que quedo
+ * congelado adentro de un partido de hace dos años.
  */
 export const mergeRosters = (
   incoming: Player[],
   local: Player[],
 ): { roster: Player[]; added: number } => {
   const have = new Set(local.map((p) => p.id));
-  const add = incoming.filter(
-    (p) => typeof p === 'object' && p !== null && typeof p.id === 'string' && !have.has(p.id),
-  );
+  const add: Player[] = [];
+  for (const p of incoming) {
+    if (typeof p !== 'object' || p === null || typeof p.id !== 'string') continue;
+    if (have.has(p.id)) continue;
+    have.add(p.id);
+    add.push(p);
+  }
   return { roster: [...local, ...add], added: add.length };
 };

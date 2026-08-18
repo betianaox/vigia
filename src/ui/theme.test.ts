@@ -18,8 +18,8 @@ import { themes } from './theme';
  * archivos hasta que se termine de migrar— para que esa pantalla quede oscura para siempre.
  *
  * Lo que se permite: `colors` (el tema oscuro) importado a proposito en los pocos lugares que NO
- * pueden seguir al tema y estan documentados como tales — la tarjeta que se comparte por
- * WhatsApp, el icono sobre la foto del inicio, el texto sobre el verde del boton.
+ * pueden seguir al tema y estan documentados como tales: el icono sobre la foto del inicio y el
+ * texto sobre el verde de los botones, que se apoyan en algo que NO cambia con el tema.
  */
 describe('nadie congela los colores', () => {
   const ROOT = join(__dirname, '..', '..');
@@ -64,28 +64,14 @@ describe('nadie congela los colores', () => {
     }
   });
 
-  /**
-   * LO QUE FALTA MIGRAR, ESCRITO. La lista solo puede ACHICARSE: si aparece un archivo que no
-   * esta aca, el test falla.
-   *
-   * Va como lista y no como un `skip` general por una razon: un test que falla porque hay trabajo
-   * pendiente se ignora a los dos dias, y entonces deja de proteger lo que ya se migro. Asi,
-   * cada pantalla que se migra se borra de aca, y el dia que quede vacia se borra la lista.
-   */
-  const PENDIENTES = [
-    'src/ui/Brand.tsx',
-    'src/ui/Confirm.tsx',
-    'src/ui/ScoreboardPreview.tsx',
-  ];
-
-  it('ninguna pantalla NUEVA arma sus estilos con colores congelados', async () => {
+  it('ninguna pantalla arma sus estilos con colores congelados', async () => {
     const archivos = await sources(join(ROOT, 'src', 'ui'));
     const culpables: string[] = [];
 
     for (const archivo of archivos) {
       const src = readFileSync(archivo, 'utf8');
       // `theme.ts` ES la definicion, y la tarjeta compartible es oscura a proposito.
-      if (/theme\.ts$/.test(archivo) || /ShareCard\.tsx$/.test(archivo)) continue;
+      if (/theme\.ts$/.test(archivo)) continue;
 
       const lineas = src.split('\n');
       for (let i = 0; i < lineas.length; i++) {
@@ -100,30 +86,7 @@ describe('nadie congela los colores', () => {
       }
     }
 
-    const nuevos = culpables.filter((f) => !PENDIENTES.includes(f));
-    expect(nuevos).toEqual([]);
+    expect(culpables).toEqual([]);
   });
 
-  /**
-   * Y LA DEUDA NO PUEDE ENVEJECER EN SILENCIO. Si una pantalla se migra y nadie la saca de la
-   * lista, esta prueba avisa: la lista tiene que decir la verdad para servir de algo.
-   */
-  it('la lista de pendientes no tiene archivos que ya se migraron', async () => {
-    const archivos = await sources(join(ROOT, 'src', 'ui'));
-    const congelados = new Set<string>();
-
-    for (const archivo of archivos) {
-      const src = readFileSync(archivo, 'utf8');
-      const lineas = src.split('\n');
-      for (let i = 0; i < lineas.length; i++) {
-        if (!/^const \w+ = StyleSheet\.create\(/.test(lineas[i]!)) continue;
-        if (/\bcolors\./.test(lineas.slice(i).join('\n'))) {
-          congelados.add(archivo.replace(ROOT, '').slice(1).replace(/\\/g, '/'));
-        }
-      }
-    }
-
-    const yaMigrados = PENDIENTES.filter((f) => !congelados.has(f));
-    expect(yaMigrados).toEqual([]);
-  });
 });

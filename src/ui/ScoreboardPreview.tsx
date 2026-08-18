@@ -1,10 +1,12 @@
+import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { reduce } from '../engine';
 import type { GameFormat, MatchConfig, MatchEvent, TeamId } from '../engine';
 import { Scoreboard } from './Scoreboard';
-import { colors, space } from './theme';
+import { useColors } from './theme-context';
+import { space, type Colors } from './theme';
 
 // Todos los estados salen de correr el motor sobre eventos reales: nada esta maqueteado.
 const cfg = (over: Partial<MatchConfig> = {}): MatchConfig => ({
@@ -125,6 +127,9 @@ const VARIANTS: Array<{ title: string; note: string; config: MatchConfig; events
 ];
 
 export function ScoreboardPreview() {
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+
   return (
     <SafeAreaView style={s.root}>
       <ScrollView contentContainerStyle={s.list}>
@@ -140,10 +145,11 @@ export function ScoreboardPreview() {
   );
 }
 
-const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
+const makeStyles = (c: Colors) =>
+  StyleSheet.create({
+  root: { flex: 1, backgroundColor: c.bg },
   list: { padding: space.md, gap: space.lg },
   item: { gap: space.xs },
-  title: { color: colors.text, fontSize: 13, fontWeight: '800', letterSpacing: 0.5 },
-  note: { color: colors.textFaint, fontSize: 11 },
+  title: { color: c.text, fontSize: 13, fontWeight: '800', letterSpacing: 0.5 },
+  note: { color: c.textFaint, fontSize: 11 },
 });

@@ -1,7 +1,9 @@
+import { useMemo } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { L } from '../i18n';
-import { alpha, colors, pressed, radius, ripple, space } from './theme';
+import { useColors } from './theme-context';
+import { alpha, colors, pressed, radius, ripple, space, type Colors } from './theme';
 
 /**
  * El dialogo de confirmacion de la app.
@@ -49,6 +51,9 @@ export function Confirm({
   onConfirm: () => void;
   onSecondary?: () => void;
 }) {
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+
   const twoWays = Boolean(secondaryLabel && onSecondary);
 
   return (
@@ -104,7 +109,8 @@ export function Confirm({
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Colors) =>
+  StyleSheet.create({
   bg: {
     flex: 1,
     backgroundColor: '#000C',
@@ -119,11 +125,11 @@ const s = StyleSheet.create({
     gap: space.sm,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: alpha(colors.text, 0.14),
-    backgroundColor: colors.surface,
+    borderColor: alpha(c.text, 0.14),
+    backgroundColor: c.surface,
   },
-  title: { color: colors.text, fontSize: 18, fontWeight: '900' },
-  message: { color: colors.textDim, fontSize: 14, lineHeight: 20 },
+  title: { color: c.text, fontSize: 18, fontWeight: '900' },
+  message: { color: c.textDim, fontSize: 14, lineHeight: 20 },
 
   actions: { flexDirection: 'row', gap: space.sm, marginTop: space.md },
   btn: {
@@ -133,16 +139,21 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: radius.md,
   },
-  cancel: { borderWidth: 1, borderColor: alpha(colors.text, 0.2), backgroundColor: colors.surfaceAlt },
-  cancelText: { color: colors.textDim, fontSize: 15, fontWeight: '800' },
+  cancel: { borderWidth: 1, borderColor: alpha(c.text, 0.2), backgroundColor: c.surfaceAlt },
+  cancelText: { color: c.textDim, fontSize: 15, fontWeight: '800' },
 
-  ok: { backgroundColor: colors.cta },
+  ok: { backgroundColor: c.cta },
+  /**
+   * BLANCO FIJO, no `c.text`: va sobre el verde del boton, que es el mismo color en los dos
+   * temas. Siguiendo al tema, en el claro se volvia azul oscuro sobre verde — la misma trampa
+   * que ya estaba resuelta en el inicio, el saludo y el formulario, y que aca se habia colado.
+   */
   okText: { color: colors.text, fontSize: 15, fontWeight: '900' },
 
-  danger: { backgroundColor: alpha(colors.errorUnforced, 0.2), borderWidth: 1, borderColor: colors.errorUnforced },
-  dangerText: { color: colors.errorUnforced },
+  danger: { backgroundColor: alpha(c.errorUnforced, 0.2), borderWidth: 1, borderColor: c.errorUnforced },
+  dangerText: { color: c.errorUnforced },
 
   /** Cancelar no es una respuesta: es un arrepentimiento. No compite con las dos que si lo son. */
   link: { height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radius.sm },
-  linkText: { color: colors.textFaint, fontSize: 14, fontWeight: '700' },
+  linkText: { color: c.textFaint, fontSize: 14, fontWeight: '700' },
 });

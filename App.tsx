@@ -233,6 +233,14 @@ function Vigia({ onLanguage }: { onLanguage: () => void }) {
   const fondoOscuro = oscuro || screen.name === 'home';
 
   /**
+   * El color de los iconos de las DOS barras del sistema, en un solo lugar: claros sobre fondo
+   * oscuro, oscuros sobre fondo claro. Las dos librerias usan la misma convencion —`style` es el
+   * contenido— asi que no hay motivo para que sean dos expresiones distintas que haya que
+   * acordarse de cambiar juntas.
+   */
+  const iconosDeSistema = fondoOscuro ? 'light' : 'dark';
+
+  /**
    * EL FONDO DETRAS DE LA BARRA TRANSPARENTE.
    *
    * La barra de abajo no tiene color propio: se ve la app a traves. Pero el sistema necesita
@@ -370,7 +378,7 @@ function Vigia({ onLanguage }: { onLanguage: () => void }) {
       {/* La de arriba y la de abajo siguen al tema: iconos claros sobre el oscuro, oscuros sobre
           el claro. Si no, en el tema claro la hora y los botones de Android quedan blancos sobre
           blanco y desaparecen. */}
-      <StatusBar style={fondoOscuro ? 'light' : 'dark'} />
+      <StatusBar style={iconosDeSistema} />
 
       {/* LA BARRA DE ABAJO NO SE PINTA: SE DEJA TRANSPARENTE.
           En Expo 57 (edge-to-edge) ya lo es; lo que la ensuciaba era el velo de contraste que
@@ -378,9 +386,16 @@ function Vigia({ onLanguage }: { onLanguage: () => void }) {
           fondo que se ve detras es el de la app, y lo pone `SystemUI` mas arriba — asi sirve para
           los DOS temas sin pintarla de ningun color propio.
 
-          Lo unico que si cambia son los ICONOS. `dark` es "contenido claro", al reves de lo que
-          uno diria: es la convencion de la libreria, verificada en sus tipos. */}
-      <NavigationBar style={fondoOscuro ? 'dark' : 'light'} />
+          Lo unico que si cambia son los ICONOS, Y VAN EXACTAMENTE IGUAL QUE LOS DE ARRIBA: `style`
+          es el color del CONTENIDO, no el del fondo, lo mismo que en `StatusBar`.
+
+          Estaba al reves, y por eso en el tema claro los botones de Android desaparecian. La
+          culpa es de la documentacion de la libreria, que describe `style` como el color del
+          fondo ("`dark`: a dark navigation bar with light content"). El modulo nativo hace lo
+          contrario — `hasLightBackground = style == "dark"`, y con eso prende
+          `isAppearanceLightNavigationBars`, que en Android significa fondo claro y por lo tanto
+          ICONOS OSCUROS. Vale el codigo, no el comentario del .d.ts. */}
+      <NavigationBar style={iconosDeSistema} />
 
       {PREVIEW ? (
         <ScoreboardPreview />

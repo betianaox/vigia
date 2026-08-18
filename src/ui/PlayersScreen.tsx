@@ -19,7 +19,7 @@ import { Confirm } from './Confirm';
 import { PlayerField } from './PlayerField';
 import { useRoster } from './roster';
 import { useColors } from './theme-context';
-import { alpha, pressed, radius, ripple, space, type Colors } from './theme';
+import { alpha, colors, pressed, radius, ripple, space, type Colors } from './theme';
 
 const tick = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
@@ -670,5 +670,6 @@ const makeStyles = (c: Colors) =>
   },
   dialogCancelText: { color: c.textDim, fontSize: 15, fontWeight: '800' },
   dialogOk: { backgroundColor: c.cta },
-  dialogOkText: { color: c.text, fontSize: 15, fontWeight: '900' },
+  /** Blanco fijo: va sobre el verde, que es el mismo en los dos temas (ver `Confirm`). */
+  dialogOkText: { color: colors.text, fontSize: 15, fontWeight: '900' },
 });

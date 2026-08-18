@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import type { MatchConfig, MatchEvent, MatchState, PlayerId, TeamId } from '../engine';
@@ -10,7 +11,8 @@ import { playerRows } from './charts/playerRows';
 import { gridPlayers, ShotGrid, shotGrid } from './charts/ShotGrid';
 import { useRoster } from './roster';
 import { Scoreboard } from './Scoreboard';
-import { colors, radius, space } from './theme';
+import { useColors } from './theme-context';
+import { radius, space, type Colors } from './theme';
 
 
 /**
@@ -65,6 +67,9 @@ export function ShareCard({
   events: MatchEvent[];
   state: MatchState;
 }) {
+  const c = useColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+
   const { nameOf } = useRoster();
   const stats = computeStats(config, events);
 
@@ -84,7 +89,7 @@ export function ShareCard({
           que ese alguien sepa de donde salio. Achicar la marca en la unica pieza que sale de la
           app es sabotearse solo. */}
       <View style={s.head}>
-        <Brand size={30} tint={colors.ball} />
+        <Brand size={30} tint={c.ball} />
         <Text style={s.date}>{playedOn(events)}</Text>
       </View>
 
@@ -97,9 +102,9 @@ export function ShareCard({
           jugador, y no adentro de la ficha de nadie: un set se define por un quiebre, y "3 de 7"
           cuenta la mitad del partido que el resultado no cuenta. */}
       <View style={s.team}>
-        <Text style={[s.teamValue, { color: colors.teamAFill }]}>{bp('A')}</Text>
+        <Text style={[s.teamValue, { color: c.teamAFill }]}>{bp('A')}</Text>
         <Text style={s.teamLabel}>{L.stats.breakPoints.toUpperCase()}</Text>
-        <Text style={[s.teamValue, s.teamValueRight, { color: colors.teamBFill }]}>{bp('B')}</Text>
+        <Text style={[s.teamValue, s.teamValueRight, { color: c.teamBFill }]}>{bp('B')}</Text>
       </View>
 
       {/* Los nombres van GRANDES y encendidos. En la app son una etiqueta, porque arriba esta el
@@ -107,17 +112,21 @@ export function ShareCard({
           que estos nombres son los que dicen quien jugo. */}
       <View style={s.block}>
         <HeadToHead
-          rows={playerRows(stats, config, false)}
+          rows={playerRows(stats, config, 'tarjeta')}
           playersA={names('A')}
           playersB={names('B')}
-          colorA={colors.teamAFill}
-          colorB={colors.teamBFill}
+          colorA={c.teamAFill}
+          colorB={c.teamBFill}
           nameSize={15}
-          nameColor={colors.text}
+          nameColor={c.text}
           nameWeight="500"
           nameGap={12}
           valueSize={15}
           labelSize={13}
+          /* Mas apretada que en la pantalla: en una imagen, el aire se paga en alto (ver
+             `rowPad`). Lo que NO se toca es el cuerpo de la letra. */
+          rowPad={5}
+          subGap={2}
           allowFontScaling={false}
         />
       </View>
@@ -144,8 +153,8 @@ export function ShareCard({
               string,
             ]
           }
-          colorA={colors.teamAFill}
-          colorB={colors.teamBFill}
+          colorA={c.teamAFill}
+          colorB={c.teamBFill}
         />
       </View>
 
@@ -158,17 +167,27 @@ export function ShareCard({
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Colors) =>
+  StyleSheet.create({
+  /**
+   * EL AIRE DE LA TARJETA SE MIDE DISTINTO QUE EL DE UNA PANTALLA.
+   *
+   * En una pantalla, un margen de mas no cuesta nada: se scrollea. Aca cada punto de separacion
+   * entre los cinco bloques se suma al alto de una imagen que tiene que entrar de una en una
+   * burbuja de chat — y una tarjeta que hay que scrollear adentro del chat no la mira nadie. Por
+   * eso el marco y las juntas van mas apretados que en el resto de la app, y por eso el ajuste
+   * empieza siempre por el aire y nunca por el cuerpo de la letra.
+   */
   card: {
     width: CARD_WIDTH,
     padding: space.md,
-    gap: space.md,
-    backgroundColor: colors.bg,
+    gap: space.sm,
+    backgroundColor: c.bg,
   },
 
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   date: {
-    color: colors.textFaint,
+    color: c.textFaint,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 1.2,
@@ -178,7 +197,7 @@ const s = StyleSheet.create({
   team: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: space.sm,
+    paddingVertical: 6,
     /**
      * El mismo padding que tienen los bloques ADENTRO. Sin esto la fila se alineaba con el BORDE
      * de las tarjetas de abajo y no con su contenido, asi que los dos numeros parecian escaparse
@@ -187,33 +206,34 @@ const s = StyleSheet.create({
     paddingHorizontal: space.md,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
   },
   teamValue: { flex: 1, fontSize: 18, fontWeight: '900', fontVariant: ['tabular-nums'] },
   teamValueRight: { textAlign: 'right' },
   teamLabel: {
-    color: colors.textDim,
+    color: c.textDim,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 1.2,
   },
 
   block: {
-    padding: space.md,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
   },
 
   blockLabel: {
-    color: colors.textFaint,
+    color: c.textFaint,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 1.2,
-    paddingBottom: space.sm,
+    paddingBottom: 6,
   },
 
   foot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  meta: { color: colors.textFaint, fontSize: 12, fontWeight: '600' },
-  cta: { color: colors.textDim, fontSize: 13, fontWeight: '800', letterSpacing: 0.5 },
+  meta: { color: c.textFaint, fontSize: 12, fontWeight: '600' },
+  cta: { color: c.textDim, fontSize: 13, fontWeight: '800', letterSpacing: 0.5 },
 });

@@ -31,21 +31,22 @@ const wrap = (label: string): string => {
  * Las etiquetas van partidas en dos renglones a proposito, para que todas las filas midan lo
  * mismo y la grilla se lea pareja.
  */
+/**
+ * DONDE SE VAN A DIBUJAR ESTAS FILAS, que es lo que decide cuantas hay.
+ *
+ * - `pantalla`: las ocho. Hay lugar de sobra y quien la abrio fue a buscar el detalle.
+ * - `tarjeta`: las TRES del semaforo, y nada mas. Una imagen que se manda por WhatsApp se mira
+ *   entera o no se mira: cada fila de mas la alarga, y a partir de cierto punto el que la recibe
+ *   tiene que scrollear adentro de la burbuja — que en la practica quiere decir que no la mira.
+ *   Winner, error forzado y error no forzado son las tres cosas que deciden un partido de padel y
+ *   las tres que la app produce y ningun reloj puede; el saque se queda en la app.
+ */
+export type RowsFor = 'pantalla' | 'tarjeta';
+
 export const playerRows = (
   stats: MatchStats,
   config: MatchConfig,
-  /**
-   * Los tres porcentajes de saque.
-   *
-   * En la pantalla van, porque hay lugar y quien la abre fue a buscar el detalle. En la tarjeta
-   * NO: el saque importa, pero en padel no define el punto como en tenis, y darle tres de ocho
-   * filas seria gastar media tarjeta en un solo golpe mientras winners y errores —que si deciden
-   * el partido— se quedan afuera. El saque conserva ahi lo que aporta de verdad: aces y dobles.
-   *
-   * La excepcion es la tarjeta de un partido anotado en modo simple: sin golpes que mostrar,
-   * queda un hueco, y el saque es lo mejor que hay para llenarlo (ver `serveRows`).
-   */
-  serveDetail: boolean,
+  where: RowsFor,
 ): Row[] => {
   const four = (['A', 'B'] as TeamId[]).map((t) =>
     [config.teams[t].drive, config.teams[t].reves].map((id: PlayerId) => stats.players[id]!),
@@ -91,14 +92,14 @@ export const playerRows = (
     count(L.stats.winners, (p) => p.winners, colors.winnerChart),
     count(wrap(L.stats.unforcedErrors), (p) => p.unforcedErrors, colors.errorUnforcedChart),
     count(wrap(L.stats.forcedErrors), (p) => p.forcedErrors, colors.errorForcedChart),
-    count(L.stats.aces, (p) => p.aces, colors.ace),
-    count(wrap(L.stats.doubleFaults), (p) => p.doubleFaults, colors.worse),
   ];
 
-  if (!serveDetail) return rows;
+  if (where === 'tarjeta') return rows;
 
   return [
     ...rows,
+    count(L.stats.aces, (p) => p.aces, colors.ace),
+    count(wrap(L.stats.doubleFaults), (p) => p.doubleFaults, colors.worse),
     percent(
       wrap(L.stats.firstServeIn),
       (p) => p.firstServesIn,

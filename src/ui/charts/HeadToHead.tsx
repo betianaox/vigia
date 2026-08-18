@@ -73,6 +73,18 @@ export function HeadToHead({
   valueSize = 13,
   labelSize = 12,
   /**
+   * CUANTO RESPIRA CADA FILA. En la pantalla, lo de siempre; en la tarjeta, menos.
+   *
+   * No es la misma pieza en los dos lados. La pantalla se scrollea: una fila mas alta se lee mas
+   * comoda y no cuesta nada. La tarjeta es una imagen de alto fijo que se mira entera adentro de
+   * una burbuja de chat, y ahi cada punto de aire empuja el final de la imagen hacia abajo. El
+   * aire es lo primero que se recorta, ANTES que el cuerpo de la letra: achicar el texto la
+   * volveria ilegible justo donde no se puede hacer zoom sin abrirla.
+   */
+  rowPad = space.sm,
+  /** Lo que separa a los dos jugadores de un mismo lado. Mismo criterio que `rowPad`. */
+  subGap = 4,
+  /**
    * EN LA TARJETA VA EN `false`, Y NO ES UN CAPRICHO.
    *
    * La tarjeta es una IMAGEN de ancho fijo: el mismo partido tiene que dar el mismo PNG en
@@ -94,6 +106,8 @@ export function HeadToHead({
   nameGap?: number;
   valueSize?: number;
   labelSize?: number;
+  rowPad?: number;
+  subGap?: number;
   allowFontScaling?: boolean;
 }) {
   const c = useColors();
@@ -164,8 +178,8 @@ export function HeadToHead({
           <View key={r.label}>
             {i > 0 && <View style={s.sep} />}
 
-            <View style={s.row}>
-              <View style={s.side}>
+            <View style={[s.row, { paddingVertical: rowPad }]}>
+              <View style={[s.side, { gap: subGap }]}>
                 {r.a.map((c, k) => (
                   <View key={k} style={s.sub}>
                     <Text
@@ -194,7 +208,7 @@ export function HeadToHead({
                 {r.label}
               </Text>
 
-              <View style={s.side}>
+              <View style={[s.side, { gap: subGap }]}>
                 {r.b.map((c, k) => (
                   <View key={k} style={s.sub}>
                     <View style={s.track}>
@@ -224,7 +238,7 @@ const makeStyles = (c: Colors) =>
   StyleSheet.create({
   root: {},
 
-  header: { flexDirection: 'row', justifyContent: 'space-between', paddingBottom: space.sm },
+  header: { flexDirection: 'row', justifyContent: 'space-between', paddingBottom: 6 },
   headSide: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 },
   headSideRight: { justifyContent: 'flex-end' },
   swatch: { width: 10, height: 10, borderRadius: 3 },
@@ -234,8 +248,10 @@ const makeStyles = (c: Colors) =>
 
   sep: { height: 1, backgroundColor: c.border },
 
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: space.sm },
-  side: { flex: 1, gap: 4 },
+  /** El alto lo pone `rowPad`, que no es el mismo en la pantalla que en la tarjeta. */
+  row: { flexDirection: 'row', alignItems: 'center' },
+  /** Y lo que separa a los dos jugadores de un lado, `subGap`. Mismo motivo. */
+  side: { flex: 1 },
   sub: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   track: { flex: 1, flexDirection: 'row', height: BAR, alignItems: 'center' },
 
