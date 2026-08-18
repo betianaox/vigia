@@ -9,6 +9,7 @@ import type { MatchConfig, MatchEvent, MatchState, PlayerId, Stroke, TeamId } fr
 import { L } from '../i18n';
 import { Brand } from './Brand';
 import { HeadToHead } from './charts/HeadToHead';
+import { CrossTable } from './charts/CrossTable';
 import { playerRows } from './charts/playerRows';
 import { ShotBars } from './charts/ShotBars';
 import { strokeLabels } from './shots';
@@ -19,7 +20,6 @@ import { shareCard } from './share';
 import { CARD_WIDTH, ShareCard } from './ShareCard';
 import { useColors } from './theme-context';
 import { pressed, radius, ripple, space, teamColor, type Colors } from './theme';
-import { tally, WideStat } from './WideStat';
 
 const num = (n: number | null, suffix = ''): string =>
   n === null ? '—' : `${Math.round(n)}${suffix}`;
@@ -237,7 +237,7 @@ export function StatsScreen({
 
             <Section title={L.stats.playerByPlayer}>
               <HeadToHead
-                rows={playerRows(stats, config, true)}
+                rows={playerRows(stats, config, 'pantalla')}
                 playersA={playerNames(config, 'A', nameOf)}
                 playersB={playerNames(config, 'B', nameOf)}
                 colorA={c.teamAFill}
@@ -395,6 +395,50 @@ function PlayerCard({
   const returnErrors = p.returnErrorsForced + p.returnErrorsUnforced;
   const forcedCaused = totalDuels(p.forcedErrorsCaused);
 
+  /**
+   * LA TABLA DE ERRORES PROVOCADOS: una fila por rival, una columna por golpe.
+   *
+   * Las columnas son SOLO las que pasaron —de los catorce golpes, en un partido se fuerzan
+   * errores con tres o cuatro— y salen ordenadas por uso, asi que la que mas dice queda primera.
+   *
+   * Las filas son los rivales que aparecen en el cruce. Un rival al que le forzo errores pero
+   * sin golpe cargado no tiene fila: no habria nada que poner en ninguna columna. Su total sigue
+   * contando arriba.
+   */
+  /** Las columnas: los rivales. Son DOS, siempre — por eso van a lo ancho. */
+  const causedRivals = useMemo(
+    () => Object.keys(p.forcedErrorsCausedDetail),
+    [p.forcedErrorsCausedDetail],
+  );
+
+  /**
+   * Las filas: los golpes, ordenados por uso.
+   *
+   * VAN COMO FILAS Y NO COMO COLUMNAS, que era como estaban primero. Los rivales son a lo sumo
+   * dos; los golpes pueden ser catorce. Con los golpes a lo ancho, la tabla necesitaba scrollear
+   * en horizontal — y un scroll horizontal adentro de una pantalla que ya scrollea en vertical no
+   * se nota: parece que la tabla termina donde termina la pantalla. Hacia abajo, en cambio,
+   * crece sobre el scroll que la persona ya esta usando.
+   */
+  const causedRows = useMemo(() => {
+    const porGolpe = new Map<string, Partial<Record<string, number>>>();
+    const uso = new Map<string, number>();
+
+    for (const [rival, tally] of Object.entries(p.forcedErrorsCausedDetail)) {
+      for (const [shot, n] of Object.entries(tally ?? {})) {
+        if (!n) continue;
+        const fila = porGolpe.get(shot) ?? {};
+        fila[rival] = n;
+        porGolpe.set(shot, fila);
+        uso.set(shot, (uso.get(shot) ?? 0) + n);
+      }
+    }
+
+    return [...porGolpe.entries()]
+      .sort((a, b) => (uso.get(b[0]) ?? 0) - (uso.get(a[0]) ?? 0))
+      .map(([shot, cells]) => ({ label: strokeLabels()[shot as Stroke] ?? shot, cells }));
+  }, [p.forcedErrorsCausedDetail]);
+
   return (
     <View style={s.player}>
       <View style={s.cardHead}>
@@ -437,33 +481,29 @@ function PlayerCard({
        * mismo tratamiento que ya tienen el ace y la doble falta.
        */}
       {/**
-       * VA A LO ANCHO, NO EN UN TERCIO.
+       * UNA TABLA, NO DOS LISTAS.
        *
-       * Estaba como una celda del grid de tres, con las otras dos VACIAS al lado, y su desglose
-       * —contra quien y con que golpe, pegados con un salto de linea— apretado en ese tercio. Las
-       * dos listas no son igual de largas ni por casualidad: los rivales son a lo sumo DOS, pero
-       * los golpes son CATORCE. Con el ancho de un tercio, la de golpes se partia en un chorizo
-       * de siete renglones abajo del numero.
+       * Antes eran dos renglones —"5 a Beto · 2 a Bea" y "3 de remate · 4 de bandeja"— y las dos
+       * juntas no contestaban la pregunta que uno se hace mirandolas: si esos remates fueron a
+       * Beto o a Bea. Cruzadas en una tabla, si.
        *
-       * Ahora ocupa el ancho que ya tenia reservado —las celdas vacias eran ese ancho, sin
-       * usar— y cada lista lleva su rotulo, asi que se entiende cual es cual sin adivinar.
+       * El numero grande de arriba sigue siendo el TOTAL, y no siempre coincide con la suma de la
+       * tabla: los errores forzados donde nadie marco el golpe cuentan en el total y no tienen
+       * celda donde ir.
        */}
-      <WideStat
-        label={L.stats.forcedErrorsCaused}
-        /* Guion y no cero, igual que la falla en resto: si nadie cargo quien forzo, no es que
-           no provoco ninguno — es que no se sabe. Cero es un dato; nada es otra cosa. */
-        value={forcedCaused > 0 ? `${forcedCaused}` : '—'}
-        rows={[
-          {
-            label: L.stats.causedAgainst,
-            text: tally(p.forcedErrorsCaused, (id) => names[id] ?? id),
-          },
-          {
-            label: L.stats.causedWith,
-            text: tally(p.forcedErrorsCausedByShot, (k) => strokeLabels()[k as Stroke] ?? k),
-          },
-        ]}
-      />
+      <View style={s.caused}>
+        <Stat
+          label={L.stats.forcedErrorsCaused}
+          /* Guion y no cero, igual que la falla en resto: si nadie cargo quien forzo, no es que
+             no provoco ninguno — es que no se sabe. Cero es un dato; nada es otra cosa. */
+          value={forcedCaused > 0 ? `${forcedCaused}` : '—'}
+        />
+        <CrossTable
+          rows={causedRows}
+          columns={causedRivals}
+          columnLabel={(id) => names[id] ?? id}
+        />
+      </View>
 
       <View style={s.divider} />
       <Text style={s.blockLabel}>{L.stats.serving}</Text>
@@ -648,6 +688,8 @@ const makeStyles = (c: Colors) =>
     marginBottom: 2,
   },
 
+  /** El total y su tabla, juntos: el numero de arriba es el titulo de lo que sigue. */
+  caused: { gap: space.sm },
   divider: { height: 1, backgroundColor: c.border },
 
   head: {

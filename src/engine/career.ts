@@ -107,6 +107,7 @@ const empty = (id: PlayerId, name: string, team: TeamId): PlayerStats => ({
   doubleFaultsAgainst: {},
   forcedErrorsCaused: {},
   forcedErrorsCausedByShot: {},
+  forcedErrorsCausedDetail: {},
   acesConceded: 0,
   doubleFaultsForced: 0,
   servePointsPlayed: 0,
@@ -218,6 +219,17 @@ export const career = (
       totals.forcedErrorsCausedByShot,
       mineStats.forcedErrorsCausedByShot,
     );
+
+    /* El cruce a quien-con que, sumado partido a partido. El rival pasa por `canon` igual que
+       en los otros duelos: si dos fichas eran la misma persona, sus columnas se suman en vez
+       de quedar como dos rivales distintos. */
+    for (const [rival, tally] of Object.entries(mineStats.forcedErrorsCausedDetail)) {
+      const who = canon(rival);
+      totals.forcedErrorsCausedDetail[who] = mergeTally(
+        totals.forcedErrorsCausedDetail[who] ?? {},
+        tally ?? {},
+      );
+    }
 
     const mineTeamPoints = stats.teams[team].pointsWon;
     teamPointsWon += mineTeamPoints;

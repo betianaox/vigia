@@ -66,6 +66,23 @@ export interface PlayerStats {
   forcedErrorsCaused: Partial<Record<PlayerId, number>>;
   /** Con que golpe forzaste esos errores. Es el dato que se pidio marcar primero en la hoja. */
   forcedErrorsCausedByShot: ShotTally;
+  /**
+   * LOS DOS DUELOS CRUZADOS: a quien, y con que golpe se lo forzaste a ESA persona.
+   *
+   * Los dos de arriba son sumas por separado, y por separado no alcanzan: dicen "5 a Beto" y
+   * "3 de remate", pero no si esos remates fueron a Beto o a Bea. Nada en ellos permite
+   * reconstruirlo, aunque el log lo sepa — cada evento de error forzado trae junto quien
+   * erro, quien forzo y con que.
+   *
+   * Con el cruce, la ficha puede mostrar una tabla en vez de dos listas sueltas: una fila por
+   * rival, una columna por golpe. "Le ganaste tres veces con el remate a Beto" es una
+   * instruccion; "3 remates" y "5 a Beto" en renglones distintos, no.
+   *
+   * Se guarda ademas de los otros dos y no en su lugar: `forcedErrorsCaused` es el total por
+   * rival —incluidos los puntos donde no se cargo el golpe— y esa suma no se puede recuperar
+   * desde aca.
+   */
+  forcedErrorsCausedDetail: Partial<Record<PlayerId, ShotTally>>;
 
   /** Restando: los aces que le hicieron, y las dobles faltas que provoco. */
   acesConceded: number;
@@ -239,6 +256,7 @@ const emptyPlayer = (id: PlayerId, name: string, team: TeamId): PlayerStats => (
   doubleFaultsAgainst: {},
   forcedErrorsCaused: {},
   forcedErrorsCausedByShot: {},
+  forcedErrorsCausedDetail: {},
   acesConceded: 0,
   doubleFaultsForced: 0,
   servePointsPlayed: 0,
@@ -378,6 +396,14 @@ export const computeStats = (config: MatchConfig, events: MatchEvent[]): MatchSt
           const forcer = players[e.forcedBy]!;
           forcer.forcedErrorsCaused[e.player] = (forcer.forcedErrorsCaused[e.player] ?? 0) + 1;
           bump(forcer.forcedErrorsCausedByShot, e.forcedByShot);
+
+          /* Y EL CRUCE: a esta persona, con este golpe. Solo cuando el golpe esta cargado —
+             sin el no hay celda que llenar, y un total sin golpe ya lo cuenta la linea de
+             arriba. */
+          if (e.forcedByShot) {
+            const suyo = (forcer.forcedErrorsCausedDetail[e.player] ??= {});
+            bump(suyo, e.forcedByShot);
+          }
         }
         pointTo = otherTeam(teamOfPlayer(e.player, config.teams));
         break;

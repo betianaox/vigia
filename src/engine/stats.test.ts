@@ -411,6 +411,46 @@ describe('quien forzo el error', () => {
     expect(s.players.b1!.forcedErrorsCaused).toEqual({});
   });
 
+  /**
+   * EL CRUCE: a quien Y con que, junto.
+   *
+   * Los dos contadores de arriba son sumas por separado, y por separado no alcanzan. Este caso
+   * es el que lo demuestra: dos rivales, dos golpes, cruzados. Sumando por su lado darian
+   * "1 a cada uno" y "1 de cada golpe" — cuatro combinaciones posibles y ninguna forma de saber
+   * cual paso. La tabla de la ficha se dibuja con esto.
+   */
+  it('cruza a quien se lo forzo con el golpe que uso en cada caso', () => {
+    const s = computeStats(c, [
+      { type: 'ERROR_FORZADO', player: 'b1', forcedBy: 'a1', forcedByShot: { stroke: 'remate' } },
+      { type: 'ERROR_FORZADO', player: 'b2', forcedBy: 'a1', forcedByShot: { stroke: 'bandeja' } },
+      { type: 'ERROR_FORZADO', player: 'b1', forcedBy: 'a1', forcedByShot: { stroke: 'remate' } },
+    ]);
+
+    expect(s.players.a1!.forcedErrorsCausedDetail).toEqual({
+      b1: { remate: 2 },
+      b2: { bandeja: 1 },
+    });
+
+    // Y los totales sueltos siguen valiendo lo mismo que antes: el cruce se AGREGA, no reemplaza.
+    expect(s.players.a1!.forcedErrorsCaused).toEqual({ b1: 2, b2: 1 });
+    expect(s.players.a1!.forcedErrorsCausedByShot).toEqual({ remate: 2, bandeja: 1 });
+  });
+
+  /**
+   * Sin golpe cargado no hay celda, pero el error SI cuenta. Es la razon por la que el cruce no
+   * puede reemplazar a `forcedErrorsCaused`: ese total incluye los puntos donde nadie marco con
+   * que, y desde el cruce esa suma no se puede recuperar.
+   */
+  it('el error sin golpe suma al total del rival pero no entra en la tabla', () => {
+    const s = computeStats(c, [
+      { type: 'ERROR_FORZADO', player: 'b1', forcedBy: 'a1', forcedByShot: { stroke: 'remate' } },
+      { type: 'ERROR_FORZADO', player: 'b1', forcedBy: 'a1' },
+    ]);
+
+    expect(s.players.a1!.forcedErrorsCaused).toEqual({ b1: 2 });
+    expect(s.players.a1!.forcedErrorsCausedDetail).toEqual({ b1: { remate: 1 } });
+  });
+
   it('dos jugadores distintos forzando errores no se mezclan', () => {
     const s = computeStats(c, [
       { type: 'ERROR_FORZADO', player: 'b1', forcedBy: 'a1', forcedByShot: { stroke: 'remate' } },
