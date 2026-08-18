@@ -490,10 +490,15 @@ export function SetupScreen({
           onPress={start}
           disabled={!ready}
         >
+          {/* Encendido, el boton es verde y el play va BLANCO FIJO, igual que su texto: el
+              verde es el mismo color en los dos temas, asi que lo que se apoya encima no
+              puede seguir al tema — en claro `c.text` es azul oscuro y quedaba un play negro
+              sobre el verde. Apagado es al reves: el boton pierde el verde y vuelve a ser
+              fondo de la app, asi que ahi el icono SI sigue al tema. */}
           <MaterialIcons
             name="play-arrow"
             size={26}
-            color={ready ? c.text : c.textFaint}
+            color={ready ? colors.text : c.textFaint}
           />
           <Text style={[s.startText, !ready && s.startTextOff]}>{L.setup.start}</Text>
         </Pressable>
