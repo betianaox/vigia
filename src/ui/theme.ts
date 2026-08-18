@@ -160,8 +160,37 @@ const light: Colors = {
   border: '#D3DBE4',
 
   text: '#0F172A',
-  textDim: '#4A5A6B',
-  textFaint: '#7C8B9C',
+  /**
+   * EL GRIS DEL MEDIO SE MOVIO PARA HACERLE LUGAR AL DE ABAJO.
+   *
+   * No se cambio porque se leyera mal —a 6.25 se leia bien— sino porque al oscurecer `textFaint`
+   * hasta donde de verdad se lee, los dos quedaron pegados: 38.9 de claridad contra 37.5, que a
+   * ojo es el mismo gris. Un tema con dos grises que son el mismo gris no tiene tres niveles,
+   * tiene dos disfrazados de tres.
+   *
+   * Baja lo justo para que el escalon se vuelva a ver: cinco puntos de L*, la misma distancia que
+   * lo separa del de abajo. Mismo tono (210 contra 211).
+   */
+  textDim: '#3E4B58',
+  /**
+   * EL GRIS MAS APAGADO, MAS OSCURO QUE SU EQUIVALENTE DEL TEMA OSCURO. No es una asimetria por
+   * descuido: es que un gris claro y un gris oscuro no se degradan igual.
+   *
+   * Arrancó como el reflejo del oscuro y daba 3.07 contra el fondo, cuando el minimo para texto
+   * chico es 4.5. En el telefono, de noche y con la pantalla al 40%, pasaba; en una tablet —mas
+   * grande, mas brillante, y mirada desde mas lejos— desaparecia. Y es el gris de MUCHO texto
+   * chico: las etiquetas Drive/Reves del formulario, los titulos de seccion, los encabezados de
+   * los listados, los metadatos de cada fila y los guiones de las celdas vacias.
+   *
+   * Queda en 6.52 contra el fondo y 7.38 contra la tarjeta — mas del doble del contraste con el
+   * que empezo. Se ajusto cuatro veces mirandolo en una tablet, y las cuatro el veredicto fue el
+   * mismo: mas oscuro. La leccion es que el umbral de 4.5 es un piso legal, no una medida de si
+   * algo se lee: este texto va en once puntos, en mayusculas y espaciado, y mirado de lejos en una
+   * pantalla grande necesita bastante mas que el minimo.
+   *
+   * El tono no se mueve: hue 211 contra los 212 del original.
+   */
+  textFaint: '#4A5765',
 
   /** El texto que va ENCIMA de un color claro sigue siendo oscuro: no se da vuelta. */
   onLight: '#0A0E13',

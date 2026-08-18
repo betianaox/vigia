@@ -17,7 +17,18 @@ const LOGO = require('../../assets/logo.png');
 const RATIO = 1596 / 293;
 
 export function Brand({
-  size = 34,
+  /**
+   * 26, que es el tamaño con el que la marca aparece en casi toda la app: ayuda, historial,
+   * jugadores, estadisticas y trayectoria lo piden explicito.
+   *
+   * Era 34, y ese numero no lo usaba nadie mas que el formulario —la unica pantalla que no pasa
+   * un tamaño— asi que ahi la marca salia un tercio mas grande que en cualquier otro lado, sin
+   * que nadie lo hubiera decidido: lo heredaba del default. Es el mismo bug que ya habia pasado
+   * con el subtitulo, que sacaba su tamaño de una proporcion del logo (ver mas abajo). Un valor
+   * por defecto que no coincide con lo que la app realmente usa siempre termina saliendo por
+   * algun lado.
+   */
+  size = 26,
   subtitle,
   subject,
   tint,
