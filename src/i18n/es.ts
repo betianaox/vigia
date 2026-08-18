@@ -275,7 +275,7 @@ export const es = {
     imported: (n: number) => (n === 1 ? 'Se agregó 1 partido.' : `Se agregaron ${n} partidos.`),
     importedNone: 'No se agregó ninguno: ya estaban todos.',
     importedSkipped: (n: number) => (n === 1 ? '1 ya estaba.' : `${n} ya estaban.`),
-    importBad: 'Ese archivo no es una copia de Vigía.',
+    importBad: 'Ese archivo no es una copia de Vigia.',
     importFailed: 'No se pudo leer el archivo.',
     ok: 'Listo',
   },
@@ -459,7 +459,7 @@ export const es = {
    * el dia que la necesite.
    */
   welcome: {
-    title: 'Bienvenido a Vigía',
+    title: 'Bienvenido a Vigia',
     text: 'Para saber cómo usar la app, entra en Ayuda.',
     /** El boton lleva el MISMO icono que va a tener el de ayuda: se lo presenta, no se lo cuenta. */
     help: 'Ayuda',
@@ -534,7 +534,7 @@ export const es = {
      */
     rate: 'Valorar la app',
     /** {v} es la version que declara `app.json`: no se escribe a mano en ningun lado. */
-    version: 'Vigía {v}',
+    version: 'Vigia {v}',
 
     /**
      * POR DONDE SE EMPIEZA. `{icon}` se reemplaza por el icono de verdad, dibujado dentro de la

@@ -176,7 +176,7 @@ export const pt: Dict = {
     imported: (n: number) => (n === 1 ? 'Adicionou-se 1 jogo.' : `Adicionaram-se ${n} jogos.`),
     importedNone: 'Não se adicionou nenhum: já os tinhas todos.',
     importedSkipped: (n: number) => (n === 1 ? '1 já estava.' : `${n} já estavam.`),
-    importBad: 'Esse arquivo não é uma cópia do Vigía.',
+    importBad: 'Esse arquivo não é uma cópia do Vigia.',
     importFailed: 'Não foi possível ler o arquivo.',
     ok: 'Pronto',
   },
@@ -279,7 +279,7 @@ export const pt: Dict = {
   },
 
   welcome: {
-    title: 'Bem-vindo ao Vigía',
+    title: 'Bem-vindo ao Vigia',
     text: 'Para saber como usar o app, entre em Ajuda.',
     help: 'Ajuda',
     close: 'Fechar',
@@ -339,7 +339,7 @@ export const pt: Dict = {
     privacy: 'Política de privacidade',
     contact: 'Escreve-nos',
     rate: 'Avaliar o app',
-    version: 'Vigía {v}',
+    version: 'Vigia {v}',
 
     startHint:
       'Para começar, toque em {icon} Jogo novo. Se deixar um jogo por terminar, você segue depois pelo Histórico.',

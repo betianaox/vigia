@@ -197,7 +197,7 @@ export const en: Dict = {
     imported: (n: number) => (n === 1 ? '1 match added.' : `${n} matches added.`),
     importedNone: 'Nothing added: you already had them all.',
     importedSkipped: (n: number) => (n === 1 ? '1 was already there.' : `${n} were already there.`),
-    importBad: 'That file is not a Vigía backup.',
+    importBad: 'That file is not a Vigia backup.',
     importFailed: 'Could not read the file.',
     ok: 'Done',
   },
@@ -300,7 +300,7 @@ export const en: Dict = {
   },
 
   welcome: {
-    title: 'Welcome to Vigía',
+    title: 'Welcome to Vigia',
     text: 'To learn how to use the app, open Help.',
     help: 'Help',
     close: 'Close',
@@ -360,7 +360,7 @@ export const en: Dict = {
     privacy: 'Privacy policy',
     contact: 'Contact us',
     rate: 'Rate the app',
-    version: 'Vigía {v}',
+    version: 'Vigia {v}',
 
     startHint:
       'To begin, tap {icon} New match. If you leave a match unfinished, you can pick it up later from History.',
