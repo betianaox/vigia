@@ -48,7 +48,8 @@ export const it: Dict = {
 
     resumeEyebrow: 'PARTITA IN CORSO',
     resume: 'Continua',
-    end: 'Termina',
+    archive: 'Archivia',
+    archiveNote: 'Una volta archiviata, la partita si può riprendere dallo Storico.',
 
     namePlaceholder: 'Nome',
 

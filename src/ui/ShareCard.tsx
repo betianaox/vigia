@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 
 import type { MatchConfig, MatchEvent, MatchState, PlayerId, TeamId } from '../engine';
 import { computeStats } from '../engine/stats';
-import { L, LOCALE } from '../i18n';
+import { L, LOCALE, type Lang } from '../i18n';
 import { Brand } from './Brand';
 import { FixedText as Text } from './FixedText';
 import { HeadToHead } from './charts/HeadToHead';
@@ -30,6 +30,31 @@ import { radius, space, type Colors } from './theme';
  * la tarjeta se mira dentro de una burbuja de WhatsApp, y tiene que leerse SIN hacer pinch.
  */
 export const CARD_WIDTH = 420;
+
+/**
+ * EL BADGE DE GOOGLE PLAY, EN EL IDIOMA DE LA APP.
+ *
+ * Hay un archivo por idioma y son los de Google, sin tocar: sus reglas de marca piden usar el
+ * artwork tal cual —no se recolorea, no se recorta y no se rehace con el texto traducido aunque
+ * quede identico—, asi que lo unico que hacemos es escalarlo. Los nombres son los que traen al
+ * descargarlos, a proposito: renombrarlos invita a que alguien crea que son nuestros.
+ *
+ * Los cuatro miden 478x142, con lo cual la proporcion no cambia entre idiomas y el pie de la
+ * tarjeta mide siempre lo mismo.
+ *
+ * `LOCALE` esta tipado como string porque lo reasigna `setLanguage`, asi que la busqueda cae al
+ * ingles si algun dia aparece un idioma sin archivo. Es lo que corresponde: el badge en ingles se
+ * entiende igual, y quedarse sin badge seria perder la unica invitacion que tiene la tarjeta.
+ */
+const BADGES: Record<Lang, number> = {
+  es: require('../../assets/googleplay/GetItOnGooglePlay_Badge_Web_color_Spanish-LATAM.png'),
+  en: require('../../assets/googleplay/GetItOnGooglePlay_Badge_Web_color_English.png'),
+  pt: require('../../assets/googleplay/GetItOnGooglePlay_Badge_Web_color_Portuguese-Brazil.png'),
+  it: require('../../assets/googleplay/GetItOnGooglePlay_Badge_Web_color_Italian.png'),
+};
+
+const BADGE_WIDTH = 104;
+const BADGE_HEIGHT = Math.round(BADGE_WIDTH * (142 / 478));
 
 /** "lun 13 jul", del primer punto que se jugo. */
 const playedOn = (events: MatchEvent[]): string => {
@@ -90,7 +115,12 @@ export function ShareCard({
           app es sabotearse solo. */}
       <View style={s.head}>
         <Brand size={30} tint={c.ball} />
-        <Text style={s.date}>{playedOn(events)}</Text>
+        {/* EL BADGE VA ARRIBA, AL LADO DE LA MARCA, Y NO EN EL PIE.
+            Abajo estiraba la tarjeta 18 puntos, porque reemplazaba un texto de 13 por una imagen
+            de 31. Aca no cuesta nada: el logo ya mide 30, asi que el renglon no crece. En una
+            imagen que se mira adentro de una burbuja de chat, cada punto de alto se paga.
+            Y de paso queda donde corresponde: quien la hizo y donde conseguirla, juntos. */}
+        <Image source={BADGES[LOCALE as Lang] ?? BADGES.en} style={s.badge} resizeMode="contain" />
       </View>
 
       {/* Los nombres los dice el tanteador, en el color de cada equipo. Estaban tambien arriba,
@@ -158,10 +188,12 @@ export function ShareCard({
         />
       </View>
 
-      {/* El pie: lo que duro, y de donde salio. Es la unica publicidad, y no tiene que gritar. */}
+      {/* El pie: cuando se jugo y cuanto duro. La marca ya no se repite aca —decia "Vigia" en
+          texto gris, que era el logo por segunda vez— y arriba quedaron solo el logo y el badge,
+          que es de donde salio y donde conseguirla. Los datos del partido van todos juntos abajo. */}
       <View style={s.foot}>
         <Text style={s.meta}>{meta}</Text>
-        <Text style={s.cta}>Vigia</Text>
+        <Text style={s.date}>{playedOn(events)}</Text>
       </View>
     </View>
   );
@@ -235,5 +267,11 @@ const makeStyles = (c: Colors) =>
 
   foot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   meta: { color: c.textFaint, fontSize: 12, fontWeight: '600' },
-  cta: { color: c.textDim, fontSize: 13, fontWeight: '800', letterSpacing: 0.5 },
+  /**
+   * SIN MARGEN. El PNG de Google no tiene aire: el dibujo llega al borde del archivo en los
+   * cuatro lados (medido). Asi que el borde derecho del badge cae exactamente donde caen el borde
+   * de los cuadros de abajo y el final de la fecha — los tres contra el padding de la tarjeta.
+   * Cualquier margen aca desalinea esa columna, que es justo lo que se nota en una imagen.
+   */
+  badge: { width: BADGE_WIDTH, height: BADGE_HEIGHT },
 });

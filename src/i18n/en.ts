@@ -69,7 +69,8 @@ export const en: Dict = {
 
     resumeEyebrow: 'MATCH IN PROGRESS',
     resume: 'Continue',
-    end: 'End',
+    archive: 'Archive',
+    archiveNote: 'Once archived, the match can be resumed from History.',
 
     namePlaceholder: 'Name',
 

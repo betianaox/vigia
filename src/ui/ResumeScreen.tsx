@@ -78,11 +78,18 @@ export function ResumeScreen({
             <Text style={s.btnText}>{L.setup.resume}</Text>
           </Pressable>
 
-          {/* SIN CONFIRMACION. Esta tarjeta YA ES la pregunta: dice que hay un partido a medias
+          {/* ARCHIVAR, NO TERMINAR. La acción es la misma de siempre y no cambió: el partido
+              deja de ofrecerse acá y queda en el historial como "sin terminar", con las
+              estadísticas de lo que se jugó. Lo que cambió es que ahora desde el historial se
+              puede retomar, y "Terminar" decía lo contrario — sonaba a punto final, y quien lo
+              leía así elegía seguir jugando un partido que no quería seguir, solo para no
+              perderlo.
+
+              SIN CONFIRMACION. Esta tarjeta YA ES la pregunta: dice que hay un partido a medias
               y ofrece las dos respuestas, una al lado de la otra. Un diálogo encima sería
               preguntar dos veces lo mismo — y a la segunda nadie lee, se toca el botón de la
-              derecha y listo. Terminarlo tampoco borra nada: el partido queda en el historial
-              como "sin terminar", con las estadísticas de lo que se jugó. */}
+              derecha y listo. Con el nombre correcto y la aclaración de abajo, encima ya no hay
+              nada que confirmar. */}
           <Pressable
             style={({ pressed: pr }) => [s.btn, s.end, pr && pressed]}
             android_ripple={ripple}
@@ -91,11 +98,17 @@ export function ResumeScreen({
               onEnd();
             }}
           >
-            {/* Play y stop: el par que ya existe en el mundo. */}
-            <MaterialIcons name="stop" size={22} color={c.textDim} />
-            <Text style={s.btnTextDim}>{L.setup.end}</Text>
+            {/* Ya no es "stop": un cuadrado de detener dice final, que es justo lo que se dejó
+                de decir. La caja de archivo dice guardado. */}
+            <MaterialIcons name="archive" size={22} color={c.textDim} />
+            <Text style={s.btnTextDim}>{L.setup.archive}</Text>
           </Pressable>
         </View>
+
+        {/* Debajo de los dos botones y no adentro del de archivar: es la letra chica de una
+            decisión, no la etiqueta de un botón. Va después porque se lee después — primero se
+            ven las dos opciones, y esto contesta la pregunta que queda ("¿lo pierdo?"). */}
+        <Text style={s.note}>{L.setup.archiveNote}</Text>
       </View>
     </SafeAreaView>
   );
@@ -122,6 +135,22 @@ const makeStyles = (c: Colors) =>
    * casi siempre.
    */
   actions: { flexDirection: 'row', gap: space.lg },
+  /**
+   * Apagada y centrada, con el ancho acotado. Es una aclaración: tiene que estar disponible para
+   * quien dude, y no llamar la atención de quien no. Por eso el color más tenue de la paleta y
+   * un cuerpo por debajo de todo lo demás de la pantalla.
+   */
+  note: {
+    color: c.textFaint,
+    fontSize: 13,
+    lineHeight: 18,
+    // A la izquierda, contra el mismo margen que los botones de arriba: se lee como una nota al
+    // pie de la decision y no como un cartel aparte. Centrada competia con los botones, que ya
+    // estan centrados.
+    textAlign: 'left',
+    alignSelf: 'stretch',
+    marginTop: space.lg,
+  },
   btn: {
     flexDirection: 'row',
     alignItems: 'center',

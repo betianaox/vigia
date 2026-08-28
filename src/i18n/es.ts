@@ -96,7 +96,8 @@ export const es = {
     /** La tarjeta del partido que quedo a medias. */
     resumeEyebrow: 'PARTIDO EN CURSO',
     resume: 'Seguir',
-    end: 'Terminar',
+    archive: 'Archivar',
+    archiveNote: 'Al archivar, el partido puede retomarse en el Historial.',
 
     namePlaceholder: 'Nombre',
 
