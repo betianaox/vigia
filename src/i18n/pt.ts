@@ -49,7 +49,7 @@ export const pt: Dict = {
     resumeEyebrow: 'JOGO EM CURSO',
     resume: 'Continuar',
     archive: 'Arquivar',
-    archiveNote: 'Ao arquivar, o jogo pode ser retomado no Histórico.',
+    archiveNote: 'Ao arquivar, o jogo pode ser retomado a partir do Histórico.',
 
     namePlaceholder: 'Nome',
 

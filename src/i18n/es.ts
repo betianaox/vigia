@@ -97,7 +97,7 @@ export const es = {
     resumeEyebrow: 'PARTIDO EN CURSO',
     resume: 'Seguir',
     archive: 'Archivar',
-    archiveNote: 'Al archivar, el partido puede retomarse en el Historial.',
+    archiveNote: 'Al archivar, el partido puede reanudarse desde el Historial.',
 
     namePlaceholder: 'Nombre',
 
